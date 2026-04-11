@@ -1,0 +1,35 @@
+{
+  "context_id": "card_reward_01",
+  "decision_type": "card_reward",
+  "floor": 9,
+  "act": 1,
+  "resources": {
+    "gold": 118,
+    "hp_ratio": 0.67
+  },
+  "tags": ["reward_screen", "temptation"],
+  "options": [
+    {
+      "option_id": "card_1",
+      "label": "Measured Guard",
+      "tags": ["defense", "safe", "discipline"],
+      "metadata": {}
+    },
+    {
+      "option_id": "card_2",
+      "label": "Triumphant Hunger",
+      "tags": ["greedy", "damage", "snowball"],
+      "metadata": {}
+    },
+    {
+      "option_id": "skip",
+      "label": "Decline the reward",
+      "tags": ["skip", "humble", "restraint"],
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "card_count": 16
+  }
+}
+

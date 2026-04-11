@@ -1,0 +1,39 @@
+{
+  "context_id": "shop_01",
+  "decision_type": "shop",
+  "floor": 14,
+  "act": 1,
+  "resources": {
+    "gold": 74,
+    "hp_ratio": 0.41
+  },
+  "tags": ["merchant", "temptation", "resource_pressure"],
+  "options": [
+    {
+      "option_id": "buy_potion",
+      "label": "Buy plain defensive potion",
+      "tags": ["safe", "utility", "practical"],
+      "metadata": {
+        "cost": 42
+      }
+    },
+    {
+      "option_id": "buy_relic",
+      "label": "Buy ornate relic with unclear payoff",
+      "tags": ["greedy", "ornate", "luxury"],
+      "metadata": {
+        "cost": 73
+      }
+    },
+    {
+      "option_id": "leave",
+      "label": "Leave without purchase",
+      "tags": ["restraint", "humble", "skip"],
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "merchant_discount": false
+  }
+}
+

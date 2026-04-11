@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunSnapshot",
+  "type": "object",
+  "required": [
+    "context_id",
+    "selected_rule_id",
+    "matched_rule_ids",
+    "theme_scores",
+    "option_results",
+    "ritual_collapse_delta"
+  ],
+  "properties": {
+    "context_id": { "type": "string" },
+    "selected_rule_id": { "type": ["string", "null"] },
+    "matched_rule_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "theme_scores": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "option_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "label", "verdict", "reasons", "collapse_if_taken"],
+        "properties": {
+          "option_id": { "type": "string" },
+          "label": { "type": "string" },
+          "verdict": { "type": "string", "enum": ["keep_ritual", "break_ritual"] },
+          "reasons": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "collapse_if_taken": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "ritual_collapse_delta": { "type": "integer", "minimum": 0 },
+    "narration": {
+      "type": "object",
+      "properties": {
+        "opening": { "type": "string" },
+        "judgement": { "type": "string" },
+        "warning": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+

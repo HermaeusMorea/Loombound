@@ -1,0 +1,41 @@
+{
+  "context_id": "map_01",
+  "decision_type": "map_routing",
+  "floor": 6,
+  "act": 1,
+  "resources": {
+    "gold": 92,
+    "hp_ratio": 0.34
+  },
+  "tags": ["branching_path", "route_choice", "risk_pressure"],
+  "options": [
+    {
+      "option_id": "path_a",
+      "label": "Three fights into elite",
+      "tags": ["elite", "greedy", "high_risk"],
+      "metadata": {
+        "nodes": ["fight", "fight", "fight", "elite"]
+      }
+    },
+    {
+      "option_id": "path_b",
+      "label": "Fight into rest into shop",
+      "tags": ["safe", "rest", "shop", "ordered"],
+      "metadata": {
+        "nodes": ["fight", "rest", "shop"]
+      }
+    },
+    {
+      "option_id": "path_c",
+      "label": "Question marks with uncertain payout",
+      "tags": ["uncertain", "event", "medium_risk"],
+      "metadata": {
+        "nodes": ["event", "event", "fight"]
+      }
+    }
+  ],
+  "metadata": {
+    "note": "Low HP before an elite branch."
+  }
+}
+

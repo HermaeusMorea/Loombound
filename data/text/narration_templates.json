@@ -1,0 +1,27 @@
+{
+  "opening_neutral": [
+    "今有一事，系于{decision_type}，其形未足以成定礼。"
+  ],
+  "opening_order": [
+    "名分既列于前，今之所争，不在利多，而在次序。"
+  ],
+  "opening_restraint": [
+    "诸物杂陈于前，此时所贵者，不是多取，而是知止。"
+  ],
+  "opening_avoid_conflict": [
+    "气力未充而强争在侧，此处当先避其锋，再论余事。"
+  ],
+  "opening_humility": [
+    "财用未丰而华物在前，礼所重者，当是守分，不是饰面。"
+  ],
+  "judgement_default": [
+    "本席据此立一条：{rule_name}。其意归于 {theme}。"
+  ],
+  "warning_default": [
+    "若执意违之，则记一笔失仪，礼崩增量约为 {penalty}。"
+  ],
+  "fallback": [
+    "礼意未明，姑存此议。"
+  ]
+}
+

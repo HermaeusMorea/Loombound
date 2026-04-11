@@ -1,0 +1,28 @@
+{
+  "context_id": "relic_01",
+  "decision_type": "relic_choice",
+  "floor": 17,
+  "act": 1,
+  "resources": {
+    "gold": 126,
+    "hp_ratio": 0.63
+  },
+  "tags": ["temptation", "reward_screen"],
+  "options": [
+    {
+      "option_id": "plain_idol",
+      "label": "Take the plain warding idol",
+      "tags": ["safe", "practical", "discipline"],
+      "metadata": {}
+    },
+    {
+      "option_id": "crown_of_boasts",
+      "label": "Take the gilded crown of boasts",
+      "tags": ["greedy", "ornate", "luxury"],
+      "metadata": {}
+    }
+  ],
+  "metadata": {
+    "relic_source": "elite_reward_placeholder"
+  }
+}

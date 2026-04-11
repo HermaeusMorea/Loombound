@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RuleTemplate",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "decision_types",
+    "theme",
+    "priority",
+    "match",
+    "preferred_option_tags",
+    "forbidden_option_tags",
+    "collapse_penalty"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "decision_types": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "theme": { "type": "string" },
+    "priority": { "type": "integer" },
+    "match": {
+      "type": "object",
+      "properties": {
+        "required_context_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "min_hp_ratio": { "type": "number" },
+        "max_hp_ratio": { "type": "number" },
+        "min_gold": { "type": "integer" },
+        "max_gold": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "preferred_option_tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_option_tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "collapse_penalty": { "type": "integer", "minimum": 0 },
+    "narration_keys": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}
+

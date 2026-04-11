@@ -1,0 +1,62 @@
+{
+  "rules": [
+    {
+      "id": "rule_low_hp_avoid_elite",
+      "name": "伤疲之际，不先趋强敌",
+      "decision_types": ["map_routing"],
+      "theme": "avoid_conflict",
+      "priority": 100,
+      "match": {
+        "max_hp_ratio": 0.45,
+        "required_context_tags": ["route_choice"]
+      },
+      "preferred_option_tags": ["safe"],
+      "forbidden_option_tags": ["elite", "high_risk"],
+      "collapse_penalty": 2,
+      "narration_keys": ["opening_avoid_conflict", "judgement_default", "warning_default"]
+    },
+    {
+      "id": "rule_temptation_choose_restraint",
+      "name": "诸物并陈，当先自抑",
+      "decision_types": ["card_reward", "shop", "event_branch", "relic_choice"],
+      "theme": "restraint",
+      "priority": 90,
+      "match": {
+        "required_context_tags": ["temptation"]
+      },
+      "preferred_option_tags": ["safe", "restraint", "humble"],
+      "forbidden_option_tags": ["greedy", "luxury"],
+      "collapse_penalty": 1,
+      "narration_keys": ["opening_restraint", "judgement_default", "warning_default"]
+    },
+    {
+      "id": "rule_branching_preserve_order",
+      "name": "道路既分，当先定其序",
+      "decision_types": ["map_routing", "event_branch"],
+      "theme": "order",
+      "priority": 70,
+      "match": {
+        "required_context_tags": ["branching_path"]
+      },
+      "preferred_option_tags": ["ordered", "safe"],
+      "forbidden_option_tags": ["uncertain"],
+      "collapse_penalty": 1,
+      "narration_keys": ["opening_order", "judgement_default", "warning_default"]
+    },
+    {
+      "id": "rule_poor_shop_no_ornament",
+      "name": "囊薄之时，不竞华饰",
+      "decision_types": ["shop"],
+      "theme": "humility",
+      "priority": 95,
+      "match": {
+        "max_gold": 90
+      },
+      "preferred_option_tags": ["practical", "restraint"],
+      "forbidden_option_tags": ["ornate", "luxury"],
+      "collapse_penalty": 2,
+      "narration_keys": ["opening_humility", "judgement_default", "warning_default"]
+    }
+  ]
+}
+
