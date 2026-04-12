@@ -1,8 +1,8 @@
-# Backlog
+# 待办清单
 
-## Near-Term
+## 近期
 
-- 为 `omens_choice` 与 `market_offer` 增加更多样例 context
+- 为 `omens_choice` 与 `market_offer` 增加更多样例 arbitration
 - 增加多阶段 `sanity` / pressure 阈值设计
 - 增加“规则为何未被选中”的解释输出
 - 增加批量 campaign runner
@@ -10,21 +10,21 @@
 - 打磨 CLI HUD 的信息密度与窄终端表现
 - 评估是否要做 `textual` 版真正固定 HUD
 
-## Content
+## 内容
 
 - 扩充 `composure` 主题规则
 - 扩充 `clarity` 与 `self_preservation` 规则
-- 为 night market 增加“补给 / 诱物 / 离场”分类
-- 为 omens scene 增加“试探 / 克制 / 退避”分类
+- 为 `night_market` 增加“补给 / 诱物 / 离场”分类
+- 为 `omens` 场景增加“试探 / 克制 / 退避”分类
 
-## Architecture
+## 架构
 
 - 设计 rule conflict handling
 - 设计 adapter 层输入协议
 - 设计长期 run state 与 event log
 - 设计 LLM 生成 node / arbitration pack 的导入边界
 
-## Open Design Questions
+## 开放设计问题
 
 - 主题分数是否只用于排序，还是要作为启用阈值
 - 单节点是否允许主规则 + 附属警示规则

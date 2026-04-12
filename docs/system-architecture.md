@@ -1,4 +1,4 @@
-# System Architecture
+# 系统架构
 
 本文档描述 `black-archive` 当前采用的系统结构。它面向的是一个运行在 CLI 中的文字冒险 / 跑团式叙事游戏，而不是外部游戏 mod。
 
@@ -8,7 +8,7 @@
 
 也就是说，这份架构不是围绕“离线 demo”组织的，而是围绕一个已经可玩的 CLI loop 组织的。
 
-## 1. High-Level Model
+## 1. 顶层模型
 
 系统采用三层主运行时对象：
 
@@ -44,12 +44,12 @@
 - 维护当前 `Node`
 - 维护 run-level history
 
-`Run` 代表的问题是：
+`Run` 回答的问题是：
 
 - 这一整局当前到了哪里
 - 玩家整体状态如何
 - 之前发生过什么
-- 当前后续节点应该如何被解释或预载
+- 后续节点与 arbitration 应如何被生成、解释或预载
 
 ## 3. Node
 
@@ -102,11 +102,11 @@
 
 它负责保存：
 
-- scene type
-- floor / act
-- resources
-- tags
-- metadata
+- `scene_type`
+- `floor / act`
+- `resources`
+- `tags`
+- `metadata`
 - `CoreStateView`
 - `MetaStateView`
 
@@ -114,7 +114,7 @@
 
 - 一次 arbitration 的输入视图对象
 
-## 5. CoreState And MetaState
+## 5. CoreState 与 MetaState
 
 系统区分两类状态：
 
@@ -124,9 +124,9 @@
 
 当前更适合放在这里的内容包括：
 
-- health
-- money
-- sanity
+- `health`
+- `money`
+- `sanity`
 - inventory tags
 - location
 - 其他数值性与明确资源状态
@@ -144,14 +144,14 @@
 - 执念
 - 恐惧偏向
 - narrator tone
-- 更适合未来由 LLM 解释和整理的文本性状态
+- 更适合由 LLM 解释和整理的文本性状态
 
 这意味着：
 
 - `CoreState` 更偏事实
 - `MetaState` 更偏叙事解释
 
-## 6. Memory Model
+## 6. 记忆模型
 
 系统采用双层 memory：
 
@@ -176,7 +176,7 @@
 
 - 为后续裁决提供长期上下文
 - 为规则系统提供轻量 bias
-- 为未来 LLM 预载与世界解释提供摘要
+- 为 LLM 的节点生成、memory 总结与世界解释提供摘要
 
 ### `NodeMemory`
 
@@ -197,7 +197,7 @@
 - 记录节点内每次 arbitration 的结果
 - 在节点结束时向 `RunMemory` 提炼重要信息
 
-## 7. Rule System
+## 7. 规则系统
 
 规则系统由三部分构成：
 
@@ -222,8 +222,8 @@
 当前负责：
 
 - 持有 templates
-- 记录 recently used rules
-- 记录 rule use counts
+- 记录最近使用过的规则
+- 记录规则使用次数
 
 ### `NodeRuleState`
 
@@ -232,11 +232,11 @@
 当前负责：
 
 - 当前节点可用规则
-- 当前 arbitration 候选规则
+- 当前 arbitration 的候选规则
 - 选中的规则
 - selection trace
 
-## 8. Deterministic Pipeline
+## 8. 决定论主链
 
 当前一条 arbitration 的决定论主链是：
 
@@ -251,9 +251,9 @@
 5. 选出一条主规则
 6. 对所有 options 给出 `stable / destabilizing` 裁决
 7. 计算 `sanity_cost` 与 `sanity_delta`
-8. 可选生成 narration
+8. 生成 narration；其中 LLM 可以作为结构化 narration 生成层参与
 
-## 9. State Adapter
+## 9. 状态适配层
 
 `state_adapter` 是当前系统的内容入口边界。
 
@@ -261,23 +261,24 @@
 
 - 读取 authored JSON assets
 - 将外部内容装配为内部运行时对象
-- 在未来承接 LLM 动态生成的 rule pack / node pack / arbitration pack
+- 承接 LLM 动态生成的 rule pack / node pack / arbitration pack / narration pack / proposal pack
 
 它的意义不是“只是读文件”，而是：
 
 - 把外部内容格式与内部运行时结构隔开
 - 保证 kernel 永远处理统一的内部对象，而不是直接处理自由文本或松散 dict
 
-对当前项目来说，这一层尤其重要，因为未来 LLM 更适合生成：
+对当前项目来说，这一层尤其重要，因为 LLM 是必需内容层，并且最适合生成：
 
 - 节点素材
 - arbitration 场景
 - narration 细节
-- MetaState 补充描述
+- `MetaState` 补充描述
+- rule bias 与 effect proposal
 
 而这些内容进入 `Run / Node / Arbitration` 之前，都应该先通过 `state_adapter` 正规化。
 
-## 10. Enforcement
+## 10. 执行层
 
 `enforcement` 当前负责：
 
@@ -288,10 +289,11 @@
   - `destabilizing`
   - `sanity_cost`
   - `sanity_delta`
+- 将被选中的 option effects 写回 `Run`
 
-这一层当前只做软性的状态与文本后果，不做复杂战斗结算或外部写回。
+这一层当前只做软性的状态与文本后果，不做复杂战斗结算。
 
-## 11. Presentation Module
+## 11. 展示层
 
 `presentation` 当前负责：
 
@@ -317,7 +319,7 @@
 
 - `src/core/presentation/cli.py`
 
-## 12. Runtime Module
+## 12. 运行时模块
 
 `runtime` 是当前仓库的运行时胶水层。
 
@@ -325,14 +327,14 @@
 
 - `Run / Node / Arbitration` 生命周期
 - CLI gameplay loop
-- campaign flow and map progression
+- campaign flow 与 map progression
 
 当前核心入口有：
 
 - `src/core/runtime/play_cli.py`
 - `src/core/runtime/campaign.py`
 
-## 13. Authoring And LLM Role
+## 13. 内容资产与 LLM 角色
 
 `authoring` 负责：
 
@@ -342,22 +344,24 @@
 - nodes
 - campaigns
 
-LLM 当前不直接替代 kernel。
+LLM 是当前项目中的必需层，但不直接替代 kernel。
 
-更合适的位置是：
+它当前更合适的位置是：
 
-- 在局前或节点前预载未来内容
-- 根据 `RunMemory` 预生成下几个节点的信息
+- 自动生成 campaign / node / arbitration / rule / narration 内容资产
+- 在局前或节点前预载后续内容
+- 根据 `RunMemory` 预生成下几个节点与 arbitration 的信息
 - 预生成 node 内每次 `Arbitration` 的具体事件素材
+- 提议 rule bias、effect flavor 与 meta consequences
 - 在裁决已经确定后，为每次 arbitration 生成文字演出
-- 未来帮助整理 `MetaState`
+- 帮助整理 `MetaState`
 
 这意味着：
 
 - kernel 管结构、规则、合法状态更新
-- LLM 管细节、氛围、文本表现、未来节点预载
+- LLM 管内容资产生成、预载、文本表现以及结构化提议
 
-## 14. Current Scope
+## 14. 当前范围
 
 当前仓库的重点不是外部 API 接入，而是：
 
@@ -371,8 +375,8 @@ LLM 当前不直接替代 kernel。
 
 下一阶段则应继续朝这些方向推进：
 
-- 完整地图推进 loop
+- 更完整的地图推进 loop
 - 更丰富的 node 类型
 - 更明确的 `CoreState / MetaState` 边界
 - 更深的 `RunMemory` 反馈
-- LLM 预载与叙事演出整合
+- LLM 内容资产生成、预载与结构化提议整合

@@ -1,16 +1,18 @@
 # black-archive
 
-`black-archive` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。它当前的目标不是做图形界面，也不是接入外部游戏，而是先验证一套：
+`black-archive` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。
 
-- deterministic-first 的裁决内核
-- `Run -> Node -> Arbitration` 的运行时结构
-- `RunMemory / NodeMemory` 的双层记忆模型
-- LLM 负责预载内容与文字演出，kernel 负责状态与合法更新
+它当前的目标不是做图形界面，也不是接入外部游戏，而是先验证一套稳定的游戏结构：
+
+- 以决定论为优先的裁决内核
+- `Run -> Node -> Arbitration` 的运行时模型
+- `RunMemory / NodeMemory` 的双层记忆
+- LLM 负责生成内容资产、预载后续内容并参与提议，kernel 负责状态与合法更新
 - 一个真正可玩的终端 HUD 式体验
 
 ## 游戏是什么
 
-这个项目现在可以理解成一个带有克苏鲁式心智压力主题的命令行叙事游戏。
+这个项目当前可以理解成一个带有克苏鲁式心智压力主题的命令行叙事游戏。
 
 游戏场景分为两层：
 
@@ -18,13 +20,13 @@
 玩家在地图上推进，并决定下一个要进入哪个节点。
 
 2. 地图节点 `Node`  
-每个节点代表一个局部场景，例如某次遭遇、调查、交易、仪式、异象或事件链。
+每个节点代表一个局部场景，例如遭遇、调查、交易、仪式、异象或事件链。
 
-玩家在地图上选择要去的下一个节点后，会进入该节点，并在节点内经历一个或多个事件选择。
+玩家在地图上选择下一个节点后，会进入该节点，并在节点内经历一个或多个事件选择。
 
 ## 核心玩法循环
 
-当前设计中的一次完整流程是：
+当前设计中的完整流程是：
 
 1. 初始化一局 `Run`
 2. 在全局地图上选择下一个 `Node`
@@ -35,7 +37,7 @@
 7. 节点结束后，将 `NodeMemory` 提炼并写入 `RunMemory`
 8. 回到全局地图，继续下一节点
 
-这里的 `Arbitration` 就是“当前一次需要玩家选择、也需要系统给出裁决的场景”。
+这里的 `Arbitration` 就是“当前一次需要玩家选择，也需要系统给出裁决的场景”。
 
 ## CLI HUD
 
@@ -45,7 +47,7 @@
 - 中间内容区：显示当前 node、arbitration 或结算结果
 - 底部输入区：显示当前输入提示
 
-界面目前使用 ANSI 颜色与盒状布局实现，并且在窄终端下会自动从双栏切成上下堆叠，以减少边框断裂和换行错位。
+界面目前使用 ANSI 颜色和盒状布局实现，并且在窄终端下会自动从双栏切成上下堆叠，以减少边框断裂和换行错位。
 
 ## 状态系统
 
@@ -55,11 +57,11 @@
 
 `CoreState` 是结构化、决定论、立即生效的状态，例如：
 
-- health
-- money
-- sanity
-- inventory / tags
-- current location
+- `health`
+- `money`
+- `sanity`
+- `inventory / tags`
+- `current location`
 
 这类状态由 kernel 严格维护与更新。
 
@@ -73,7 +75,7 @@
 - 恐惧偏向
 - 人物当前的叙事印象
 
-这类状态可以保留结构化字段，也可以包含未来由 LLM 解释和整理的文本性描述。
+这类状态可以保留结构化字段，也可以包含由 LLM 解释和整理的文本性描述。
 
 ## 运行时架构
 
@@ -117,31 +119,33 @@
 其中：
 
 - `runtime` 负责 `Run / Node / Arbitration` 生命周期
-- `state_adapter` 负责把 authored assets 与未来 LLM 生成内容装配成内部运行时对象
-- `rule_engine` 负责规则匹配、选择与 rule runtime state
+- `state_adapter` 负责把手写资产与 LLM 生成内容装配成内部运行时对象
+- `rule_engine` 负责规则匹配、选择与规则运行时状态
 - `presentation` 负责 CLI 展示布局与输出格式
 - `memory` 负责 `RunMemory / NodeMemory`
 - `narration` 负责文字演出
-- `authoring` 负责规则、文本模板与样例内容
+- `authoring` 负责规则、文本模板与内容资产
 
 ## LLM 在项目中的角色
 
-LLM 不直接替代 kernel。
+LLM 是当前项目中的必需层，但它不直接替代 kernel。
 
-当前更适合它的位置是：
+它当前承担这些核心职责：
 
-- 预载未来节点的叙事细节
-- 根据已有 `RunMemory` 预生成后续几个节点的信息
-- 为 node 内的每次 `Arbitration` 预生成事件素材或候选效果描述
-- 在节点内基于已经确定的裁决结果，生成每次 `Arbitration` 的文字演出
-- 未来帮助整理 `MetaState`
+- 自动生成结构化内容资产
+- 根据已有 `RunMemory` 预生成后续节点与 arbitration 的信息
+- 为 node 内的每次 `Arbitration` 预生成事件素材、候选效果描述与 rule bias 提议
+- 在节点内基于已经确定的裁决结果生成文字演出
+- 整理 `MetaState` 与 memory summary
 
 这些内容进入程序时，应该优先经过 `state_adapter`：
 
 - authored JSON
-- future LLM rule packs
-- future LLM node packs
-- future LLM arbitration packs
+- LLM rule packs
+- LLM node packs
+- LLM arbitration packs
+- LLM narration packs
+- LLM effect / meta proposals
 
 这样 kernel 内部始终只处理统一、可验证的运行时对象，而不是直接处理自由文本。
 
@@ -163,8 +167,7 @@ LLM 不直接替代 kernel。
 当前 repo 还没有：
 
 - 图形界面
-- 外部游戏 API 接入
-- 完整的 LLM 接入
+- 完整的 LLM 接口实现
 - 最终世界观文本定稿
 
 ## 运行
@@ -177,10 +180,11 @@ python -m src.core.runtime.play_cli
 
 ## 当前方向
 
-接下来的重点不是接外部游戏，而是：
+接下来的重点是：
 
 - 继续打磨 CLI 玩法 loop
 - 继续打磨 CLI HUD 与输入体验
+- 接入 LLM 生成内容资产与结构化提议接口
 - 完善 `Run / Node / Arbitration` 的内容生成与裁决体验
 - 让 `MetaState` 与 LLM 的角色更清晰
 - 逐步把原型推进成可玩的命令行叙事跑团游戏
