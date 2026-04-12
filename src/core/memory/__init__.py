@@ -1,29 +1,35 @@
-"""Run-scoped ritual memory models and reducers."""
+"""Run-scoped sanity memory models and reducers."""
 
 from .types import (
-    JudgeMood,
+    NarratorMood,
     JudgePersonaState,
     NodeChoiceRecord,
     NodeEvent,
     NodeMemory,
     RunMemory,
-    ViolationRecord,
+    ShockRecord,
 )
 from .run_memory import (
     update_after_node,
     run_memory_to_dict,
     update_after_choice,
 )
+from .recording import (
+    append_node_event,
+    record_choice,
+)
 
 __all__ = [
-    "JudgeMood",
+    "NarratorMood",
     "JudgePersonaState",
     "NodeChoiceRecord",
     "NodeEvent",
     "NodeMemory",
     "RunMemory",
-    "ViolationRecord",
+    "ShockRecord",
     "update_after_node",
     "run_memory_to_dict",
     "update_after_choice",
+    "append_node_event",
+    "record_choice",
 ]

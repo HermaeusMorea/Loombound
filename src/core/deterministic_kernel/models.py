@@ -8,13 +8,14 @@ from typing import Any
 
 @dataclass(slots=True)
 class CoreStateView:
-    """Structured read-only view of native game-owned state."""
+    """Structured view of the current deterministic gameplay state."""
 
     floor: int
     act: int = 1
-    hp: int | None = None
-    max_hp: int | None = None
-    gold: int | None = None
+    health: int | None = None
+    max_health: int | None = None
+    money: int | None = None
+    sanity: int | None = None
     character_id: str | None = None
     scene_type: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -22,11 +23,11 @@ class CoreStateView:
 
 @dataclass(slots=True)
 class MetaStateView:
-    """Overlay-owned state view used by the ritual judge system."""
+    """Overlay-owned state view used by the sanity-pressure system."""
 
-    ritual_collapse: int = 0
-    active_edicts: list[str] = field(default_factory=list)
-    judge_mood: dict[str, int] = field(default_factory=dict)
+    sanity: int = 0
+    active_conditions: list[str] = field(default_factory=list)
+    narrator_tone: dict[str, int] = field(default_factory=dict)
     theme_bias: dict[str, int] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -96,12 +97,12 @@ class ArbitrationContext:
             self.core_state_view = CoreStateView(
                 floor=self.floor,
                 act=self.act,
-                gold=self.resources.get("gold"),
+                health=self.resources.get("health"),
+                max_health=self.resources.get("max_health"),
+                money=self.resources.get("money"),
+                sanity=self.resources.get("sanity"),
                 scene_type=self.scene_type,
-                metadata={
-                    "hp_ratio": self.resources.get("hp_ratio"),
-                    **self.metadata,
-                },
+                metadata={**self.metadata},
             )
         if self.meta_state_view is None:
             self.meta_state_view = MetaStateView()
@@ -129,7 +130,7 @@ class ArbitrationContext:
 
 @dataclass(slots=True)
 class RuleTemplate:
-    """Reusable rule template for deterministic ritual judgement."""
+    """Reusable rule template for deterministic sanity judgement."""
 
     id: str
     name: str
@@ -137,13 +138,15 @@ class RuleTemplate:
     theme: str
     priority: int
     required_context_tags: list[str] = field(default_factory=list)
-    min_hp_ratio: float | None = None
-    max_hp_ratio: float | None = None
-    min_gold: int | None = None
-    max_gold: int | None = None
+    min_health: int | None = None
+    max_health: int | None = None
+    min_money: int | None = None
+    max_money: int | None = None
+    min_sanity: int | None = None
+    max_sanity: int | None = None
     preferred_option_tags: list[str] = field(default_factory=list)
     forbidden_option_tags: list[str] = field(default_factory=list)
-    collapse_penalty: int = 0
+    sanity_penalty: int = 0
     narration_keys: list[str] = field(default_factory=list)
 
     @classmethod
@@ -158,13 +161,15 @@ class RuleTemplate:
             theme=payload["theme"],
             priority=payload["priority"],
             required_context_tags=payload.get("required_context_tags", match.get("required_context_tags", [])),
-            min_hp_ratio=payload.get("min_hp_ratio", match.get("min_hp_ratio")),
-            max_hp_ratio=payload.get("max_hp_ratio", match.get("max_hp_ratio")),
-            min_gold=payload.get("min_gold", match.get("min_gold")),
-            max_gold=payload.get("max_gold", match.get("max_gold")),
+            min_health=payload.get("min_health", match.get("min_health")),
+            max_health=payload.get("max_health", match.get("max_health")),
+            min_money=payload.get("min_money", match.get("min_money")),
+            max_money=payload.get("max_money", match.get("max_money")),
+            min_sanity=payload.get("min_sanity", match.get("min_sanity")),
+            max_sanity=payload.get("max_sanity", match.get("max_sanity")),
             preferred_option_tags=payload.get("preferred_option_tags", []),
             forbidden_option_tags=payload.get("forbidden_option_tags", []),
-            collapse_penalty=payload.get("collapse_penalty", 0),
+            sanity_penalty=payload.get("sanity_penalty", 0),
             narration_keys=payload.get("narration_keys", []),
         )
 
@@ -187,7 +192,7 @@ class OptionResult:
     label: str
     verdict: str
     reasons: list[str]
-    collapse_if_taken: int
+    sanity_cost: int
 
 
 @dataclass(slots=True)
@@ -206,7 +211,7 @@ class ArbitrationResult:
     selected_rule_id: str | None
     matched_rule_ids: list[str]
     option_results: list[OptionResult]
-    ritual_collapse_delta: int
+    sanity_delta: int
     theme_scores: dict[str, float] = field(default_factory=dict)
     narration: NarrationBlock = field(default_factory=NarrationBlock)
 
@@ -218,7 +223,7 @@ class NodeSummary:
     node_id: str
     node_type: str
     floor: int
-    collapse_delta: int = 0
+    sanity_delta: int = 0
     important_flags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -232,7 +237,7 @@ class RunSnapshot:
     matched_rule_ids: list[str]
     theme_scores: dict[str, float]
     option_results: list[OptionResult]
-    ritual_collapse_delta: int
+    sanity_delta: int
     narration: NarrationBlock = field(default_factory=NarrationBlock)
 
     def to_dict(self) -> dict[str, Any]:
@@ -249,11 +254,11 @@ class RunSnapshot:
                     "label": item.label,
                     "verdict": item.verdict,
                     "reasons": item.reasons,
-                    "collapse_if_taken": item.collapse_if_taken,
+                    "sanity_cost": item.sanity_cost,
                 }
                 for item in self.option_results
             ],
-            "ritual_collapse_delta": self.ritual_collapse_delta,
+            "sanity_delta": self.sanity_delta,
             "narration": {
                 "opening": self.narration.opening,
                 "judgement": self.narration.judgement,

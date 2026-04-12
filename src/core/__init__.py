@@ -1,4 +1,4 @@
-"""Core modules for the ritual director prototype."""
+"""Core modules for the sanity-pressure narrative prototype."""
 
 __all__ = [
     "deterministic_kernel",
@@ -6,9 +6,9 @@ __all__ = [
     "signal_interpretation",
     "rule_engine",
     "enforcement",
+    "presentation",
     "narration",
     "memory",
     "authoring",
-    "overlay_integration",
     "runtime",
 ]

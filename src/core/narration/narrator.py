@@ -21,8 +21,8 @@ def render_narration(
         opening = _pick(templates, "opening_neutral")
         return NarrationBlock(
             opening=opening.format(decision_type=arbitration.context.scene_type),
-            judgement="此处暂未立成定则，姑记其状。",
-            warning="未有违礼之判。",
+            judgement="The scene is logged, but no stabilizing pattern has been locked in yet.",
+            warning="No sanity risk has been marked.",
         )
 
     opening_key = f"opening_{rule.theme}"
@@ -34,7 +34,7 @@ def render_narration(
     return NarrationBlock(
         opening=_pick(templates, opening_key).format(decision_type=arbitration.context.scene_type),
         judgement=_pick(templates, judgement_key).format(rule_name=rule.name, theme=rule.theme),
-        warning=_pick(templates, warning_key).format(penalty=rule.collapse_penalty),
+        warning=_pick(templates, warning_key).format(penalty=rule.sanity_penalty),
     )
 
 

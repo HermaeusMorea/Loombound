@@ -1,0 +1,16 @@
+{
+  "node_id": "archive_stack:floor_04",
+  "node_type": "archive_stack",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "A library node with two linked arbitrations: first the whispering ledger, then the offered artifacts."
+  },
+  "arbitrations": [
+    {
+      "file": "data/arbitrations/whisper_offer/whisper_offer_01.json"
+    },
+    {
+      "file": "data/arbitrations/artifact_offer/artifact_offer_01.json"
+    }
+  ]
+}

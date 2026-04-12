@@ -1,0 +1,49 @@
+{
+  "arbitration_id": "artifact_offer_01",
+  "context": {
+    "context_id": "artifact_offer_01",
+    "scene_type": "artifact_offer",
+    "floor": 4,
+    "act": 1,
+    "resources": {
+      "health": 6,
+      "max_health": 10,
+      "money": 4,
+      "sanity": 5
+    },
+    "tags": ["temptation", "archive_reward"],
+    "metadata": {
+      "scene_summary": "Behind the ledger waits a tray of objects: one useful, one beautiful, one clearly wrong.",
+      "sanity_question": "Which object keeps you anchored, and which one only feels like power?"
+    }
+  },
+  "options": [
+    {
+      "option_id": "chalk_bundle",
+      "label": "Take the chalk bundle and warding pins",
+      "tags": ["safe", "practical", "grounded"],
+      "metadata": {
+        "effects": {
+          "add_conditions": ["warding_tools"],
+          "add_events": ["You pocketed the warding tools and felt a little less exposed."]
+        }
+      }
+    },
+    {
+      "option_id": "glass_eye",
+      "label": "Take the polished glass eye",
+      "tags": ["greedy", "ornate", "occult"],
+      "metadata": {
+        "effects": {
+          "sanity_delta": -1,
+          "add_conditions": ["glass_eye"],
+          "add_events": ["The glass eye warms whenever you stop looking directly at it."]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "owner_hint": "node",
+    "asset_note": "Artifact-offer arbitration sample."
+  }
+}

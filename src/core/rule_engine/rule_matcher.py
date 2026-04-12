@@ -19,7 +19,7 @@ def evaluate_rule(
         return RuleEvaluation(rule=rule, matched=False, reasons=["decision_type_mismatch"], theme_score=0.0)
 
     if rule.required_context_tags:
-        # Context tags act as coarse scene markers, e.g. "route_choice" or
+        # Context tags act as coarse scene markers, e.g. "branching_path" or
         # "temptation". They let rules say "I only belong in this sort of room".
         missing_tags = [tag for tag in rule.required_context_tags if tag not in arbitration.context.tags]
         if missing_tags:
@@ -31,18 +31,23 @@ def evaluate_rule(
             )
         reasons.append("context_tags_matched")
 
-    hp_ratio = float(arbitration.context.resources.get("hp_ratio", 1.0))
-    gold = int(arbitration.context.resources.get("gold", 0))
+    health = int(arbitration.context.resources.get("health", 0))
+    money = int(arbitration.context.resources.get("money", 0))
+    sanity = int(arbitration.context.resources.get("sanity", 0))
 
     # Numeric bounds are the first prototype's main trigger language.
-    if rule.min_hp_ratio is not None and hp_ratio < rule.min_hp_ratio:
-        return RuleEvaluation(rule=rule, matched=False, reasons=["hp_below_min"], theme_score=0.0)
-    if rule.max_hp_ratio is not None and hp_ratio > rule.max_hp_ratio:
-        return RuleEvaluation(rule=rule, matched=False, reasons=["hp_above_max"], theme_score=0.0)
-    if rule.min_gold is not None and gold < rule.min_gold:
-        return RuleEvaluation(rule=rule, matched=False, reasons=["gold_below_min"], theme_score=0.0)
-    if rule.max_gold is not None and gold > rule.max_gold:
-        return RuleEvaluation(rule=rule, matched=False, reasons=["gold_above_max"], theme_score=0.0)
+    if rule.min_health is not None and health < rule.min_health:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["health_below_min"], theme_score=0.0)
+    if rule.max_health is not None and health > rule.max_health:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["health_above_max"], theme_score=0.0)
+    if rule.min_money is not None and money < rule.min_money:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["money_below_min"], theme_score=0.0)
+    if rule.max_money is not None and money > rule.max_money:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["money_above_max"], theme_score=0.0)
+    if rule.min_sanity is not None and sanity < rule.min_sanity:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["sanity_below_min"], theme_score=0.0)
+    if rule.max_sanity is not None and sanity > rule.max_sanity:
+        return RuleEvaluation(rule=rule, matched=False, reasons=["sanity_above_max"], theme_score=0.0)
 
     reasons.append("numeric_bounds_matched")
     return RuleEvaluation(

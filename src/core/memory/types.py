@@ -23,30 +23,30 @@ class NodeChoiceRecord:
     active_rule_id: str | None = None
     active_rule_theme: str | None = None
     player_choice: str | None = None
-    violation_triggered: bool = False
-    collapse_delta: int = 0
+    destabilized: bool = False
+    sanity_delta: int = 0
     local_flags: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
-class ViolationRecord:
-    """Compact long-lived record of one actual ritual violation."""
+class ShockRecord:
+    """Compact long-lived record of one actual destabilizing choice."""
 
     context_id: str
     rule_id: str | None
     scene_type: str
     option_id: str
     flags: list[str] = field(default_factory=list)
-    collapse_delta: int = 0
+    sanity_delta: int = 0
 
 
 @dataclass(slots=True)
-class JudgeMood:
-    """Structured judge attitude values for deterministic use later."""
+class NarratorMood:
+    """Structured narrator pressure values for deterministic use later."""
 
     severity: int = 0
-    suspicion: int = 0
-    anti_greed: int = 0
+    dread: int = 0
+    temptation: int = 0
     leniency: int = 0
 
 
@@ -67,8 +67,8 @@ class NodeMemory:
     floor: int
     events: list[NodeEvent] = field(default_factory=list)
     choices_made: list[NodeChoiceRecord] = field(default_factory=list)
-    violations_in_node: list[ViolationRecord] = field(default_factory=list)
-    collapse_gained_in_node: int = 0
+    shocks_in_node: list[ShockRecord] = field(default_factory=list)
+    sanity_lost_in_node: int = 0
     important_flags: list[str] = field(default_factory=list)
     node_summary: str = ""
 
@@ -77,12 +77,12 @@ class NodeMemory:
 class RunMemory:
     """Long-lived run-scoped memory that survives across nodes."""
 
-    ritual_collapse: int = 0
-    recent_edicts: list[str] = field(default_factory=list)
-    recent_violations: list[ViolationRecord] = field(default_factory=list)
+    sanity: int = 0
+    recent_rules: list[str] = field(default_factory=list)
+    recent_shocks: list[ShockRecord] = field(default_factory=list)
     theme_counters: dict[str, int] = field(default_factory=dict)
     behavior_counters: dict[str, int] = field(default_factory=dict)
     important_incidents: list[str] = field(default_factory=list)
-    judge_mood: JudgeMood = field(default_factory=JudgeMood)
+    narrator_mood: NarratorMood = field(default_factory=NarratorMood)
     persona_summary: str = ""
     persona: JudgePersonaState = field(default_factory=JudgePersonaState)

@@ -1,27 +1,26 @@
 {
   "opening_neutral": [
-    "今有一事，系于{decision_type}，其形未足以成定礼。"
+    "The scene opens around {decision_type}, but no stable interpretation has formed yet."
   ],
-  "opening_order": [
-    "名分既列于前，今之所争，不在利多，而在次序。"
+  "opening_clarity": [
+    "Too many possible paths crowd the mind. The safest move is the one that keeps the picture clear."
   ],
-  "opening_restraint": [
-    "诸物杂陈于前，此时所贵者，不是多取，而是知止。"
+  "opening_composure": [
+    "Temptation is loud here. Composure matters more than appetite."
   ],
-  "opening_avoid_conflict": [
-    "气力未充而强争在侧，此处当先避其锋，再论余事。"
+  "opening_self_preservation": [
+    "The air is wrong and your nerves are already thin. Survival comes before bravado."
   ],
-  "opening_humility": [
-    "财用未丰而华物在前，礼所重者，当是守分，不是饰面。"
+  "opening_detachment": [
+    "Not every shining thing deserves a hand reaching toward it. Distance can be a mercy."
   ],
   "judgement_default": [
-    "本席据此立一条：{rule_name}。其意归于 {theme}。"
+    "The kernel settles on one stabilizing pattern: {rule_name}. Its pressure aligns with {theme}."
   ],
   "warning_default": [
-    "若执意违之，则记一笔失仪，礼崩增量约为 {penalty}。"
+    "If you push against it, the expected sanity cost is about {penalty}."
   ],
   "fallback": [
-    "礼意未明，姑存此议。"
+    "The scene remains unresolved, but the trace is preserved."
   ]
 }
-

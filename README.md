@@ -1,84 +1,186 @@
-# li-director-sts2
+# black-archive
 
-`li-director-sts2` 是一个面向原型阶段的 Python 仓库，用于验证“Slay the Spire 2 风格的 AI 礼官导演系统”是否可行。
+`black-archive` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。它当前的目标不是做图形界面，也不是接入外部游戏，而是先验证一套：
 
-当前目标不是制作正式 mod，也不是让 AI 替玩家求解最优策略，而是先做三件事：
+- deterministic-first 的裁决内核
+- `Run -> Node -> Arbitration` 的运行时结构
+- `RunMemory / NodeMemory` 的双层记忆模型
+- LLM 负责预载内容与文字演出，kernel 负责状态与合法更新
+- 一个真正可玩的终端 HUD 式体验
 
-1. 把局面表示成稳定、可验证的外部 `Arbitration` 输入
-2. 用预定义规则模板对选项做“守礼 / 违礼”判断
-3. 生成可选的礼制旁白，并记录 `ritual_collapse` 与轻量 run memory
+## 游戏是什么
 
-## 当前范围
+这个项目现在可以理解成一个带有克苏鲁式心智压力主题的命令行叙事游戏。
 
-- 文档优先：先明确问题定义、MVP 边界、规则系统结构
-- 原型优先：先跑通离线 demo，不接入真实游戏 API
-- 决定论优先：规则选择与执行尽量稳定、可调试、可测试
-- 文案可选：旁白系统可关闭，未来可替换为 LLM 或模板混合方案
-- 当前仓库以 deterministic kernel 为核心原型，但长期设计上为更深入的 LLM 导演接入预留接口
-- 系统长期上将演化为带有 run 内记忆的礼官导演系统
-- 系统长期上定位为叠加在原生流程之上的 overlay ritual judge，而不是替换原生状态机
+游戏场景分为两层：
 
-补充文档说明：
+1. 全局大地图  
+玩家在地图上推进，并决定下一个要进入哪个节点。
 
-- `docs/master-plan.md` 保存完整设计蓝图与长期路线
-- `docs/decision-log.md` 记录关键架构与产品决策
+2. 地图节点 `Node`  
+每个节点代表一个局部场景，例如某次遭遇、调查、交易、仪式、异象或事件链。
 
-## 目录
+玩家在地图上选择要去的下一个节点后，会进入该节点，并在节点内经历一个或多个事件选择。
 
-- `docs/`: 项目定义、范围、风格规范、架构、路线图
-- `data/`: 样例上下文、规则模板、旁白模板
-- `schemas/`: JSON schema 与结构说明
-- `src/`: 最小核心引擎与 CLI demo
-- `tests/`: 规则选择与执行的基础测试
-- `tasks/`: 近期执行计划与 backlog
+## 核心玩法循环
 
-## 快速开始
+当前设计中的一次完整流程是：
+
+1. 初始化一局 `Run`
+2. 在全局地图上选择下一个 `Node`
+3. 进入 `Node`
+4. 节点内触发一个或多个 `Arbitration`
+5. 玩家在每个 `Arbitration` 中做出选择
+6. 系统根据规则裁决结果更新状态
+7. 节点结束后，将 `NodeMemory` 提炼并写入 `RunMemory`
+8. 回到全局地图，继续下一节点
+
+这里的 `Arbitration` 就是“当前一次需要玩家选择、也需要系统给出裁决的场景”。
+
+## CLI HUD
+
+当前主入口已经不是单次 demo，而是一个可玩的 CLI loop：
+
+- 顶部固定 HUD：显示当前页面、`Health`、`Money`、`Sanity`
+- 中间内容区：显示当前 node、arbitration 或结算结果
+- 底部输入区：显示当前输入提示
+
+界面目前使用 ANSI 颜色与盒状布局实现，并且在窄终端下会自动从双栏切成上下堆叠，以减少边框断裂和换行错位。
+
+## 状态系统
+
+系统当前区分两层状态：
+
+### `CoreState`
+
+`CoreState` 是结构化、决定论、立即生效的状态，例如：
+
+- health
+- money
+- sanity
+- inventory / tags
+- current location
+
+这类状态由 kernel 严格维护与更新。
+
+### `MetaState`
+
+`MetaState` 是更偏解释层、叙事层、长期心理层的状态，例如：
+
+- 遭遇过的重大事件
+- 创伤
+- 执念
+- 恐惧偏向
+- 人物当前的叙事印象
+
+这类状态可以保留结构化字段，也可以包含未来由 LLM 解释和整理的文本性描述。
+
+## 运行时架构
+
+项目当前采用以下运行时模型：
+
+- `Run`
+  - 表示一整局游戏
+  - 持有全局状态、全局规则系统、全局记忆
+
+- `Node`
+  - 表示地图上的一个节点
+  - 持有节点内局部记忆与节点级规则状态
+
+- `Arbitration`
+  - 表示节点内一次需要裁决的事件选择
+  - 持有 `Arbitration.context`、options、result 与状态
+
+- `RunMemory`
+  - 跨节点长期存在
+  - 记录长期记忆、主题计数、行为计数、重大事件与 narrator mood
+
+- `NodeMemory`
+  - 只在当前节点内存在
+  - 节点结束后提炼摘要写入 `RunMemory`
+
+## 模块划分
+
+当前仓库按十个核心模块组织：
+
+1. `deterministic_kernel`
+2. `state_adapter`
+3. `signal_interpretation`
+4. `rule_engine`
+5. `enforcement`
+6. `presentation`
+7. `narration`
+8. `memory`
+9. `authoring`
+10. `runtime`
+
+其中：
+
+- `runtime` 负责 `Run / Node / Arbitration` 生命周期
+- `state_adapter` 负责把 authored assets 与未来 LLM 生成内容装配成内部运行时对象
+- `rule_engine` 负责规则匹配、选择与 rule runtime state
+- `presentation` 负责 CLI 展示布局与输出格式
+- `memory` 负责 `RunMemory / NodeMemory`
+- `narration` 负责文字演出
+- `authoring` 负责规则、文本模板与样例内容
+
+## LLM 在项目中的角色
+
+LLM 不直接替代 kernel。
+
+当前更适合它的位置是：
+
+- 预载未来节点的叙事细节
+- 根据已有 `RunMemory` 预生成后续几个节点的信息
+- 为 node 内的每次 `Arbitration` 预生成事件素材或候选效果描述
+- 在节点内基于已经确定的裁决结果，生成每次 `Arbitration` 的文字演出
+- 未来帮助整理 `MetaState`
+
+这些内容进入程序时，应该优先经过 `state_adapter`：
+
+- authored JSON
+- future LLM rule packs
+- future LLM node packs
+- future LLM arbitration packs
+
+这样 kernel 内部始终只处理统一、可验证的运行时对象，而不是直接处理自由文本。
+
+也就是说：
+
+- kernel 决定结构、状态、规则、合法更新
+- LLM 负责世界细节、气氛、文本表现与部分预生成内容
+
+## 当前仓库状态
+
+当前 repo 已经能够：
+
+- 运行一个带地图选择与节点内多次裁决的可玩 CLI loop
+- 以决定论方式对选项给出 `stable / destabilizing` 裁决
+- 输出 `sanity_cost` 与 `sanity_delta`
+- 以分区 HUD 的方式显示当前状态、场景与选项
+- 在窄终端下自动回退为更稳定的上下布局
+
+当前 repo 还没有：
+
+- 图形界面
+- 外部游戏 API 接入
+- 完整的 LLM 接入
+- 最终世界观文本定稿
+
+## 运行
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m src.core.runtime.cli
-python -m src.core.runtime.cli --context data/sample_contexts/shop/shop_01.json
-python -m src.core.runtime.run_memory_demo --no-input
+python -m src.core.runtime.play_cli
 ```
 
-如果未激活虚拟环境，也可以直接使用：
+## 当前方向
 
-```bash
-.venv/bin/python -m src.core.runtime.cli
-```
+接下来的重点不是接外部游戏，而是：
 
-多节点、带全局 `RunMemory` 的 demo：
-
-```bash
-.venv/bin/python -m src.core.runtime.run_memory_demo --no-input
-.venv/bin/python -m src.core.runtime.run_memory_demo --node data/sample_nodes/combat_rewards_01.json --node data/sample_nodes/shop_01.json --choice card_1 --choice plain_idol --choice buy_potion
-```
-
-read-only 观察适配 demo：
-
-```bash
-.venv/bin/python -m src.core.runtime.observe_demo --no-narration
-```
-
-当前仓库没有强制第三方运行时依赖。`pytest` 尚未内置安装；如需运行测试，请在可联网环境中额外安装它。
-
-## 原型原则
-
-- AI 不直接替玩家做最优决策
-- 当前默认模式下，规则主要来自预定义模板，而不是自由生成
-- 规则必须可执行、可验证、可调试
-- 第一版只覆盖战斗外决策
-- 第一版只做软惩罚，不做硬锁
-
-## 下一步
-
-建议先按以下顺序阅读：
-
-1. `docs/project-definition.md`
-2. `docs/mvp-scope.md`
-3. `docs/master-plan.md`
-4. `docs/decision-log.md`
-5. `docs/system-architecture.md`
-6. `docs/style-bible.md`
-7. `tasks/module-progress.md`
+- 继续打磨 CLI 玩法 loop
+- 继续打磨 CLI HUD 与输入体验
+- 完善 `Run / Node / Arbitration` 的内容生成与裁决体验
+- 让 `MetaState` 与 LLM 的角色更清晰
+- 逐步把原型推进成可玩的命令行叙事跑团游戏

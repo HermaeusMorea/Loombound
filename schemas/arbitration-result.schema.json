@@ -3,15 +3,15 @@
   "title": "RunSnapshot",
   "type": "object",
   "required": [
-    "context_id",
+    "arbitration_id",
     "selected_rule_id",
     "matched_rule_ids",
     "theme_scores",
     "option_results",
-    "ritual_collapse_delta"
+    "sanity_delta"
   ],
   "properties": {
-    "context_id": { "type": "string" },
+    "arbitration_id": { "type": "string" },
     "selected_rule_id": { "type": ["string", "null"] },
     "matched_rule_ids": {
       "type": "array",
@@ -25,21 +25,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["option_id", "label", "verdict", "reasons", "collapse_if_taken"],
+        "required": ["option_id", "label", "verdict", "reasons", "sanity_cost"],
         "properties": {
           "option_id": { "type": "string" },
           "label": { "type": "string" },
-          "verdict": { "type": "string", "enum": ["keep_ritual", "break_ritual"] },
+          "verdict": { "type": "string", "enum": ["stable", "destabilizing"] },
           "reasons": {
             "type": "array",
             "items": { "type": "string" }
           },
-          "collapse_if_taken": { "type": "integer", "minimum": 0 }
+          "sanity_cost": { "type": "integer", "minimum": 0 }
         },
         "additionalProperties": false
       }
     },
-    "ritual_collapse_delta": { "type": "integer", "minimum": 0 },
+    "sanity_delta": { "type": "integer", "minimum": 0 },
     "narration": {
       "type": "object",
       "properties": {
@@ -52,4 +52,3 @@
   },
   "additionalProperties": false
 }
-

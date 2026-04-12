@@ -12,15 +12,17 @@
         "context_id": { "type": "string" },
         "scene_type": {
           "type": "string",
-          "enum": ["run", "map_routing", "card_reward", "shop", "relic_choice", "event_branch"]
+          "enum": ["run", "crossroads", "whisper_offer", "artifact_offer", "market_offer", "omens_choice"]
         },
         "floor": { "type": "integer", "minimum": 0 },
         "act": { "type": "integer", "minimum": 1 },
         "resources": {
           "type": "object",
           "properties": {
-            "gold": { "type": "integer", "minimum": 0 },
-            "hp_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+            "health": { "type": "integer", "minimum": 0 },
+            "max_health": { "type": "integer", "minimum": 1 },
+            "money": { "type": "integer", "minimum": 0 },
+            "sanity": { "type": "integer", "minimum": 0 }
           },
           "additionalProperties": true
         },

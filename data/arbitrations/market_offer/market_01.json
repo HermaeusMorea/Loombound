@@ -1,0 +1,63 @@
+{
+  "arbitration_id": "market_01",
+  "context": {
+    "context_id": "market_01",
+    "scene_type": "market_offer",
+    "floor": 5,
+    "act": 1,
+    "resources": {
+      "health": 5,
+      "max_health": 10,
+      "money": 3,
+      "sanity": 6
+    },
+    "tags": ["temptation", "scarcity", "night_market"],
+    "metadata": {
+      "scene_summary": "A night market stall offers lamp oil, a velvet idol, and the chance to leave before anyone notices you looking too long.",
+      "sanity_question": "When supplies are low, what purchase keeps you alive without pulling you deeper in?"
+    }
+  },
+  "options": [
+    {
+      "option_id": "buy_oil",
+      "label": "Buy lamp oil and a wrapped ration",
+      "tags": ["safe", "practical", "utility"],
+      "metadata": {
+        "cost": 2,
+        "effects": {
+          "money_delta": -2,
+          "add_conditions": ["lamp_oil"],
+          "add_events": ["You left with oil, rations, and one less reason to panic in the dark."]
+        }
+      }
+    },
+    {
+      "option_id": "buy_idol",
+      "label": "Buy the velvet idol that hums in your palm",
+      "tags": ["greedy", "luxury", "occult", "ornate"],
+      "metadata": {
+        "cost": 3,
+        "effects": {
+          "money_delta": -3,
+          "sanity_delta": -1,
+          "add_conditions": ["velvet_idol"],
+          "add_events": ["The idol now sits in your pocket, humming whenever you think of sleep."]
+        }
+      }
+    },
+    {
+      "option_id": "leave",
+      "label": "Keep your coins and walk away",
+      "tags": ["restraint", "grounded", "skip"],
+      "metadata": {
+        "effects": {
+          "add_events": ["You left the market before the stall keeper could say your name twice."]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "owner_hint": "node",
+    "asset_note": "Night-market arbitration sample."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "node_id": "night_market:floor_05",
+  "node_type": "night_market",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "A market node centered on one tempting purchase arbitration."
+  },
+  "arbitrations": [
+    {
+      "file": "data/arbitrations/market_offer/market_01.json"
+    }
+  ]
+}

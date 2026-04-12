@@ -2,23 +2,10 @@
 
 from .session import Arbitration, Node, Run
 
-__all__ = ["Arbitration", "Node", "Run", "main", "observe_demo", "run_memory_demo"]
+__all__ = ["Arbitration", "Node", "Run", "play_cli"]
 
 
-def main() -> None:
-    # Import lazily so package import does not eagerly load the CLI module.
-    from .cli import main as cli_main
+def play_cli() -> None:
+    from .play_cli import main as play_main
 
-    cli_main()
-
-
-def run_memory_demo() -> None:
-    from .run_memory_demo import main as demo_main
-
-    demo_main()
-
-
-def observe_demo() -> None:
-    from .observe_demo import main as observe_main
-
-    observe_main()
+    play_main()

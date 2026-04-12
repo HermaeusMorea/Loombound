@@ -13,6 +13,6 @@ def load_json_asset(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_arbitration(path: Path, *, owner_kind: str = "run", owner_id: str = "offline_demo") -> Arbitration:
-    """Build an arbitration object from a sample JSON file."""
+def load_arbitration(path: Path, *, owner_kind: str = "run", owner_id: str = "black_archive") -> Arbitration:
+    """Build an arbitration object from an authored arbitration JSON file."""
     return Arbitration.from_dict(load_json_asset(path), owner_kind=owner_kind, owner_id=owner_id)

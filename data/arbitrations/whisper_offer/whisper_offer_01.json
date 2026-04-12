@@ -1,0 +1,60 @@
+{
+  "arbitration_id": "whisper_offer_01",
+  "context": {
+    "context_id": "whisper_offer_01",
+    "scene_type": "whisper_offer",
+    "floor": 4,
+    "act": 1,
+    "resources": {
+      "health": 6,
+      "max_health": 10,
+      "money": 4,
+      "sanity": 5
+    },
+    "tags": ["temptation", "forbidden_text", "archive"],
+    "metadata": {
+      "scene_summary": "In the archive stack, a page keeps murmuring your name from inside a sealed ledger.",
+      "sanity_question": "Do you study the whisper, take only what you can contain, or shut the ledger and move on?"
+    }
+  },
+  "options": [
+    {
+      "option_id": "copy_fragment",
+      "label": "Copy one fragment into your notebook",
+      "tags": ["grounded", "careful", "restraint"],
+      "metadata": {
+        "effects": {
+          "sanity_delta": -1,
+          "add_events": ["You kept only a fragment of the whisper, but it is yours now."]
+        }
+      }
+    },
+    {
+      "option_id": "read_aloud",
+      "label": "Read the page aloud and see what answers",
+      "tags": ["greedy", "occult", "volatile"],
+      "metadata": {
+        "effects": {
+          "sanity_delta": -2,
+          "add_conditions": ["heard_answering_voice"],
+          "add_events": ["The archive answered in your own voice, one heartbeat late."]
+        }
+      }
+    },
+    {
+      "option_id": "seal_it",
+      "label": "Seal the ledger and back away",
+      "tags": ["safe", "restraint", "grounded"],
+      "metadata": {
+        "effects": {
+          "sanity_delta": 0,
+          "add_events": ["You sealed the ledger before it could finish the sentence."]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "owner_hint": "node",
+    "asset_note": "Archive whisper arbitration sample."
+  }
+}

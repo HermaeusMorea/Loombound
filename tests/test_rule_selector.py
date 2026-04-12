@@ -6,17 +6,17 @@ from src.core.rule_engine import evaluate_rules, select_rule
 from src.core.signal_interpretation import build_signals, score_themes
 
 
-def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
+def test_selects_self_preservation_rule_for_risky_crossroads() -> None:
     arbitration = Arbitration.from_dict(
         {
             "context_id": "ctx",
-            "decision_type": "map_routing",
+            "decision_type": "crossroads",
             "floor": 4,
-            "resources": {"gold": 60, "hp_ratio": 0.30},
-            "tags": ["route_choice", "branching_path"],
+            "resources": {"money": 5, "health": 3, "sanity": 4},
+            "tags": ["branching_path", "omens"],
             "options": [
-                {"option_id": "a", "label": "Elite path", "tags": ["elite", "high_risk"], "metadata": {}},
-                {"option_id": "b", "label": "Safe path", "tags": ["safe", "ordered"], "metadata": {}},
+                {"option_id": "a", "label": "Open the red door", "tags": ["volatile", "high_risk", "occult"], "metadata": {}},
+                {"option_id": "b", "label": "Follow the lantern path", "tags": ["safe", "ordered"], "metadata": {}},
             ],
         },
         owner_kind="run",
@@ -25,29 +25,29 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
     rules = [
         RuleTemplate.from_dict(
             {
-                "id": "low_hp",
-                "name": "Low HP",
-                "decision_types": ["map_routing"],
-                "theme": "avoid_conflict",
+                "id": "shaken",
+                "name": "Shaken",
+                "decision_types": ["crossroads"],
+                "theme": "self_preservation",
                 "priority": 100,
-                "max_hp_ratio": 0.45,
-                "required_context_tags": ["route_choice"],
+                "max_health": 4,
+                "required_context_tags": ["branching_path"],
                 "preferred_option_tags": ["safe"],
-                "forbidden_option_tags": ["elite"],
-                "collapse_penalty": 2,
+                "forbidden_option_tags": ["volatile"],
+                "sanity_penalty": 2,
             }
         ),
         RuleTemplate.from_dict(
             {
-                "id": "order",
-                "name": "Order",
-                "decision_types": ["map_routing"],
-                "theme": "order",
+                "id": "clarity",
+                "name": "Clarity",
+                "decision_types": ["crossroads"],
+                "theme": "clarity",
                 "priority": 10,
                 "required_context_tags": ["branching_path"],
                 "preferred_option_tags": ["ordered"],
                 "forbidden_option_tags": ["uncertain"],
-                "collapse_penalty": 1,
+                "sanity_penalty": 1,
             }
         ),
     ]
@@ -55,16 +55,16 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
     theme_scores = score_themes(arbitration, build_signals(arbitration))
     selected = select_rule(evaluate_rules(arbitration, rules, theme_scores))
     assert selected is not None
-    assert selected.rule.id == "low_hp"
+    assert selected.rule.id == "shaken"
 
 
 def test_recent_rule_gets_small_freshness_penalty_when_candidates_tie() -> None:
     arbitration = Arbitration.from_dict(
         {
             "context_id": "ctx_tie",
-            "decision_type": "shop",
+            "decision_type": "market_offer",
             "floor": 10,
-            "resources": {"gold": 60, "hp_ratio": 0.5},
+            "resources": {"money": 3, "health": 6, "sanity": 6},
             "tags": ["temptation"],
             "options": [
                 {"option_id": "safe", "label": "Safe option", "tags": ["safe"], "metadata": {}},
@@ -79,26 +79,26 @@ def test_recent_rule_gets_small_freshness_penalty_when_candidates_tie() -> None:
             {
                 "id": "recent_rule",
                 "name": "Recent Rule",
-                "decision_types": ["shop"],
-                "theme": "restraint",
+                "decision_types": ["market_offer"],
+                "theme": "composure",
                 "priority": 50,
                 "required_context_tags": ["temptation"],
                 "preferred_option_tags": ["safe"],
                 "forbidden_option_tags": ["greedy"],
-                "collapse_penalty": 1,
+                "sanity_penalty": 1,
             }
         ),
         RuleTemplate.from_dict(
             {
                 "id": "fresh_rule",
                 "name": "Fresh Rule",
-                "decision_types": ["shop"],
-                "theme": "restraint",
+                "decision_types": ["market_offer"],
+                "theme": "composure",
                 "priority": 50,
                 "required_context_tags": ["temptation"],
                 "preferred_option_tags": ["safe"],
                 "forbidden_option_tags": ["greedy"],
-                "collapse_penalty": 1,
+                "sanity_penalty": 1,
             }
         ),
     ]

@@ -1,0 +1,13 @@
+{
+  "node_id": "crossroads:floor_02",
+  "node_type": "crossroads",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "A world-map navigation node with one branching-path arbitration."
+  },
+  "arbitrations": [
+    {
+      "file": "data/arbitrations/crossroads/crossroads_01.json"
+    }
+  ]
+}

@@ -11,7 +11,7 @@
     "match",
     "preferred_option_tags",
     "forbidden_option_tags",
-    "collapse_penalty"
+    "sanity_penalty"
   ],
   "properties": {
     "id": { "type": "string" },
@@ -29,10 +29,12 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "min_hp_ratio": { "type": "number" },
-        "max_hp_ratio": { "type": "number" },
-        "min_gold": { "type": "integer" },
-        "max_gold": { "type": "integer" }
+        "min_health": { "type": "integer" },
+        "max_health": { "type": "integer" },
+        "min_money": { "type": "integer" },
+        "max_money": { "type": "integer" },
+        "min_sanity": { "type": "integer" },
+        "max_sanity": { "type": "integer" }
       },
       "additionalProperties": false
     },
@@ -44,7 +46,7 @@
       "type": "array",
       "items": { "type": "string" }
     },
-    "collapse_penalty": { "type": "integer", "minimum": 0 },
+    "sanity_penalty": { "type": "integer", "minimum": 0 },
     "narration_keys": {
       "type": "array",
       "items": { "type": "string" }
@@ -52,4 +54,3 @@
   },
   "additionalProperties": false
 }
-

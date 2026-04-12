@@ -1,4 +1,4 @@
-"""Turn a selected rule into per-option ritual verdicts."""
+"""Turn a selected rule into per-option sanity verdicts."""
 
 from __future__ import annotations
 
@@ -9,16 +9,16 @@ from src.core.runtime import Arbitration
 def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:
     # Turn one selected rule into per-option verdicts.
     # This layer does not block actions; it only labels them and computes the
-    # soft ritual collapse consequence of taking them.
+    # soft sanity consequence of taking them.
     if rule is None:
         return (
             [
                 OptionResult(
                     option_id=option["option_id"],
                     label=option["label"],
-                    verdict="keep_ritual",
+                    verdict="stable",
                     reasons=["no_rule_selected"],
-                    collapse_if_taken=0,
+                    sanity_cost=0,
                 )
                 for option in arbitration.options
             ],
@@ -26,7 +26,7 @@ def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[l
         )
 
     results: list[OptionResult] = []
-    collapse_delta = 0
+    sanity_delta = 0
     preferred_tags = set(rule.preferred_option_tags)
     forbidden_tags = set(rule.forbidden_option_tags)
 
@@ -36,36 +36,36 @@ def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[l
         # reason about in the prototype.
         option_tags = set(option.get("tags", []))
         reasons: list[str] = []
-        verdict = "keep_ritual"
+        verdict = "stable"
         option_penalty = 0
 
         if forbidden_tags & option_tags:
-            verdict = "break_ritual"
+            verdict = "destabilizing"
             reasons.append(f"contains_forbidden_tags:{','.join(sorted(forbidden_tags & option_tags))}")
-            option_penalty = rule.collapse_penalty
+            option_penalty = rule.sanity_penalty
         elif preferred_tags and preferred_tags & option_tags:
             reasons.append(f"contains_preferred_tags:{','.join(sorted(preferred_tags & option_tags))}")
         elif preferred_tags:
-            verdict = "break_ritual"
+            verdict = "destabilizing"
             reasons.append("missing_preferred_tags")
-            option_penalty = rule.collapse_penalty
+            option_penalty = rule.sanity_penalty
         else:
             reasons.append("rule_allows_option")
 
         # Snapshot output currently reports the highest penalty available in
         # this scene, not a full post-choice memory update.
-        collapse_delta = max(collapse_delta, option_penalty)
+        sanity_delta = max(sanity_delta, option_penalty)
         results.append(
             OptionResult(
                 option_id=option["option_id"],
                 label=option["label"],
                 verdict=verdict,
                 reasons=reasons,
-                collapse_if_taken=option_penalty,
+                sanity_cost=option_penalty,
             )
         )
 
-    return results, collapse_delta
+    return results, sanity_delta
 
 
 # TODO: Split "soft warning" and "future hard lock" into separate enforcement stages.

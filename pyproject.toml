@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "li-director-sts2"
+name = "black-archive"
 version = "0.1.0"
-description = "Document-first prototype for a Slay the Spire 2 style AI ritual director."
+description = "Deterministic-first CLI narrative prototype with sanity pressure, run memory, and arbitration."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
@@ -22,4 +22,3 @@ include = ["src*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

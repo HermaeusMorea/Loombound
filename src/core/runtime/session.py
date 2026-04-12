@@ -153,7 +153,7 @@ class Arbitration:
 
 @dataclass(slots=True)
 class Node:
-    """A run-owned scene container, such as combat, shop, or event."""
+    """A run-owned scene container, such as a crossroads, archive, or market."""
 
     node_id: str
     node_type: str
@@ -217,7 +217,7 @@ class Node:
         self.current_arbitration = None
         return arbitration
 
-    def build_summary(self, collapse_delta: int = 0, important_flags: list[str] | None = None) -> NodeSummary:
+    def build_summary(self, sanity_delta: int = 0, important_flags: list[str] | None = None) -> NodeSummary:
         """Build a compact node summary from accumulated node-local state."""
 
         memory = self.memory
@@ -225,21 +225,21 @@ class Node:
         event_count = len(memory.events) if memory else 0
         chosen_option_ids = [item.player_choice for item in memory.choices_made if item.player_choice] if memory else []
         selected_rule_ids = [item.active_rule_id for item in memory.choices_made if item.active_rule_id] if memory else []
-        violation_count = len(memory.violations_in_node) if memory else 0
+        shock_count = len(memory.shocks_in_node) if memory else 0
         summary_flags = important_flags or (memory.important_flags.copy() if memory else [])
-        summary_collapse = collapse_delta or (memory.collapse_gained_in_node if memory else 0)
+        summary_sanity = sanity_delta or (memory.sanity_lost_in_node if memory else 0)
         return NodeSummary(
             node_id=self.node_id,
             node_type=self.node_type,
             floor=self.floor,
-            collapse_delta=summary_collapse,
+            sanity_delta=summary_sanity,
             important_flags=summary_flags,
             metadata={
                 "arbitration_count": arbitration_count,
                 "event_count": event_count,
                 "selected_rule_ids": selected_rule_ids,
                 "chosen_option_ids": chosen_option_ids,
-                "violation_count": violation_count,
+                "shock_count": shock_count,
             },
         )
 

@@ -1,66 +1,66 @@
 {
-  "file_note": "这是当前离线原型使用的小型规则库。每条规则都描述一种可执行的礼官法令模板，而不是自由文本命令。",
+  "file_note": "这是当前离线原型使用的小型规则库。每条规则都描述一种可执行的稳定化模式，而不是自由文本命令。",
   "rules": [
     {
-      "id": "rule_low_hp_avoid_elite",
-      "name": "伤疲之际，不先趋强敌",
-      "decision_types": ["map_routing"],
-      "theme": "avoid_conflict",
+      "id": "rule_shaken_avoid_escalation",
+      "name": "When frayed, do not rush the worst thing in the room",
+      "decision_types": ["crossroads"],
+      "theme": "self_preservation",
       "priority": 100,
       "match": {
-        "max_hp_ratio": 0.45,
-        "required_context_tags": ["route_choice"]
+        "max_health": 4,
+        "required_context_tags": ["branching_path"]
       },
       "preferred_option_tags": ["safe"],
-      "forbidden_option_tags": ["elite", "high_risk"],
-      "collapse_penalty": 2,
-      "narration_keys": ["opening_avoid_conflict", "judgement_default", "warning_default"],
-      "notes": "地图选路规则。用于低血量且面临路线分叉时，压制主动走向精英或高风险路径。"
+      "forbidden_option_tags": ["volatile", "occult", "high_risk"],
+      "sanity_penalty": 2,
+      "narration_keys": ["opening_self_preservation", "judgement_default", "warning_default"],
+      "notes": "Crossroads rule for low-health or frayed states. It pushes the player away from obvious escalation."
     },
     {
-      "id": "rule_temptation_choose_restraint",
-      "name": "诸物并陈，当先自抑",
-      "decision_types": ["card_reward", "shop", "event_branch", "relic_choice"],
-      "theme": "restraint",
+      "id": "rule_temptation_hold_composure",
+      "name": "When temptation crowds the table, keep your hands steady",
+      "decision_types": ["whisper_offer", "artifact_offer", "market_offer", "omens_choice"],
+      "theme": "composure",
       "priority": 90,
       "match": {
         "required_context_tags": ["temptation"]
       },
-      "preferred_option_tags": ["safe", "restraint", "humble"],
-      "forbidden_option_tags": ["greedy", "luxury"],
-      "collapse_penalty": 1,
-      "narration_keys": ["opening_restraint", "judgement_default", "warning_default"],
-      "notes": "通用诱惑场景规则。适用于卡牌奖励、商店、事件或 relic 选择，优先鼓励克制而非贪取。"
+      "preferred_option_tags": ["safe", "restraint", "grounded"],
+      "forbidden_option_tags": ["greedy", "luxury", "occult"],
+      "sanity_penalty": 1,
+      "narration_keys": ["opening_composure", "judgement_default", "warning_default"],
+      "notes": "General temptation rule. It rewards restraint and reduces mentally costly overreach."
     },
     {
-      "id": "rule_branching_preserve_order",
-      "name": "道路既分，当先定其序",
-      "decision_types": ["map_routing", "event_branch"],
-      "theme": "order",
+      "id": "rule_branching_preserve_clarity",
+      "name": "When the path splits, choose what keeps the picture clear",
+      "decision_types": ["crossroads", "omens_choice"],
+      "theme": "clarity",
       "priority": 70,
       "match": {
         "required_context_tags": ["branching_path"]
       },
       "preferred_option_tags": ["ordered", "safe"],
-      "forbidden_option_tags": ["uncertain"],
-      "collapse_penalty": 1,
-      "narration_keys": ["opening_order", "judgement_default", "warning_default"],
-      "notes": "分叉决策规则。用于路径或事件存在多个分支时，偏向秩序明确、风险较低的选择。"
+      "forbidden_option_tags": ["uncertain", "volatile"],
+      "sanity_penalty": 1,
+      "narration_keys": ["opening_clarity", "judgement_default", "warning_default"],
+      "notes": "Branching decision rule. It favors lower-ambiguity, lower-risk choices when multiple routes appear."
     },
     {
-      "id": "rule_poor_shop_no_ornament",
-      "name": "囊薄之时，不竞华饰",
-      "decision_types": ["shop"],
-      "theme": "humility",
+      "id": "rule_low_supply_keep_distance",
+      "name": "Under scarcity, do not reach for the gleaming thing",
+      "decision_types": ["market_offer"],
+      "theme": "detachment",
       "priority": 95,
       "match": {
-        "max_gold": 90
+        "max_money": 4
       },
       "preferred_option_tags": ["practical", "restraint"],
-      "forbidden_option_tags": ["ornate", "luxury"],
-      "collapse_penalty": 2,
-      "narration_keys": ["opening_humility", "judgement_default", "warning_default"],
-      "notes": "商店节用规则。用于低金币场景，限制玩家在资源紧张时购买昂贵、华饰或不够务实的物品。"
+      "forbidden_option_tags": ["ornate", "luxury", "occult"],
+      "sanity_penalty": 2,
+      "narration_keys": ["opening_detachment", "judgement_default", "warning_default"],
+      "notes": "Scarcity rule for market scenes. It discourages glittering purchases when resources are already thin."
     }
   ]
 }
