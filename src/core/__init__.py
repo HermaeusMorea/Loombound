@@ -6,6 +6,7 @@ __all__ = [
     "signal_interpretation",
     "rule_engine",
     "enforcement",
+    "llm_interface",
     "presentation",
     "narration",
     "memory",

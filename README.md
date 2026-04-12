@@ -2,7 +2,7 @@
 
 `black-archive` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。
 
-它当前的目标不是做图形界面，也不是接入外部游戏，而是先验证一套稳定的游戏结构：
+它当前的目标是先验证一套稳定的游戏结构：
 
 - 以决定论为优先的裁决内核
 - `Run -> Node -> Arbitration` 的运行时模型
@@ -103,24 +103,26 @@
 
 ## 模块划分
 
-当前仓库按十个核心模块组织：
+当前仓库按十一个核心模块组织：
 
 1. `deterministic_kernel`
 2. `state_adapter`
 3. `signal_interpretation`
 4. `rule_engine`
 5. `enforcement`
-6. `presentation`
-7. `narration`
-8. `memory`
-9. `authoring`
-10. `runtime`
+6. `llm_interface`
+7. `presentation`
+8. `narration`
+9. `memory`
+10. `authoring`
+11. `runtime`
 
 其中：
 
 - `runtime` 负责 `Run / Node / Arbitration` 生命周期
 - `state_adapter` 负责把手写资产与 LLM 生成内容装配成内部运行时对象
 - `rule_engine` 负责规则匹配、选择与规则运行时状态
+- `llm_interface` 负责远程主生成、本地补位与结构化 LLM 输出边界
 - `presentation` 负责 CLI 展示布局与输出格式
 - `memory` 负责 `RunMemory / NodeMemory`
 - `narration` 负责文字演出

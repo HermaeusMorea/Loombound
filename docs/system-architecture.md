@@ -319,7 +319,37 @@
 
 - `src/core/presentation/cli.py`
 
-## 12. 运行时模块
+## 12. LLM 接口层
+
+`llm_interface` 是当前项目为 LLM 协作预留的独立模块。
+
+它负责：
+
+- 远程强模型主生成的接口位
+- 本地模型补位与展开的接口位
+- `seed pack`
+- `resolved pack`
+- 后台生成任务类型
+
+它不直接负责：
+
+- schema 校验
+- 状态装配
+- runtime 写回
+
+这些职责仍分别属于：
+
+- `state_adapter`
+- `runtime`
+- `enforcement`
+- `memory`
+
+当前核心文件有：
+
+- `src/core/llm_interface/types.py`
+- `src/core/llm_interface/providers.py`
+
+## 13. 运行时模块
 
 `runtime` 是当前仓库的运行时胶水层。
 
@@ -334,7 +364,7 @@
 - `src/core/runtime/play_cli.py`
 - `src/core/runtime/campaign.py`
 
-## 13. 内容资产与 LLM 角色
+## 14. 内容资产与 LLM 角色
 
 `authoring` 负责：
 
@@ -361,7 +391,7 @@ LLM 是当前项目中的必需层，但不直接替代 kernel。
 - kernel 管结构、规则、合法状态更新
 - LLM 管内容资产生成、预载、文本表现以及结构化提议
 
-## 14. 当前范围
+## 15. 当前范围
 
 当前仓库的重点不是外部 API 接入，而是：
 

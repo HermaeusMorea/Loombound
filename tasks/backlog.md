@@ -9,6 +9,8 @@
 - 增加 snapshot fixture 测试
 - 打磨 CLI HUD 的信息密度与窄终端表现
 - 评估是否要做 `textual` 版真正固定 HUD
+- 设计并实现 `llm_interface`
+- 让 LLM 开始生成 node / arbitration / narration 资产
 
 ## 内容
 
@@ -22,7 +24,8 @@
 - 设计 rule conflict handling
 - 设计 adapter 层输入协议
 - 设计长期 run state 与 event log
-- 设计 LLM 生成 node / arbitration pack 的导入边界
+- 设计 LLM 生成 node / arbitration / rule / narration pack 的导入边界
+- 设计 LLM 对 `memory`、`rule_engine`、`enforcement` 的结构化提议接口
 
 ## 开放设计问题
 

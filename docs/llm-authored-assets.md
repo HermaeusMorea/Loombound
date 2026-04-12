@@ -255,6 +255,247 @@ LLM **不应该**直接写 `CoreState`。
 
 `LLM JSON -> state_adapter -> validate -> normalize -> runtime`
 
+## 预载生成节奏
+
+对当前项目来说，最合适的不是“走到哪里再临时生成到哪里”，而是：
+
+- 前台游玩
+- 后台预载
+
+更具体地说：
+
+### 1. `Run` 绑定全局背景设定
+
+一局开始时，应先固定一份 run 级背景包，例如：
+
+- 世界设定
+- 当前 campaign tone
+- 关键 faction / symbols / threats
+- 可能的剧本母题
+
+这相当于整局的内容母板。
+
+### 2. 当前 `Node` 游玩时，后台生成后续 2 到 3 个 `Node`
+
+生成输入可以包括：
+
+- `Run.core_state`
+- `Run.meta_state`
+- `Run.memory`
+- 当前 node summary
+- run 绑定的背景设定
+
+生成输出则应是结构化包，例如：
+
+- 候选后续 `node packs`
+- 每个 node 内的 `arbitration packs`
+- 可选 `narration packs`
+- 可选 `meta summaries`
+
+### 3. 进入下一个 node 时优先消费已预载内容
+
+如果后台已经生成完成，就直接从缓存中取用。
+
+如果尚未完成，则使用：
+
+- 手写 authored 内容
+- 或更轻量的即时生成 fallback
+
+### 4. 始终维持一个短前瞻窗口
+
+推荐策略不是一次性生成整局，而是：
+
+- 始终保持前方 2 到 3 个 `Node` 的缓存
+- 每个 node 内保持 1 到 3 个 `Arbitration` 已经准备好
+
+这样可以兼顾：
+
+- 世界连续性
+- memory 驱动生成
+- 生成速度
+- 内容不过早失真
+
+### 5. 预载内容允许失效并重生成
+
+当某次 arbitration 之后，`RunMemory`、`MetaState` 或核心状态变化过大时：
+
+- 先检查已预载内容是否仍然适配
+- 将不再适配的内容标记为 `stale`
+- 再后台重新生成替代内容
+
+因此，预载包最好带有：
+
+- `status = pending / ready / failed / stale`
+- `source = authored / llm_generated / hybrid`
+
+## 远程强模型与本地模型的协作
+
+对于这个项目，最适合的不是只用一种模型，而是：
+
+- 远程强力 LLM 作为主生成器
+- 本地 LLM 作为补位、降级和快速小任务模型
+
+### 为什么远程强模型更适合作为主生成器
+
+因为项目要生成的是：
+
+- `node pack`
+- `arbitration pack`
+- `rule pack`
+- `memory summary`
+- `narration pack`
+
+这类任务通常需要：
+
+- 更长上下文
+- 更稳定的结构化输出
+- 更高的一致性
+- 更强的世界细节质量
+
+因此，主生成层更适合交给远程强模型。
+
+### 本地模型更适合做什么
+
+本地模型更适合承担：
+
+- narration 改写
+- memory 小总结
+- 已有 pack 的轻量变体
+- 局部补全
+- 无网 fallback
+- 非关键内容的快速草拟
+
+### 推荐的 provider 策略
+
+推荐在 `llm_interface` 中支持多 provider，但默认策略是：
+
+- `remote_primary`
+- `local_fallback`
+
+也就是说：
+
+- 主生成任务交给远程强模型
+- 本地模型负责补位、离线兜底和轻量变体
+
+这种组合最符合当前项目的设计目标：
+
+- 内容质量要足够高
+- 生成速度要可接受
+- 运行时要有 fallback
+- 架构上不把整个项目绑死到单一 provider
+
+## 省 token 的协作策略
+
+为了控制成本，不推荐让远程强模型直接返回完整的 node / arbitration 全文内容。
+
+更适合当前项目的方式是：
+
+- 远程强模型返回高价值、压缩后的结构化骨架
+- 本地模型根据这些骨架做低成本展开与演出
+
+一句话：
+
+- **远程模型负责高价值压缩决策**
+- **本地模型负责低成本展开与表演**
+
+### 远程模型适合返回什么
+
+远程模型最适合输出：
+
+- 关键词
+- scene beats
+- 主题标签
+- 核心冲突
+- option intent labels
+- rule bias 提示
+- narration directives
+- 少量关键句
+
+例如一个远程返回的 seed 可以像这样：
+
+- `node_theme`
+- `scene_core`
+- `arbitration_axes`
+- `narration_style`
+
+这些内容 token 成本低，但信息密度高。
+
+### 本地模型适合补全什么
+
+本地模型更适合根据这些 seed 展开成：
+
+- scene summary
+- question text
+- option wording
+- narration text
+- aftermath text
+
+也就是说：
+
+- 远程模型负责决定“这一段内容的本质是什么”
+- 本地模型负责把它写成玩家看到的具体文本
+
+## 两层资产模型
+
+为了让这种协作清晰可维护，推荐把资产分成两层：
+
+### 1. `seed pack`
+
+由远程强模型生成。
+
+它保存：
+
+- 高压缩结构
+- 关键词
+- 风格标签
+- 核心冲突
+- 意象与方向
+
+它不直接用于 runtime 最终消费，而更像：
+
+- 内容生成草图
+- 高价值提示包
+
+### 2. `resolved pack`
+
+由本地模型或后续处理流程展开生成。
+
+它保存：
+
+- 最终 node 文本
+- 最终 arbitration 文本
+- 最终 narration 文本
+- 最终结构化 fields
+
+它才是进入 `state_adapter` 和 runtime 的直接候选内容。
+
+推荐流程：
+
+`remote seed -> local expansion -> state_adapter -> validate -> runtime`
+
+## 慢节奏显示作为生成缓冲
+
+CLI 的慢节奏显示不仅是风格选择，也可以成为生成缓冲机制。
+
+具体来说：
+
+- HUD 先显示
+- scene opening 可以先显示
+- question 再显示
+- options 最后显示
+
+这样可以：
+
+- 给本地模型留下补全文本的时间
+- 减少玩家等待“整段一次生成完”的卡顿
+- 让游戏节奏更有仪式感
+
+因此，展示层可以有意识地支持：
+
+- 分段显示
+- 逐段展开
+- 在不影响体验的情况下，为本地生成争取时间
+
 ## 建议新增的模块边界
 
 如果项目要新增专门的 LLM 集成层，最合适的模块名是：
