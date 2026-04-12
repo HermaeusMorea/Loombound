@@ -1,4 +1,7 @@
-from src.core.deterministic_kernel import Arbitration, RuleTemplate
+from src.core.deterministic_kernel import RuleTemplate
+from src.core.memory import RunMemory
+from src.core.rule_engine import RuleSystem
+from src.core.runtime import Arbitration
 from src.core.rule_engine import evaluate_rules, select_rule
 from src.core.signal_interpretation import build_signals, score_themes
 
@@ -53,3 +56,56 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
     selected = select_rule(evaluate_rules(arbitration, rules, theme_scores))
     assert selected is not None
     assert selected.rule.id == "low_hp"
+
+
+def test_recent_rule_gets_small_freshness_penalty_when_candidates_tie() -> None:
+    arbitration = Arbitration.from_dict(
+        {
+            "context_id": "ctx_tie",
+            "decision_type": "shop",
+            "floor": 10,
+            "resources": {"gold": 60, "hp_ratio": 0.5},
+            "tags": ["temptation"],
+            "options": [
+                {"option_id": "safe", "label": "Safe option", "tags": ["safe"], "metadata": {}},
+                {"option_id": "greed", "label": "Greedy option", "tags": ["greedy"], "metadata": {}},
+            ],
+        },
+        owner_kind="run",
+        owner_id="test_run",
+    )
+    rules = [
+        RuleTemplate.from_dict(
+            {
+                "id": "recent_rule",
+                "name": "Recent Rule",
+                "decision_types": ["shop"],
+                "theme": "restraint",
+                "priority": 50,
+                "required_context_tags": ["temptation"],
+                "preferred_option_tags": ["safe"],
+                "forbidden_option_tags": ["greedy"],
+                "collapse_penalty": 1,
+            }
+        ),
+        RuleTemplate.from_dict(
+            {
+                "id": "fresh_rule",
+                "name": "Fresh Rule",
+                "decision_types": ["shop"],
+                "theme": "restraint",
+                "priority": 50,
+                "required_context_tags": ["temptation"],
+                "preferred_option_tags": ["safe"],
+                "forbidden_option_tags": ["greedy"],
+                "collapse_penalty": 1,
+            }
+        ),
+    ]
+
+    theme_scores = score_themes(arbitration, build_signals(arbitration))
+    evaluations = evaluate_rules(arbitration, rules, theme_scores)
+    rule_system = RuleSystem(templates=rules, recently_used_rule_ids=["recent_rule"])
+    selected = select_rule(evaluations, rule_system=rule_system, run_memory=RunMemory())
+    assert selected is not None
+    assert selected.rule.id == "fresh_rule"

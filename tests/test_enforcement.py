@@ -1,4 +1,5 @@
-from src.core.deterministic_kernel import Arbitration, RuleTemplate
+from src.core.deterministic_kernel import RuleTemplate
+from src.core.runtime import Arbitration
 from src.core.enforcement import enforce_rule
 
 

@@ -1,6 +1,9 @@
+"""Evaluate which rule templates are eligible for one arbitration."""
+
 from __future__ import annotations
 
-from src.core.deterministic_kernel import Arbitration, RuleEvaluation, RuleTemplate
+from src.core.deterministic_kernel import RuleEvaluation, RuleTemplate
+from src.core.runtime import Arbitration
 
 
 def evaluate_rule(

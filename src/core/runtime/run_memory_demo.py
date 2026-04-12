@@ -1,3 +1,5 @@
+"""Run-level demo that exercises nodes, arbitrations, and memory updates."""
+
 from __future__ import annotations
 
 import argparse
@@ -11,17 +13,14 @@ from src.core.deterministic_kernel import (
     ArbitrationResult,
     CoreStateView,
     MetaStateView,
-    NodeChoiceRecord,
-    NodeEvent,
     OptionResult,
-    Run,
     RunSnapshot,
-    ViolationRecord,
 )
 from src.core.enforcement import enforce_rule
-from src.core.memory import run_memory_to_dict, update_after_node
+from src.core.memory import NodeChoiceRecord, NodeEvent, ViolationRecord, run_memory_to_dict, update_after_node
 from src.core.narration import render_narration
-from src.core.rule_engine import evaluate_rules, select_rule
+from src.core.rule_engine import build_selection_trace, evaluate_rules, select_rule
+from src.core.runtime import Run
 from src.core.signal_interpretation import build_signals, score_themes
 from src.core.state_adapter import load_json_asset
 
@@ -37,6 +36,8 @@ TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
 
 
 def _pick_default_option(option_results: list[OptionResult]) -> str:
+    """Prefer the first keep_ritual option when auto-selecting choices."""
+
     for item in option_results:
         if item.verdict == "keep_ritual":
             return item.option_id
@@ -91,10 +92,14 @@ def _resolve_asset_path(raw_path: str) -> Path:
 
 
 def _load_node_specs(node_paths: list[Path]) -> list[dict[str, Any]]:
+    """Load authored node scripts from disk."""
+
     return [load_json_asset(path) for path in node_paths]
 
 
 def _load_context_specs(context_paths: list[Path]) -> list[dict[str, Any]]:
+    """Wrap legacy one-arbitration payloads into one-arbitration node specs."""
+
     specs: list[dict[str, Any]] = []
     for path in context_paths:
         payload = load_json_asset(path)
@@ -120,6 +125,8 @@ def _record_arbitration_into_node_memory(
     selected_rule_theme: str | None,
     selected_result: OptionResult,
 ) -> None:
+    """Promote one finished arbitration outcome into the current NodeMemory."""
+
     local_flags = _build_local_flags(selected_result)
     node_memory.choices_made.append(
         NodeChoiceRecord(
@@ -159,6 +166,8 @@ def _append_node_event(node_memory: Any, event_type: str, **payload: Any) -> Non
 
 
 def _build_run() -> Run:
+    """Create a minimal deterministic run shell for the offline demo."""
+
     return Run(
         run_id="offline_memory_demo",
         act=1,
@@ -169,6 +178,8 @@ def _build_run() -> Run:
 
 
 def main() -> None:
+    """Run an offline node lifecycle demo with persistent RunMemory."""
+
     parser = argparse.ArgumentParser(
         description="Run a node-lifecycle offline demo with persistent RunMemory and per-node NodeMemory."
     )
@@ -210,6 +221,7 @@ def main() -> None:
     rules = load_rules(RULES_PATH)
     templates = load_templates(TEXT_PATH)
     run = _build_run()
+    run.rule_system.set_templates(rules)
     forced_choices = args.choices or []
     choice_cursor = 0
     history: list[dict[str, Any]] = []
@@ -252,7 +264,22 @@ def main() -> None:
             signals = build_signals(arbitration)
             theme_scores = score_themes(arbitration, signals)
             evaluations = evaluate_rules(arbitration, rules, theme_scores)
-            selected = select_rule(evaluations)
+            node.rule_state.reset_for_arbitration()
+            node.rule_state.record_evaluations(evaluations)
+            selected = select_rule(
+                evaluations,
+                rule_system=run.rule_system,
+                run_memory=run.memory,
+            )
+            node.rule_state.record_selected_rule(selected.rule.id if selected else None)
+            node.rule_state.record_selection_trace(
+                build_selection_trace(
+                    evaluations,
+                    rule_system=run.rule_system,
+                    run_memory=run.memory,
+                )
+            )
+            run.rule_system.record_selected_rule(selected.rule.id if selected else None)
             _append_node_event(
                 node.memory,
                 "rule_selected",
@@ -358,7 +385,17 @@ def main() -> None:
                 "arbitrations": arbitration_history,
                 "node_memory": asdict(node.memory),
                 "node_summary": asdict(node_summary),
+                "node_rule_state": {
+                    "available_rule_ids": node.rule_state.available_rule_ids,
+                    "candidate_rule_ids": node.rule_state.candidate_rule_ids,
+                    "selected_rule_id": node.rule_state.selected_rule_id,
+                    "selection_trace": node.rule_state.selection_trace,
+                },
                 "run_memory_after_node": run_memory_to_dict(run.memory),
+                "run_rule_system_after_node": {
+                    "recently_used_rule_ids": list(run.rule_system.recently_used_rule_ids),
+                    "rule_use_counts": dict(run.rule_system.rule_use_counts),
+                },
             }
         )
 

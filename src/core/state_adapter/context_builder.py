@@ -1,9 +1,11 @@
+"""Helpers that load authored JSON assets into runtime-facing objects."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from src.core.deterministic_kernel import Arbitration
+from src.core.runtime import Arbitration
 
 
 def load_json_asset(path: Path) -> dict:

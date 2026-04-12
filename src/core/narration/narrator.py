@@ -1,6 +1,9 @@
+"""Render optional narration around already-computed verdicts."""
+
 from __future__ import annotations
 
-from src.core.deterministic_kernel import Arbitration, NarrationBlock, RuleTemplate
+from src.core.deterministic_kernel import NarrationBlock, RuleTemplate
+from src.core.runtime import Arbitration
 
 
 def render_narration(

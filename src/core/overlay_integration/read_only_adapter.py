@@ -1,9 +1,11 @@
+"""Read-only adapter types for future native observation integration."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.deterministic_kernel import Arbitration
+from src.core.runtime import Arbitration
 
 
 @dataclass(slots=True)

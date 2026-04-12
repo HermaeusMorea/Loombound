@@ -1,6 +1,8 @@
-"""Runtime entry points and orchestration."""
+"""Runtime entry points and lifecycle objects."""
 
-__all__ = ["main", "observe_demo", "run_memory_demo"]
+from .session import Arbitration, Node, Run
+
+__all__ = ["Arbitration", "Node", "Run", "main", "observe_demo", "run_memory_demo"]
 
 
 def main() -> None:

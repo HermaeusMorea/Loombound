@@ -20,15 +20,10 @@
 - 已落地：
   - `src/core/deterministic_kernel/models.py`
 - 当前已实现能力：
-  - `Run`
-  - `Node`
-  - `Arbitration`
   - `ArbitrationContext`
   - `ArbitrationResult`
   - `CoreStateView`
   - `MetaStateView`
-  - `NodeMemory`
-  - `RunMemory`
   - `NodeSummary`
   - `RuleTemplate`
   - `RuleEvaluation`
@@ -36,9 +31,9 @@
   - `NarrationBlock`
   - `RunSnapshot`
 - 当前缺口：
-  - 让 `Run / Node / Arbitration` 真正接入 runtime
   - 更完整的 snapshot / trace 模型
   - future validator-facing kernel types
+  - 进一步收紧 kernel model 与 future validator/output contracts 的边界
 
 ## 2. State Adapter / Context Builder
 
@@ -55,7 +50,6 @@
   - 统一成 `Arbitration`
   - 提供通用 `load_json_asset(...)`
 - 当前缺口：
-  - 将 sample inputs 装配进 `Run / Node / Arbitration` 模型
   - `CoreState` 只读视图
   - 标准化 `EventTrace`
   - 未来 adapter / hook boundary
@@ -97,13 +91,19 @@
   - hp / gold 数值阈值匹配
   - 单规则稳定选择
   - 以 theme score + priority + id 做决定论 tie-break
+  - `RuleSystem`
+  - `NodeRuleState`
+  - 在 runtime 中记录候选规则、选中规则与整局 rule usage
+  - 轻量 freshness penalty
+  - 基于 `RunMemory.theme_counters` 的小幅 theme bias
+  - selection trace
 - 当前缺口：
   - cooldown
   - conflict handling
   - multi-rule composition
-  - freshness / repetition penalties
   - reranking hook
   - 接受 LLM rule proposal 后的 kernel validation 路径
+  - 将当前轻量偏置收成更明确的 policy 配置
 
 ## 5. Enforcement / Outcome Layer
 
@@ -119,11 +119,11 @@
   - `ritual_collapse_delta`
   - 基于 preferred / forbidden tags 的软裁决
 - 当前缺口：
-  - 选择后真正更新 run memory
   - 区分 warning / soft punishment / future hard lock
   - `ProposedEffects`
   - `EffectApplier`
   - 将裁决结果回写到 `MetaState`
+  - 让 enforcement 结果更系统地影响后续规则偏向
 
 ## 6. Narration Layer
 
@@ -151,7 +151,7 @@
 - 当前进度：
   `implemented_v0`
 - 已落地：
-  - `src/core/deterministic_kernel/models.py`
+  - `src/core/memory/types.py`
   - `src/core/memory/run_memory.py`
 - 当前目标结构：
   - `ritual_collapse`
@@ -163,13 +163,16 @@
 - 当前已实现能力：
   - `RunMemory`
   - `NodeMemory`
+  - `NodeEvent`
+  - `NodeChoiceRecord`
+  - `ViolationRecord`
   - `update_after_node(...)`
   - `run_memory_to_dict(...)`
+  - node-level event accumulation in `run_memory_demo.py`
+  - `NodeSummary -> RunMemory` 的最小提炼路径
+  - `RunMemory` 对 rule selection 的轻量反向影响
 - 当前缺口：
-  - 更符合 node lifecycle 的 event accumulation
-  - 节点结束时的 `NodeSummary -> RunMemory` 提炼逻辑
   - summary / persona hooks
-  - 与 enforcement / runtime 串接
   - 让 LLM 参与 `MetaState` 解释和更新
 
 ## 8. Authoring Layer
@@ -203,9 +206,10 @@
 - 作用：
   为未来真实游戏接入预留清晰边界，而不重写原生状态机。
 - 当前进度：
-  `scaffold_only`
+  `minimal_read_only`
 - 已落地：
   - `src/core/overlay_integration/contracts.py`
+  - `src/core/overlay_integration/read_only_adapter.py`
 - 当前已在文档中明确：
   - `CoreState`
   - `MetaState`
@@ -230,7 +234,7 @@
 
 当前真正落地并可运行的核心链路是：
 
-`sample JSON -> state_adapter -> Arbitration -> signals -> theme scoring -> rule matching -> rule selection -> enforcement -> optional narration -> snapshot`
+`sample JSON -> state_adapter -> Run -> Node -> Arbitration -> signals -> theme scoring -> rule matching -> rule selection -> enforcement -> optional narration -> snapshot`
 
 但下一阶段目标应变成：
 
@@ -243,8 +247,8 @@
 
 ## 建议近期推进顺序
 
-1. 先把 `Run / Node / Arbitration` 模型真正接进 runtime
-2. 再把 `Memory Layer` 与 `MetaState` 解释链路从 scaffold 接进节点级 update
+1. 先把当前 selection bias 收成更明确的 policy 配置
+2. 再让 `RunMemory` 与 `MetaState` 更明确地反向影响后续裁决
 3. 再扩 `Rule Engine` 与 `Authoring Layer` 的规则库、样例 coverage 与提议校验路径
-4. 然后补 runtime 侧的 batch runner / replay-friendly snapshot tooling
+4. 然后补 runtime 侧的 replay-friendly snapshot / trace tooling
 5. 最后再细化 `Overlay Integration Boundary` 的 `EventTrace / ProposedEffect / EffectApplier` 接口

@@ -1,9 +1,13 @@
+"""Map deterministic signals into a small ritual theme vocabulary."""
+
 from __future__ import annotations
 
-from src.core.deterministic_kernel import Arbitration
+from src.core.runtime import Arbitration
 
 
 def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[str, float]:
+    """Map low-level deterministic signals into ritual themes."""
+
     # Theme scores are not the final verdict. They are a lightweight way to
     # say "what kind of ritual problem does this scene currently resemble?"
     scores = {

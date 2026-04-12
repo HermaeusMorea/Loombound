@@ -1,8 +1,10 @@
+"""Deterministic signal extraction from arbitration input."""
+
 from __future__ import annotations
 
 from collections import Counter
 
-from src.core.deterministic_kernel import Arbitration
+from src.core.runtime import Arbitration
 
 
 def build_signals(arbitration: Arbitration) -> dict[str, object]:

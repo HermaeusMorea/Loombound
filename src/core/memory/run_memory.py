@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from src.core.deterministic_kernel import (
+from .types import (
     JudgeMood,
     JudgePersonaState,
     NodeChoiceRecord,

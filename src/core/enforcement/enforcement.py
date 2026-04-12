@@ -1,6 +1,9 @@
+"""Turn a selected rule into per-option ritual verdicts."""
+
 from __future__ import annotations
 
-from src.core.deterministic_kernel import Arbitration, OptionResult, RuleTemplate
+from src.core.deterministic_kernel import OptionResult, RuleTemplate
+from src.core.runtime import Arbitration
 
 
 def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:

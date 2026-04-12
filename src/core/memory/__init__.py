@@ -1,11 +1,15 @@
-"""Run-scoped ritual memory placeholders and future memory contracts."""
+"""Run-scoped ritual memory models and reducers."""
 
-from .run_memory import (
+from .types import (
     JudgeMood,
     JudgePersonaState,
+    NodeChoiceRecord,
+    NodeEvent,
     NodeMemory,
     RunMemory,
     ViolationRecord,
+)
+from .run_memory import (
     update_after_node,
     run_memory_to_dict,
     update_after_choice,
@@ -14,6 +18,8 @@ from .run_memory import (
 __all__ = [
     "JudgeMood",
     "JudgePersonaState",
+    "NodeChoiceRecord",
+    "NodeEvent",
     "NodeMemory",
     "RunMemory",
     "ViolationRecord",

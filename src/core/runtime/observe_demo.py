@@ -1,3 +1,5 @@
+"""Read-only observation demo that exports native-like input into arbitration."""
+
 from __future__ import annotations
 
 import argparse
@@ -9,13 +11,13 @@ from src.core.deterministic_kernel import (
     ArbitrationResult,
     CoreStateView,
     MetaStateView,
-    Run,
     RunSnapshot,
 )
 from src.core.enforcement import enforce_rule
 from src.core.narration import render_narration
 from src.core.overlay_integration import ObservedScene, observed_scene_to_arbitration_payload
-from src.core.rule_engine import evaluate_rules, select_rule
+from src.core.rule_engine import build_selection_trace, evaluate_rules, select_rule
+from src.core.runtime import Run
 from src.core.signal_interpretation import build_signals, score_themes
 from src.core.state_adapter import load_json_asset
 
@@ -27,6 +29,8 @@ TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
 
 
 def main() -> None:
+    """Observe a read-only scene, export it, and judge it offline."""
+
     parser = argparse.ArgumentParser(
         description="Run a read-only observation adapter demo and inspect the exported Arbitration."
     )
@@ -41,6 +45,8 @@ def main() -> None:
 
     observed_scene = ObservedScene.from_dict(load_json_asset(args.observation))
     arbitration_payload = observed_scene_to_arbitration_payload(observed_scene)
+    rules = load_rules(RULES_PATH)
+    templates = load_templates(TEXT_PATH)
     context_payload = arbitration_payload["context"]
 
     run = Run(
@@ -56,6 +62,7 @@ def main() -> None:
         ),
         meta_state=MetaStateView(),
     )
+    run.rule_system.set_templates(rules)
     node = run.start_node(
         node_id=f"{observed_scene.scene_type}:{observed_scene.observation_id}",
         node_type=observed_scene.scene_type,
@@ -63,12 +70,25 @@ def main() -> None:
     )
     arbitration = node.load_current_arbitration(arbitration_payload)
 
-    rules = load_rules(RULES_PATH)
-    templates = load_templates(TEXT_PATH)
     signals = build_signals(arbitration)
     theme_scores = score_themes(arbitration, signals)
     evaluations = evaluate_rules(arbitration, rules, theme_scores)
-    selected = select_rule(evaluations)
+    node.rule_state.reset_for_arbitration()
+    node.rule_state.record_evaluations(evaluations)
+    selected = select_rule(
+        evaluations,
+        rule_system=run.rule_system,
+        run_memory=run.memory,
+    )
+    node.rule_state.record_selected_rule(selected.rule.id if selected else None)
+    node.rule_state.record_selection_trace(
+        build_selection_trace(
+            evaluations,
+            rule_system=run.rule_system,
+            run_memory=run.memory,
+        )
+    )
+    run.rule_system.record_selected_rule(selected.rule.id if selected else None)
     option_results, collapse_delta = enforce_rule(arbitration, selected.rule if selected else None)
     narration = render_narration(
         arbitration=arbitration,

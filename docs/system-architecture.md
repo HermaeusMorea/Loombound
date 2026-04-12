@@ -144,22 +144,36 @@
 
 ### `models.py`
 
-定义 kernel-visible state、rule、evaluation、snapshot，以及当前 runtime model 所需的核心结构。
+定义 kernel-visible state、rule、evaluation、snapshot，以及 shared kernel models。
 
 当前 `models.py` 中已经包含：
 
-- `Run`
-- `Node`
 - `ArbitrationContext`
-- `Arbitration`
 - `ArbitrationResult`
 - `CoreStateView`
 - `MetaStateView`
-- `NodeMemory`
-- `RunMemory`
 - `NodeSummary`
+- `RuleTemplate`
+- `RuleEvaluation`
+- `OptionResult`
+- `NarrationBlock`
+- `RunSnapshot`
 
-当前 CLI 已经按 `Run -> Node -> Arbitration -> snapshot` 的形状组织。
+当前 runtime lifecycle object 已经移入：
+
+- `src/core/runtime/session.py`
+  - `Run`
+  - `Node`
+  - `Arbitration`
+
+当前 memory model 已经移入：
+
+- `src/core/memory/types.py`
+  - `NodeMemory`
+  - `RunMemory`
+  - `NodeEvent`
+  - `NodeChoiceRecord`
+  - `ViolationRecord`
 
 ### `signals.py`
 
@@ -186,11 +200,35 @@
 
 ### `rule_selector.py`
 
-在适用规则中做稳定选择。第一版采用：
+在适用规则中做稳定选择。当前实现采用：
 
 - 主题吻合度
 - 规则优先级
 - `id` 字典序
+
+此外，当前 runtime 已引入两层规则状态：
+
+- `RuleSystem`
+  挂在 `Run` 上，记录整局模板集合、最近使用规则与规则使用次数
+- `NodeRuleState`
+  挂在 `Node` 上，记录当前节点的候选规则、选中规则与 selection trace
+
+当前 selector 已开始轻量读取：
+
+- `RuleSystem.recently_used_rule_ids`
+- `RunMemory.theme_counters`
+
+并把它们作为小幅度的决定论偏置，用于：
+
+- 避免同一 rule 过于频繁地连续出现
+- 让长期反复出现的主题对后续选择产生轻微影响
+
+这一步仍然保持 deterministic-first：
+
+- 不替代 rule matching
+- 不绕过 kernel validation
+- 不直接引入自由度过高的策略层
+- 只在候选规则之间做轻量排序调整
 
 ### `enforcement.py`
 
@@ -214,6 +252,8 @@
   整局持续存在
 - `NodeMemory`
   节点内持续存在，节点结束后提炼并写回 `RunMemory`
+
+当前 `RunMemory` 已经开始反向影响 rule selection，但仍处于轻量偏置阶段，而不是完整策略控制层。
 
 ## Kernel Vs. Control Surfaces
 
