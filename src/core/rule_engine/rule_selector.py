@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.models import RuleEvaluation
+from src.core.deterministic_kernel import RuleEvaluation
 
 
 def select_rule(evaluations: list[RuleEvaluation]) -> RuleEvaluation | None:

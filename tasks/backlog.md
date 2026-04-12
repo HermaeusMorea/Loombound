@@ -20,6 +20,7 @@
 - 设计 rule conflict handling
 - 设计 adapter 层输入协议
 - 设计长期 run state 与 event log
+- 扩充 read-only observation samples 与 adapter coverage
 
 ## Open Design Questions
 
@@ -27,4 +28,3 @@
 - 单节点是否允许主规则 + 附属警示规则
 - `ritual_collapse` 是否应按违规类型分桶
 - 旁白模板是否应支持按规则单独配置
-

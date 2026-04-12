@@ -1,9 +1,9 @@
+from src.core.deterministic_kernel import Arbitration, RuleTemplate
 from src.core.enforcement import enforce_rule
-from src.core.models import ChoiceContext, RuleTemplate
 
 
 def test_enforcement_marks_greedy_choice_as_break_ritual() -> None:
-    context = ChoiceContext.from_dict(
+    arbitration = Arbitration.from_dict(
         {
             "context_id": "ctx",
             "decision_type": "shop",
@@ -14,7 +14,9 @@ def test_enforcement_marks_greedy_choice_as_break_ritual() -> None:
                 {"option_id": "safe", "label": "Buy potion", "tags": ["safe", "practical"], "metadata": {}},
                 {"option_id": "greed", "label": "Buy relic", "tags": ["greedy", "luxury"], "metadata": {}},
             ],
-        }
+        },
+        owner_kind="node",
+        owner_id="shop_node",
     )
     rule = RuleTemplate.from_dict(
         {
@@ -23,14 +25,14 @@ def test_enforcement_marks_greedy_choice_as_break_ritual() -> None:
             "decision_types": ["shop"],
             "theme": "humility",
             "priority": 50,
-            "match": {"max_gold": 90},
+            "max_gold": 90,
             "preferred_option_tags": ["practical"],
             "forbidden_option_tags": ["luxury"],
             "collapse_penalty": 2,
         }
     )
 
-    results, collapse_delta = enforce_rule(context, rule)
+    results, collapse_delta = enforce_rule(arbitration, rule)
     by_id = {item.option_id: item for item in results}
 
     assert by_id["safe"].verdict == "keep_ritual"

@@ -1,13 +1,21 @@
 {
-  "context_id": "map_01",
-  "decision_type": "map_routing",
-  "floor": 6,
-  "act": 1,
-  "resources": {
-    "gold": 92,
-    "hp_ratio": 0.34
+  "arbitration_id": "map_01",
+  "context": {
+    "context_id": "map_01",
+    "scene_type": "map_routing",
+    "floor": 6,
+    "act": 1,
+    "resources": {
+      "gold": 92,
+      "hp_ratio": 0.34
+    },
+    "tags": ["branching_path", "route_choice", "risk_pressure"],
+    "metadata": {
+      "scene_summary": "地图分叉场景。玩家当前血量偏低，面前有精英路线、安全路线和收益不确定路线。",
+      "ritual_question": "礼官要判断：伤疲之际是否仍应主动趋险，或应先守身定序。",
+      "note": "Low HP before an elite branch."
+    }
   },
-  "tags": ["branching_path", "route_choice", "risk_pressure"],
   "options": [
     {
       "option_id": "path_a",
@@ -35,8 +43,7 @@
     }
   ],
   "metadata": {
-    "scene_summary": "地图分叉场景。玩家当前血量偏低，面前有精英路线、安全路线和收益不确定路线。",
-    "ritual_question": "礼官要判断：伤疲之际是否仍应主动趋险，或应先守身定序。",
-    "note": "Low HP before an elite branch."
+    "owner_hint": "node",
+    "asset_note": "Map-routing arbitration sample."
   }
 }

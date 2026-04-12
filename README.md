@@ -4,7 +4,7 @@
 
 当前目标不是制作正式 mod，也不是让 AI 替玩家求解最优策略，而是先做三件事：
 
-1. 把局面表示成稳定、可验证的外部 `choice context`
+1. 把局面表示成稳定、可验证的外部 `Arbitration` 输入
 2. 用预定义规则模板对选项做“守礼 / 违礼”判断
 3. 生成可选的礼制旁白，并记录 `ritual_collapse` 与轻量 run memory
 
@@ -37,14 +37,28 @@
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m src.demo.cli
-python -m src.demo.cli --context data/sample_contexts/shop/shop_01.json
+python -m src.core.runtime.cli
+python -m src.core.runtime.cli --context data/sample_contexts/shop/shop_01.json
+python -m src.core.runtime.run_memory_demo --no-input
 ```
 
 如果未激活虚拟环境，也可以直接使用：
 
 ```bash
-.venv/bin/python -m src.demo.cli
+.venv/bin/python -m src.core.runtime.cli
+```
+
+多节点、带全局 `RunMemory` 的 demo：
+
+```bash
+.venv/bin/python -m src.core.runtime.run_memory_demo --no-input
+.venv/bin/python -m src.core.runtime.run_memory_demo --node data/sample_nodes/combat_rewards_01.json --node data/sample_nodes/shop_01.json --choice card_1 --choice plain_idol --choice buy_potion
+```
+
+read-only 观察适配 demo：
+
+```bash
+.venv/bin/python -m src.core.runtime.observe_demo --no-narration
 ```
 
 当前仓库没有强制第三方运行时依赖。`pytest` 尚未内置安装；如需运行测试，请在可联网环境中额外安装它。
@@ -67,4 +81,4 @@ python -m src.demo.cli --context data/sample_contexts/shop/shop_01.json
 4. `docs/decision-log.md`
 5. `docs/system-architecture.md`
 6. `docs/style-bible.md`
-7. `tasks/week1-plan.md`
+7. `tasks/module-progress.md`

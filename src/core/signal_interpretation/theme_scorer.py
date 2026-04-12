@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from src.core.models import ChoiceContext
+from src.core.deterministic_kernel import Arbitration
 
 
-def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str, float]:
+def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[str, float]:
     # Theme scores are not the final verdict. They are a lightweight way to
     # say "what kind of ritual problem does this scene currently resemble?"
     scores = {
@@ -18,7 +18,7 @@ def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str
 
     # These heuristics are intentionally simple for the prototype: readable,
     # tunable, and easy to inspect in CLI output.
-    if "branching_path" in context.tags or "branching_path" in context_tags:
+    if "branching_path" in arbitration.context.tags or "branching_path" in context_tags:
         scores["order"] += 2.0
     if tag_counts.get("safe", 0):
         scores["restraint"] += 1.5
@@ -29,12 +29,12 @@ def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str
         scores["restraint"] += 1.0
     if tag_counts.get("elite", 0):
         scores["avoid_conflict"] += 1.0
-    if "temptation" in context.tags:
+    if "temptation" in arbitration.context.tags:
         scores["humility"] += 1.5
         scores["restraint"] += 1.0
-    if context.decision_type == "shop":
+    if arbitration.context.scene_type == "shop":
         scores["humility"] += 0.5
-    if context.decision_type == "event_branch":
+    if arbitration.context.scene_type == "event_branch":
         scores["order"] += 0.5
 
     return scores

@@ -1,13 +1,21 @@
 {
-  "context_id": "relic_01",
-  "decision_type": "relic_choice",
-  "floor": 17,
-  "act": 1,
-  "resources": {
-    "gold": 126,
-    "hp_ratio": 0.63
+  "arbitration_id": "relic_01",
+  "context": {
+    "context_id": "relic_01",
+    "scene_type": "relic_choice",
+    "floor": 17,
+    "act": 1,
+    "resources": {
+      "gold": 126,
+      "hp_ratio": 0.63
+    },
+    "tags": ["temptation", "reward_screen"],
+    "metadata": {
+      "scene_summary": "遗物奖励场景。玩家可在务实工具与更显摆、更冒进的遗物之间选择。",
+      "ritual_question": "礼官要判断：此时应取助身之器，还是追逐更浮夸的战利品。",
+      "relic_source": "elite_reward_placeholder"
+    }
   },
-  "tags": ["temptation", "reward_screen"],
   "options": [
     {
       "option_id": "plain_idol",
@@ -23,6 +31,7 @@
     }
   ],
   "metadata": {
-    "relic_source": "elite_reward_placeholder"
+    "owner_hint": "node",
+    "asset_note": "Relic-choice arbitration sample."
   }
 }

@@ -8,7 +8,7 @@
 
 ## Phase 1: Deterministic Offline Prototype
 
-- 扩充 `choice context` 样例
+- 扩充 `Arbitration` 样例
 - 增加 10 到 20 条规则模板
 - 建立稳定的规则筛选与执行日志
 - 用 CLI 批量跑样例并检查输出一致性

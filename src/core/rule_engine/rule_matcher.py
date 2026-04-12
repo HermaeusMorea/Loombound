@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from src.core.models import ChoiceContext, RuleEvaluation, RuleTemplate
+from src.core.deterministic_kernel import Arbitration, RuleEvaluation, RuleTemplate
 
 
 def evaluate_rule(
-    context: ChoiceContext,
+    arbitration: Arbitration,
     rule: RuleTemplate,
     theme_scores: dict[str, float],
 ) -> RuleEvaluation:
@@ -12,13 +12,13 @@ def evaluate_rule(
     # the explanation of why it matched or failed.
     reasons: list[str] = []
 
-    if context.decision_type not in rule.decision_types:
+    if arbitration.context.scene_type not in rule.decision_types:
         return RuleEvaluation(rule=rule, matched=False, reasons=["decision_type_mismatch"], theme_score=0.0)
 
-    if rule.match.required_context_tags:
+    if rule.required_context_tags:
         # Context tags act as coarse scene markers, e.g. "route_choice" or
         # "temptation". They let rules say "I only belong in this sort of room".
-        missing_tags = [tag for tag in rule.match.required_context_tags if tag not in context.tags]
+        missing_tags = [tag for tag in rule.required_context_tags if tag not in arbitration.context.tags]
         if missing_tags:
             return RuleEvaluation(
                 rule=rule,
@@ -28,17 +28,17 @@ def evaluate_rule(
             )
         reasons.append("context_tags_matched")
 
-    hp_ratio = float(context.resources.get("hp_ratio", 1.0))
-    gold = int(context.resources.get("gold", 0))
+    hp_ratio = float(arbitration.context.resources.get("hp_ratio", 1.0))
+    gold = int(arbitration.context.resources.get("gold", 0))
 
     # Numeric bounds are the first prototype's main trigger language.
-    if rule.match.min_hp_ratio is not None and hp_ratio < rule.match.min_hp_ratio:
+    if rule.min_hp_ratio is not None and hp_ratio < rule.min_hp_ratio:
         return RuleEvaluation(rule=rule, matched=False, reasons=["hp_below_min"], theme_score=0.0)
-    if rule.match.max_hp_ratio is not None and hp_ratio > rule.match.max_hp_ratio:
+    if rule.max_hp_ratio is not None and hp_ratio > rule.max_hp_ratio:
         return RuleEvaluation(rule=rule, matched=False, reasons=["hp_above_max"], theme_score=0.0)
-    if rule.match.min_gold is not None and gold < rule.match.min_gold:
+    if rule.min_gold is not None and gold < rule.min_gold:
         return RuleEvaluation(rule=rule, matched=False, reasons=["gold_below_min"], theme_score=0.0)
-    if rule.match.max_gold is not None and gold > rule.match.max_gold:
+    if rule.max_gold is not None and gold > rule.max_gold:
         return RuleEvaluation(rule=rule, matched=False, reasons=["gold_above_max"], theme_score=0.0)
 
     reasons.append("numeric_bounds_matched")
@@ -51,13 +51,13 @@ def evaluate_rule(
 
 
 def evaluate_rules(
-    context: ChoiceContext,
+    arbitration: Arbitration,
     rules: list[RuleTemplate],
     theme_scores: dict[str, float],
 ) -> list[RuleEvaluation]:
     # Keep evaluation and selection separate: first ask "what is eligible?",
     # then ask "which eligible rule should win?"
-    return [evaluate_rule(context=context, rule=rule, theme_scores=theme_scores) for rule in rules]
+    return [evaluate_rule(arbitration=arbitration, rule=rule, theme_scores=theme_scores) for rule in rules]
 
 
 # TODO: Support explicit exception clauses and conflict metadata on rules.

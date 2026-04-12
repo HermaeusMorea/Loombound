@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from src.core.models import ChoiceContext, OptionResult, RuleTemplate
+from src.core.deterministic_kernel import Arbitration, OptionResult, RuleTemplate
 
 
-def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:
+def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:
     # Turn one selected rule into per-option verdicts.
     # This layer does not block actions; it only labels them and computes the
     # soft ritual collapse consequence of taking them.
@@ -11,13 +11,13 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
         return (
             [
                 OptionResult(
-                    option_id=option.option_id,
-                    label=option.label,
+                    option_id=option["option_id"],
+                    label=option["label"],
                     verdict="keep_ritual",
                     reasons=["no_rule_selected"],
                     collapse_if_taken=0,
                 )
-                for option in context.options
+                for option in arbitration.options
             ],
             0,
         )
@@ -27,11 +27,11 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
     preferred_tags = set(rule.preferred_option_tags)
     forbidden_tags = set(rule.forbidden_option_tags)
 
-    for option in context.options:
+    for option in arbitration.options:
         # Compare each option against the selected rule's preferred / forbidden
         # vocabulary. This is deliberately simple so rule behavior stays easy to
         # reason about in the prototype.
-        option_tags = set(option.tags)
+        option_tags = set(option.get("tags", []))
         reasons: list[str] = []
         verdict = "keep_ritual"
         option_penalty = 0
@@ -54,8 +54,8 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
         collapse_delta = max(collapse_delta, option_penalty)
         results.append(
             OptionResult(
-                option_id=option.option_id,
-                label=option.label,
+                option_id=option["option_id"],
+                label=option["label"],
                 verdict=verdict,
                 reasons=reasons,
                 collapse_if_taken=option_penalty,

@@ -32,12 +32,24 @@
 2. 规则执行结果能够保持稳定、可调试、可复现
 3. 旁白层可以增强主题感，而不破坏规则层的清晰性
 
-当前项目选择 deterministic-first 的默认工程路线，是为了先验证玩法、结构与可执行性；这不等于永久排斥未来更自由的 LLM 模式，而是先把稳定主路径做出来。
+当前项目选择 deterministic-first 的默认工程路线，是为了先验证玩法、结构与可执行性；这不等于把 LLM 降为边缘功能，而是先把稳定主路径做出来，再明确 LLM 在解释层与提议层中的职责。
 
 长期来看，本项目的目标也不是把 LLM 永久限定为纯文案工具，而是构建一个：
 **由稳定内核托底、并允许 LLM 在多个导演节点逐步介入的礼官导演系统。**
 
 换言之，当前仓库的默认实现是 deterministic kernel，长期架构则应理解为 `Deterministic Kernel + LLM Control Surfaces`。
+
+更具体地说，LLM 在本项目中的重要角色，不只是润色 narration，而是：
+
+- 从 `CoreState` 视图、`EventTrace` 与既有 run memory 中提取礼官视角的高层解释
+- 参与构建和更新 `MetaState`
+- 基于 `MetaState` 提议当前裁决、候选规则或有界的 `ProposedEffects`
+
+相对地，kernel 的职责是：
+
+- 规定结构边界
+- 验证 LLM 输出是否越界
+- 保证结果可调试、可回放、可 fallback
 
 在这个长期目标中，即时裁决只是第一层。更完整的系统应当具备 run 内持续记忆、逐步形成案卷与偏见、并在后续节点中表现出连续人格的能力。
 
@@ -48,18 +60,18 @@
 - 不实现战斗内出牌 AI
 - 不追求平衡性完成度
 - 不在第一版引入联网依赖或在线模型调用
-- 不在当前原型阶段把 LLM 作为唯一或必需的核心裁决器
+- 不在当前原型阶段让 LLM 绕过 kernel 直接拥有 `CoreState` mutation 权限
 
 ## Core Loop Of The Prototype
 
-1. 读取一个外部 `choice context`
-2. 读取当前 `run memory`
-3. 提取语义信号与主题分数
-4. 匹配可用规则模板
-5. 选择一条当前生效规则
+1. 读取一个外部 `Arbitration` 输入
+2. 读取当前 `RunMemory`
+3. 提取语义信号，并形成可用于更新 `MetaState` 的解释输入
+4. 基于 kernel 规则与解释层结果生成候选裁决
+5. 由 kernel 选择或验证当前生效规则
 6. 对选项执行守礼/违礼标记
 7. 生成可选旁白
-8. 在玩家选择后更新记忆并输出 `run snapshot`
+8. 在节点结束后将 `NodeMemory` 提炼进 `RunMemory`，并输出 `run snapshot`
 
 ## Success Criteria For MVP
 

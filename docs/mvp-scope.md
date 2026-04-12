@@ -28,8 +28,8 @@
 
 ### Required
 
-- 输入一个结构化上下文
-- 读取并更新一个轻量 `run memory`
+- 输入一个结构化 `Arbitration`
+- 读取并更新一个轻量 `RunMemory`
 - 输出一个生效规则
 - 对每个选项标记 `keep_ritual` 或 `break_ritual`
 - 对违礼选项增加 `ritual_collapse`

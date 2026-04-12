@@ -1,0 +1,13 @@
+{
+  "node_id": "event:floor_11",
+  "node_type": "event_branch",
+  "floor": 11,
+  "metadata": {
+    "scene_summary": "单一事件节点，用于演示 event_branch arbitration。"
+  },
+  "arbitrations": [
+    {
+      "file": "data/sample_contexts/event/event_01.json"
+    }
+  ]
+}

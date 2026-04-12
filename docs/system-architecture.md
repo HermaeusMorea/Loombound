@@ -2,7 +2,7 @@
 
 ## Design Goal
 
-构建一个离线、可检查、可调试的外部规则引擎，并以 `Deterministic Kernel + LLM Control Surfaces` 作为长期架构表述。当前默认模式下，kernel 是第一层判断来源；后续如引入 LLM，更适合作为逐步开放的 control surfaces，而不是替代内核。
+构建一个离线、可检查、可调试的外部规则引擎，并以 `Deterministic Kernel + LLM Control Surfaces` 作为长期架构表述。当前默认模式下，kernel 仍是 source of truth、validator 与 fallback；但 LLM 在这个项目中不应只被理解为旁白插件，而应被理解为 `MetaState` 的重要解释者与裁决提议者。
 
 系统长期上应被理解为一个 overlay-style ritual judge：
 
@@ -13,16 +13,32 @@
 
 ## Pipeline
 
-1. `choice context`
-2. `run memory`
-3. `signals`
-4. `theme scoring`
-5. `rule matching`
-6. `rule selection`
-7. `enforcement`
-8. `optional narration`
-9. `memory update`
-10. `run snapshot`
+1. `Run`
+2. `Node`
+3. `Arbitration`
+4. `signals`
+5. `MetaState interpretation`
+6. `rule matching`
+7. `rule selection / proposal validation`
+8. `enforcement`
+9. `optional narration`
+10. `node memory update`
+11. `run memory update`
+12. `run snapshot`
+
+当前 runtime model 应理解为：
+
+- `Run`
+  整局对象，持有全局 `CoreState` 视图、`MetaState`、`RunMemory`
+- `Node`
+  当前地图节点 / 房间对象，持有节点级状态与 `NodeMemory`
+- `Arbitration`
+  附着在 `Run` 或 `Node` 上的一次待裁决场景
+
+- `ArbitrationContext`
+  `Arbitration.context` 的类型，显式携带 `core_state_view` 与 `meta_state_view`
+- `Arbitration`
+  一次裁决对象本身，拥有 owner、context、result 与状态
 
 ## Core Game State Vs. Meta State
 
@@ -43,6 +59,26 @@
 - theme counters
 - judge mood values
 - future persona-oriented memory fields
+
+在长期设计里，`MetaState` 不只是手工统计层，也是一层礼官视角的解释状态：
+
+- kernel 负责定义其结构边界
+- LLM 可以参与提取、归纳、更新其中的解释性字段
+- 后续裁决应读取 `MetaState`，而不只读取当前节点原始输入
+
+在下一阶段的数据模型中，可以更明确地区分：
+
+- `Run.core_state` / `Run.meta_state`
+- `Node.entered_core_state` / `Node.entered_meta_state`
+- `Arbitration.context.core_state_view` / `Arbitration.context.meta_state_view`
+
+这样既能减少每次操作都重新拼接完整上下文，也能让整局资源状态与节点局部状态的关系更清楚。
+
+这也意味着：
+
+- `Run` 持有整局级状态
+- `Node` 持有节点进入时继承的状态视图与节点内局部状态
+- `Arbitration` 只处理一次待裁决场景，不直接成为全局状态容器
 
 ## EventTrace
 
@@ -83,7 +119,7 @@
 
 ## LLM Authored JSON Assets
 
-除直接参与 interpretation、reranking 或 narration 外，未来还可以让 LLM 以更稳妥的方式参与“内容生产层”。
+除直接参与 interpretation、MetaState 更新、reranking 或 narration 外，未来还可以让 LLM 以更稳妥的方式参与“内容生产层”。
 
 一个可行路径是：在整局 run 开始前，或在某些局内节点前，由 LLM 预生成受 schema 约束的 JSON assets，例如：
 
@@ -97,7 +133,7 @@
 - 结构上可映射到既有 schema、`RuleTemplate` 或其他明确的数据模型
 - 执行前仍需经过 deterministic kernel 的加载、校验、筛选与裁决
 
-这意味着 LLM 可以参与“写规则包”或“写本局导演素材”，但默认模式下不直接取代 rule engine。本项目更鼓励：
+这意味着 LLM 可以参与“写规则包”“写本局导演素材”，也可以参与生成 `MetaState` 的解释性补充；但默认模式下不直接绕过 rule engine 与 kernel validation。本项目更鼓励：
 
 - 让 LLM 生成结构化候选内容
 - 让 kernel 负责决定哪些内容合法、可用、可回放
@@ -108,7 +144,22 @@
 
 ### `models.py`
 
-定义 context、rule、evaluation、snapshot 等核心数据结构。
+定义 kernel-visible state、rule、evaluation、snapshot，以及当前 runtime model 所需的核心结构。
+
+当前 `models.py` 中已经包含：
+
+- `Run`
+- `Node`
+- `ArbitrationContext`
+- `Arbitration`
+- `ArbitrationResult`
+- `CoreStateView`
+- `MetaStateView`
+- `NodeMemory`
+- `RunMemory`
+- `NodeSummary`
+
+当前 CLI 已经按 `Run -> Node -> Arbitration -> snapshot` 的形状组织。
 
 ### `signals.py`
 
@@ -155,7 +206,14 @@
 
 ### `memory.py` or future memory modules
 
-维护 run-scoped memory，包括结构化事实、最近法令、最近违礼记录、主题计数与礼官态度参数。当前仓库尚未完整实现这一层，但架构上应明确为核心组成部分。
+维护 run-scoped memory 与 node-scoped memory，包括结构化事实、最近法令、最近违礼记录、主题计数与礼官态度参数。
+
+这里还应进一步区分：
+
+- `RunMemory`
+  整局持续存在
+- `NodeMemory`
+  节点内持续存在，节点结束后提炼并写回 `RunMemory`
 
 ## Kernel Vs. Control Surfaces
 
@@ -184,7 +242,7 @@
 - `State / Context`
   可接 `context enrichment`
 - `Signal / Interpretation`
-  可接 `theme hinting`
+  可接 `theme hinting` 与 `MetaState interpretation`
 - `Rule Engine`
   可接 `candidate rule reranking`，以及 future experimental 的 `rule proposal`
 - `Enforcement`
@@ -193,6 +251,11 @@
   可接 LLM narration backend
 - `Reflection`
   可接 run summarizer 与 persona evolution
+
+在本项目语境下，最重要的 control surface 之一其实是：
+
+- 基于 `CoreState` 视图、`EventTrace` 与记忆，提取礼官视角的 `MetaState`
+- 再由该 `MetaState` 反过来影响 rule proposal、judgement tone 与后续 memory update
 
 ## Memory Layer
 
@@ -240,16 +303,28 @@
 
 ### Memory Update Cycle
 
-每次决策节点结束后，系统不仅要输出裁决，还要在玩家选择后更新记忆：
+按当前更准确的时间尺度，应区分两层更新：
 
-1. 当前局势进入系统
-2. 系统读取 `run memory`
-3. 生成裁决
-4. 玩家选择守礼或违礼
-5. 系统记录本次行为
-6. 更新 `ritual_collapse`、主题计数、前科与礼官态度
-7. 必要时更新简短叙事摘要
-8. 更新后的记忆进入后续节点
+### 节点内
+
+1. `Run` 创建或切换当前 `Node`
+2. `Node` 在其生命周期内持续维护 `NodeMemory`
+3. 当节点内出现一次待裁决场景时，创建 `Arbitration`
+4. `Arbitration.context` 读取当前相关的 `CoreState` / `MetaState` 视图
+5. 生成裁决结果
+6. 节点内的重要结果被记录进 `NodeMemory`
+
+### 节点结束时
+
+1. `NodeMemory` 被提炼成 `NodeSummary`
+2. `NodeSummary` 回写到 `RunMemory`
+3. `NodeMemory` 被销毁
+4. 更新后的 `RunMemory` 进入下一个节点
+
+这意味着：
+
+- 不是每一次玩家选择都直接拥有一个全新的长期记忆对象
+- 而是节点内持续维护局部记忆，节点结束时再归档到整局记忆
 
 ## Future Overlay Pipeline
 
@@ -269,7 +344,7 @@
 - overlay 系统始终叠加在原生状态机之上
 - `CoreState` 写回必须经过决定论验证
 - 默认模式下，LLM 不直接拥有 `CoreState` mutation 权限
-- LLM 更适合解释事件、更新 `MetaState`、生成 `ProposedEffects`
+- LLM 的关键职责是解释事件、更新 `MetaState`、生成裁决提议与 `ProposedEffects`
 
 ### Default Mode And Experimental Modes
 

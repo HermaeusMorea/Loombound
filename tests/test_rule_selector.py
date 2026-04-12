@@ -1,12 +1,10 @@
-from src.core.models import ChoiceContext, RuleTemplate
-from src.core.rule_matcher import evaluate_rules
-from src.core.rule_selector import select_rule
-from src.core.theme_scorer import score_themes
-from src.core.signals import build_signals
+from src.core.deterministic_kernel import Arbitration, RuleTemplate
+from src.core.rule_engine import evaluate_rules, select_rule
+from src.core.signal_interpretation import build_signals, score_themes
 
 
 def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
-    context = ChoiceContext.from_dict(
+    arbitration = Arbitration.from_dict(
         {
             "context_id": "ctx",
             "decision_type": "map_routing",
@@ -17,7 +15,9 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
                 {"option_id": "a", "label": "Elite path", "tags": ["elite", "high_risk"], "metadata": {}},
                 {"option_id": "b", "label": "Safe path", "tags": ["safe", "ordered"], "metadata": {}},
             ],
-        }
+        },
+        owner_kind="run",
+        owner_id="test_run",
     )
     rules = [
         RuleTemplate.from_dict(
@@ -27,7 +27,8 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
                 "decision_types": ["map_routing"],
                 "theme": "avoid_conflict",
                 "priority": 100,
-                "match": {"max_hp_ratio": 0.45, "required_context_tags": ["route_choice"]},
+                "max_hp_ratio": 0.45,
+                "required_context_tags": ["route_choice"],
                 "preferred_option_tags": ["safe"],
                 "forbidden_option_tags": ["elite"],
                 "collapse_penalty": 2,
@@ -40,7 +41,7 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
                 "decision_types": ["map_routing"],
                 "theme": "order",
                 "priority": 10,
-                "match": {"required_context_tags": ["branching_path"]},
+                "required_context_tags": ["branching_path"],
                 "preferred_option_tags": ["ordered"],
                 "forbidden_option_tags": ["uncertain"],
                 "collapse_penalty": 1,
@@ -48,8 +49,7 @@ def test_selects_low_hp_avoid_elite_rule_for_risky_map() -> None:
         ),
     ]
 
-    theme_scores = score_themes(context, build_signals(context))
-    selected = select_rule(evaluate_rules(context, rules, theme_scores))
+    theme_scores = score_themes(arbitration, build_signals(arbitration))
+    selected = select_rule(evaluate_rules(arbitration, rules, theme_scores))
     assert selected is not None
     assert selected.rule.id == "low_hp"
-

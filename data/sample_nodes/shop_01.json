@@ -1,0 +1,13 @@
+{
+  "node_id": "shop:floor_14",
+  "node_type": "shop",
+  "floor": 14,
+  "metadata": {
+    "scene_summary": "单一商店节点，用于演示 node 内只有一次 arbitration 的情况。"
+  },
+  "arbitrations": [
+    {
+      "file": "data/sample_contexts/shop/shop_01.json"
+    }
+  ]
+}

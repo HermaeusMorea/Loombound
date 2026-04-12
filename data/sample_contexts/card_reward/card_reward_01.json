@@ -1,13 +1,21 @@
 {
-  "context_id": "card_reward_01",
-  "decision_type": "card_reward",
-  "floor": 9,
-  "act": 1,
-  "resources": {
-    "gold": 118,
-    "hp_ratio": 0.67
+  "arbitration_id": "card_reward_01",
+  "context": {
+    "context_id": "card_reward_01",
+    "scene_type": "card_reward",
+    "floor": 9,
+    "act": 1,
+    "resources": {
+      "gold": 118,
+      "hp_ratio": 0.67
+    },
+    "tags": ["reward_screen", "temptation"],
+    "metadata": {
+      "scene_summary": "卡牌奖励场景。奖励里同时存在稳健牌、偏贪进攻牌和直接跳过奖励的选择。",
+      "ritual_question": "礼官要判断：面对奖励诱惑时，是应继续克制，还是继续追逐更激进的收益。",
+      "card_count": 16
+    }
   },
-  "tags": ["reward_screen", "temptation"],
   "options": [
     {
       "option_id": "card_1",
@@ -29,8 +37,7 @@
     }
   ],
   "metadata": {
-    "scene_summary": "卡牌奖励场景。奖励里同时存在稳健牌、偏贪进攻牌和直接跳过奖励的选择。",
-    "ritual_question": "礼官要判断：面对奖励诱惑时，是应继续克制，还是继续追逐更激进的收益。",
-    "card_count": 16
+    "owner_hint": "node",
+    "asset_note": "Card-reward arbitration sample."
   }
 }

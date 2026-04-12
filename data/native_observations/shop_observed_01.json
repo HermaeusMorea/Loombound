@@ -1,0 +1,55 @@
+{
+  "observed_scene": {
+    "observation_id": "shop_observed_01",
+    "scene_type": "shop",
+    "floor": 14,
+    "act": 1,
+    "resources": {
+      "gold": 74,
+      "hp_ratio": 0.41
+    },
+    "tags": ["merchant", "temptation", "resource_pressure"],
+    "options": [
+      {
+        "option_id": "buy_potion",
+        "label": "Buy plain defensive potion",
+        "tags": ["safe", "utility", "practical"],
+        "metadata": {
+          "cost": 42
+        }
+      },
+      {
+        "option_id": "buy_relic",
+        "label": "Buy ornate relic with unclear payoff",
+        "tags": ["greedy", "ornate", "luxury"],
+        "metadata": {
+          "cost": 73
+        }
+      },
+      {
+        "option_id": "leave",
+        "label": "Leave without purchase",
+        "tags": ["restraint", "humble", "skip"],
+        "metadata": {}
+      }
+    ],
+    "metadata": {
+      "source": "read_only_mock",
+      "merchant_discount": false
+    },
+    "event_trace": [
+      {
+        "event_type": "room_entered",
+        "payload": {
+          "room_type": "shop"
+        }
+      },
+      {
+        "event_type": "shop_inventory_observed",
+        "payload": {
+          "option_count": 3
+        }
+      }
+    ]
+  }
+}

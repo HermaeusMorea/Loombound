@@ -1,27 +1,36 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ChoiceContext",
+  "title": "Arbitration",
   "type": "object",
-  "required": ["context_id", "decision_type", "floor", "resources", "options"],
+  "required": ["arbitration_id", "context", "options"],
   "properties": {
-    "context_id": { "type": "string" },
-    "decision_type": {
-      "type": "string",
-      "enum": ["map_routing", "card_reward", "shop", "relic_choice", "event_branch"]
-    },
-    "floor": { "type": "integer", "minimum": 0 },
-    "act": { "type": "integer", "minimum": 1 },
-    "resources": {
+    "arbitration_id": { "type": "string" },
+    "context": {
       "type": "object",
+      "required": ["context_id", "scene_type", "floor", "resources"],
       "properties": {
-        "gold": { "type": "integer", "minimum": 0 },
-        "hp_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+        "context_id": { "type": "string" },
+        "scene_type": {
+          "type": "string",
+          "enum": ["run", "map_routing", "card_reward", "shop", "relic_choice", "event_branch"]
+        },
+        "floor": { "type": "integer", "minimum": 0 },
+        "act": { "type": "integer", "minimum": 1 },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "gold": { "type": "integer", "minimum": 0 },
+            "hp_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": true
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "metadata": { "type": "object" }
       },
-      "additionalProperties": true
-    },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string" }
+      "additionalProperties": false
     },
     "options": {
       "type": "array",
@@ -45,4 +54,3 @@
   },
   "additionalProperties": false
 }
-
