@@ -29,7 +29,8 @@
     }
   ],
   "metadata": {
+    "scene_summary": "事件分支场景。玩家可接受高风险试炼以换取收益，也可付出温和代价离场，或直接谦退。",
+    "ritual_question": "礼官要判断：此刻应避祸守序，还是为利益接受更高风险的事件分支。",
     "event_name": "The Hall of Proper Refusal"
   }
 }
-

@@ -33,7 +33,8 @@
     }
   ],
   "metadata": {
+    "scene_summary": "商店场景。玩家金币紧张，既可以买实用药水，也可以几乎倾囊购买华饰 relic，或直接离开。",
+    "ritual_question": "礼官要判断：囊薄之时是否应先务实用、守分节用，而非竞逐浮华。",
     "merchant_discount": false
   }
 }
-

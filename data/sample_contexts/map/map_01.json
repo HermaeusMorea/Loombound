@@ -35,7 +35,8 @@
     }
   ],
   "metadata": {
+    "scene_summary": "地图分叉场景。玩家当前血量偏低，面前有精英路线、安全路线和收益不确定路线。",
+    "ritual_question": "礼官要判断：伤疲之际是否仍应主动趋险，或应先守身定序。",
     "note": "Low HP before an elite branch."
   }
 }
-

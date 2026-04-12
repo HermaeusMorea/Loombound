@@ -4,6 +4,8 @@ from src.core.models import ChoiceContext
 
 
 def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str, float]:
+    # Theme scores are not the final verdict. They are a lightweight way to
+    # say "what kind of ritual problem does this scene currently resemble?"
     scores = {
         "order": 0.0,
         "restraint": 0.0,
@@ -14,6 +16,8 @@ def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str
     tag_counts = signals["option_tag_counts"]
     context_tags = signals["context_tags"]
 
+    # These heuristics are intentionally simple for the prototype: readable,
+    # tunable, and easy to inspect in CLI output.
     if "branching_path" in context.tags or "branching_path" in context_tags:
         scores["order"] += 2.0
     if tag_counts.get("safe", 0):
@@ -37,4 +41,3 @@ def score_themes(context: ChoiceContext, signals: dict[str, object]) -> dict[str
 
 
 # TODO: Replace heuristics with tunable weights loaded from config data.
-

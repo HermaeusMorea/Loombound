@@ -4,6 +4,9 @@ from src.core.models import ChoiceContext, OptionResult, RuleTemplate
 
 
 def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:
+    # Turn one selected rule into per-option verdicts.
+    # This layer does not block actions; it only labels them and computes the
+    # soft ritual collapse consequence of taking them.
     if rule is None:
         return (
             [
@@ -25,6 +28,9 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
     forbidden_tags = set(rule.forbidden_option_tags)
 
     for option in context.options:
+        # Compare each option against the selected rule's preferred / forbidden
+        # vocabulary. This is deliberately simple so rule behavior stays easy to
+        # reason about in the prototype.
         option_tags = set(option.tags)
         reasons: list[str] = []
         verdict = "keep_ritual"
@@ -43,6 +49,8 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
         else:
             reasons.append("rule_allows_option")
 
+        # Snapshot output currently reports the highest penalty available in
+        # this scene, not a full post-choice memory update.
         collapse_delta = max(collapse_delta, option_penalty)
         results.append(
             OptionResult(
@@ -58,4 +66,3 @@ def enforce_rule(context: ChoiceContext, rule: RuleTemplate | None) -> tuple[lis
 
 
 # TODO: Split "soft warning" and "future hard lock" into separate enforcement stages.
-

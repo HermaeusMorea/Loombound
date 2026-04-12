@@ -38,4 +38,8 @@
 - 数据字段命名保持清晰、直白、英文
 - 规则 `id` 稳定、可追踪
 - 文案模板名称表达用途，不表达情绪
-
+- 原生游戏拥有的状态统一称为 `CoreState`
+- 本项目 overlay 层拥有的状态统一称为 `MetaState`
+- 可观察事件流统一称为 `EventTrace`
+- overlay 层生成的有界效果提案统一称为 `ProposedEffects`
+- 决定论校验与合法写回统一称为 `EffectApplier`

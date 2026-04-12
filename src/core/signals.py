@@ -6,6 +6,9 @@ from src.core.models import ChoiceContext
 
 
 def build_signals(context: ChoiceContext) -> dict[str, object]:
+    # Collapse raw context into a small set of reusable, deterministic facts.
+    # Later stages should mostly consume these signals rather than repeatedly
+    # re-reading raw option data.
     option_tags = Counter(tag for option in context.options for tag in option.tags)
     hp_ratio = float(context.resources.get("hp_ratio", 1.0))
     gold = int(context.resources.get("gold", 0))
@@ -25,4 +28,3 @@ def build_signals(context: ChoiceContext) -> dict[str, object]:
 
 
 # TODO: Expand signal extraction once real adapter-layer fields exist.
-

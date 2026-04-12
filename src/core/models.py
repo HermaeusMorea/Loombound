@@ -6,6 +6,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class ChoiceOption:
+    # One actionable option inside a decision node.
     option_id: str
     label: str
     tags: list[str]
@@ -14,6 +15,7 @@ class ChoiceOption:
 
 @dataclass(slots=True)
 class ChoiceContext:
+    # Normalized input for one out-of-combat decision point.
     context_id: str
     decision_type: str
     floor: int
@@ -25,6 +27,8 @@ class ChoiceContext:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ChoiceContext":
+        # The CLI and sample data stay JSON-first; convert them once here so
+        # the rest of the pipeline can work with typed objects.
         options = [ChoiceOption(**item) for item in payload.get("options", [])]
         return cls(
             context_id=payload["context_id"],
@@ -40,6 +44,7 @@ class ChoiceContext:
 
 @dataclass(slots=True)
 class RuleMatchSpec:
+    # Minimal deterministic trigger conditions for a rule template.
     required_context_tags: list[str] = field(default_factory=list)
     min_hp_ratio: float | None = None
     max_hp_ratio: float | None = None
@@ -49,6 +54,8 @@ class RuleMatchSpec:
 
 @dataclass(slots=True)
 class RuleTemplate:
+    # A reusable rule template: when it applies, what it prefers, and what
+    # penalty it threatens if the player breaks ritual.
     id: str
     name: str
     decision_types: list[str]
@@ -62,6 +69,8 @@ class RuleTemplate:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "RuleTemplate":
+        # Rules are stored as data so they can be debugged and expanded without
+        # burying everything inside hard-coded if/else chains.
         return cls(
             id=payload["id"],
             name=payload["name"],
@@ -78,6 +87,7 @@ class RuleTemplate:
 
 @dataclass(slots=True)
 class RuleEvaluation:
+    # Runtime evaluation result for one rule against one current context.
     rule: RuleTemplate
     matched: bool
     reasons: list[str]
@@ -86,6 +96,7 @@ class RuleEvaluation:
 
 @dataclass(slots=True)
 class OptionResult:
+    # Final verdict for one player-facing option after one rule is selected.
     option_id: str
     label: str
     verdict: str
@@ -95,6 +106,7 @@ class OptionResult:
 
 @dataclass(slots=True)
 class NarrationBlock:
+    # Optional text wrapper around an already-decided verdict.
     opening: str = ""
     judgement: str = ""
     warning: str = ""
@@ -102,6 +114,7 @@ class NarrationBlock:
 
 @dataclass(slots=True)
 class RunSnapshot:
+    # Serializable output of one full judgement pass.
     context_id: str
     selected_rule_id: str | None
     matched_rule_ids: list[str]
@@ -111,6 +124,8 @@ class RunSnapshot:
     narration: NarrationBlock = field(default_factory=NarrationBlock)
 
     def to_dict(self) -> dict[str, Any]:
+        # Keep the CLI output explicit and JSON-friendly instead of relying on
+        # dataclass internals or repr formatting.
         return {
             "context_id": self.context_id,
             "selected_rule_id": self.selected_rule_id,
@@ -133,4 +148,3 @@ class RunSnapshot:
                 "warning": self.narration.warning,
             },
         }
-

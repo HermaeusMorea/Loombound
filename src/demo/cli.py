@@ -24,11 +24,14 @@ def load_json(path: Path) -> dict:
 
 
 def load_rules(path: Path) -> list[RuleTemplate]:
+    # Rules are authored as data, then converted once into typed templates.
     payload = load_json(path)
     return [RuleTemplate.from_dict(item) for item in payload["rules"]]
 
 
 def main() -> None:
+    # This CLI is the simplest way to inspect the full deterministic pipeline
+    # end-to-end with one sample context.
     parser = argparse.ArgumentParser(description="Run the li-director-sts2 offline demo.")
     parser.add_argument("--context", type=Path, default=DEFAULT_CONTEXT, help="Path to a choice context JSON file.")
     parser.add_argument("--no-narration", action="store_true", help="Disable narration output.")
@@ -38,6 +41,9 @@ def main() -> None:
     rules = load_rules(RULES_PATH)
     templates = load_json(TEXT_PATH)
 
+    # Pipeline:
+    # context -> signals -> theme scores -> rule evaluations -> selected rule
+    # -> enforcement -> optional narration -> snapshot
     signals = build_signals(context)
     theme_scores = score_themes(context, signals)
     evaluations = evaluate_rules(context, rules, theme_scores)
@@ -59,9 +65,10 @@ def main() -> None:
         ritual_collapse_delta=collapse_delta,
         narration=narration,
     )
+    # Emit a structured JSON result so runs are easy to inspect, diff, and
+    # eventually replay.
     print(json.dumps(snapshot.to_dict(), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
     main()
-

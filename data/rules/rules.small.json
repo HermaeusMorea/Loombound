@@ -1,4 +1,5 @@
 {
+  "file_note": "这是当前离线原型使用的小型规则库。每条规则都描述一种可执行的礼官法令模板，而不是自由文本命令。",
   "rules": [
     {
       "id": "rule_low_hp_avoid_elite",
@@ -13,7 +14,8 @@
       "preferred_option_tags": ["safe"],
       "forbidden_option_tags": ["elite", "high_risk"],
       "collapse_penalty": 2,
-      "narration_keys": ["opening_avoid_conflict", "judgement_default", "warning_default"]
+      "narration_keys": ["opening_avoid_conflict", "judgement_default", "warning_default"],
+      "notes": "地图选路规则。用于低血量且面临路线分叉时，压制主动走向精英或高风险路径。"
     },
     {
       "id": "rule_temptation_choose_restraint",
@@ -27,7 +29,8 @@
       "preferred_option_tags": ["safe", "restraint", "humble"],
       "forbidden_option_tags": ["greedy", "luxury"],
       "collapse_penalty": 1,
-      "narration_keys": ["opening_restraint", "judgement_default", "warning_default"]
+      "narration_keys": ["opening_restraint", "judgement_default", "warning_default"],
+      "notes": "通用诱惑场景规则。适用于卡牌奖励、商店、事件或 relic 选择，优先鼓励克制而非贪取。"
     },
     {
       "id": "rule_branching_preserve_order",
@@ -41,7 +44,8 @@
       "preferred_option_tags": ["ordered", "safe"],
       "forbidden_option_tags": ["uncertain"],
       "collapse_penalty": 1,
-      "narration_keys": ["opening_order", "judgement_default", "warning_default"]
+      "narration_keys": ["opening_order", "judgement_default", "warning_default"],
+      "notes": "分叉决策规则。用于路径或事件存在多个分支时，偏向秩序明确、风险较低的选择。"
     },
     {
       "id": "rule_poor_shop_no_ornament",
@@ -55,8 +59,8 @@
       "preferred_option_tags": ["practical", "restraint"],
       "forbidden_option_tags": ["ornate", "luxury"],
       "collapse_penalty": 2,
-      "narration_keys": ["opening_humility", "judgement_default", "warning_default"]
+      "narration_keys": ["opening_humility", "judgement_default", "warning_default"],
+      "notes": "商店节用规则。用于低金币场景，限制玩家在资源紧张时购买昂贵、华饰或不够务实的物品。"
     }
   ]
 }
-
