@@ -473,7 +473,121 @@ LLM **不应该**直接写 `CoreState`。
 
 `remote seed -> local expansion -> state_adapter -> validate -> runtime`
 
-## 慢节奏显示作为生成缓冲
+## 双模型分工的具体设计
+
+### 远程 LLM 的实际输出格式
+
+远程模型不应生成散文，而应生成高密度的结构化 SeedPack。一个 arbitration 级别的 SeedPack 大概长这样：
+
+```json
+{
+  "scene_type": "crossroads",
+  "context_tags": ["branching_path", "omens", "risk_pressure"],
+  "scene_concept": "rain-soaked crossroads, three paths: watchpost road, whispering reed path, grave trail with old symbols",
+  "sanity_axis": "safety vs occult risk when already strained",
+  "options": [
+    {
+      "option_id": "lantern_road",
+      "intent": "safe orderly road, watch tax costs money",
+      "tags": ["safe", "ordered", "road"],
+      "effects": { "money_delta": -1 }
+    },
+    {
+      "option_id": "reed_path",
+      "intent": "push through reeds, something unseen follows",
+      "tags": ["occult", "volatile", "high_risk"],
+      "effects": { "health_delta": -1, "sanity_delta": -1, "add_conditions": ["reed_whispers"] }
+    },
+    {
+      "option_id": "grave_trail",
+      "intent": "uncertain middle path, copy an omen symbol, meaning unclear",
+      "tags": ["uncertain", "omens", "medium_risk"],
+      "effects": { "sanity_delta": -1 }
+    }
+  ]
+}
+```
+
+关键点：`scene_concept` 和每个选项的 `intent` 是远程模型的核心贡献，不是散文，而是叙事方向的精确压缩。没有这两个字段，本地模型无从知晓这个场景"在讲什么故事"，只能凭 effects 数字自己发明——结果必然是与游戏风格脱节的通用幻想散文。
+
+### 本地 LLM 的展开任务
+
+本地模型接收 SeedPack，展开为玩家实际看到的内容：
+
+| 字段 | 来源 | 本地模型展开方式 |
+|---|---|---|
+| `context.tags` | 远程直接给 | 不需要展开 |
+| `options[].tags` | 远程直接给 | 不需要展开 |
+| `options[].effects` | 远程直接给 | 不需要展开 |
+| `context.metadata.scene_summary` | 从 `scene_concept` 展开 | 3-5 句氛围散文 |
+| `context.metadata.sanity_question` | 从 `sanity_axis` 展开 | 1 句悬念问句 |
+| `options[].label` | 从 `intent` 展开 | 5-10 词的选项文字 |
+| `options[].metadata.effects.add_events[]` | 从 `intent + effects` 展开 | 1-2 句事后记录 |
+
+### 各字段的推荐长度与风险
+
+| 字段 | 推荐长度 | 主要风险 |
+|---|---|---|
+| `scene_summary` | 3-5 句 | 低。纯氛围，跑偏影响有限 |
+| `sanity_question` | 1 句 | 低。修辞性，越短越有力 |
+| `option label` | 5-10 词 | 低。UI 元素，太长反而难读 |
+| `add_events` | 1-2 句 | 高。见下节 |
+
+### `add_events` 为何最敏感
+
+`add_events` 是所有文字字段里约束最强的，原因来自三个叠加因素：
+
+**1. 持久性**
+其他字段（`scene_summary`、`sanity_question`、`label`）随场景过去即消失。`add_events` 通过 `apply_option_effects` 写入 `meta_state.metadata["major_events"]`，在整局游戏中持续显示给玩家，并且将来可能作为后续 LLM 生成的上下文输入。
+
+**2. 因果约束**
+`add_events` 必须叙事上解释 effects 里发生的机制变化。如果 `health_delta: -1` 且获得了 `reed_whispers` 条件，事件记录就必须说明为什么血量减少、为什么有了芦苇低语。本地模型句子越多，就越容易在某句里悄悄违背这个因果约束。
+
+**3. 后续污染风险**
+写错的历史记录会进入 `RunMemory`，如果之后 Arc Planner 或 Memory Summarizer 读取 `major_events` 来规划下一段弧，被污染的记录会传染到后续生成内容。
+
+**解法**：prompt 里显式列出 effects 并要求对应，例如：
+
+```
+场景：雨夜路口，芦苇小径
+选项意图：推进芦苇，身旁有东西移动但从未现身
+实际结果：health -1，获得条件 reed_whispers
+要求：写一句话描述这个选择的后果，必须解释为什么血量减少，以及为什么获得了 reed_whispers
+```
+
+结构化 prompt 能让 7B 以上的模型稳定输出符合因果约束的句子。
+
+### 远程模型是导演，本地模型是执笔人
+
+一句话概括分工逻辑：远程模型决定"这场戏在演什么"，本地模型把这场戏写成台词。导演不写台词，但没有导演方向，执笔人写出来的是通用幻想散文，不是这个游戏的故事。
+
+这也是为什么 `scene_concept` 和 `intent` 字段不可省略——它们是远程模型贡献的核心价值，token 成本极低（10-20 词），但信息密度决定了本地展开的质量上限。
+
+## 流式输出作为 P0 降级策略
+
+### 流式输出的实际效果
+
+流式输出（token 逐字蹦出）不加快本地模型的生成速度，但把"等待"转化为"阅读体验"。对文字冒险游戏来说，这个转化是天然的：玩家本来就在读字，字逐个出现是叙事风格，不是加载动画。
+
+典型参数（7B 模型，中等显卡）：
+
+- 生成速度约 15-30 token/秒
+- 3-5 句场景描述约 80-120 token
+- 生成时间约 3-8 秒
+- 流式输出下：首字 0.1 秒内出现，玩家边读边等，感知等待接近零
+
+### 最重要的场景：P0 阻塞
+
+内容管线设计中，大多数内容应在后台预生成（P1/P2 任务）。流式输出对预生成内容没有意义（后台生成，玩家不等）。
+
+流式输出的核心价值在 **P0 阻塞情况**——玩家到达节点但内容尚未准备好时：
+
+- 无流式：玩家看到空白屏等 5-8 秒，然后内容整体出现
+- 有流式：文字立刻开始出现，等待感消失，甚至感觉是刻意的叙事节奏
+
+因此流式输出是把 P0 硬性等待变为可接受体验的关键手段，而不只是视觉优化。
+
+### 慢节奏显示作为生成缓冲
 
 CLI 的慢节奏显示不仅是风格选择，也可以成为生成缓冲机制。
 
