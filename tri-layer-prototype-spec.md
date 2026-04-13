@@ -280,6 +280,78 @@ class ResolvedPack:
     metadata: dict = field(default_factory=dict)
 ```
 
+### SeedPack payload 示例（node_seed）
+
+Slow Core 返回的内容——只有意图和方向，没有散文：
+
+```json
+{
+  "scene_type": "crossroads",
+  "context_tags": ["branching_path", "omens", "risk_pressure"],
+  "scene_concept": "rain-soaked crossroads, three paths: watchpost road, whispering reed path, grave trail with old symbols",
+  "sanity_axis": "safety vs occult risk when already strained",
+  "options": [
+    {
+      "option_id": "lantern_road",
+      "intent": "safe orderly road, watch tax costs money",
+      "tags": ["safe", "ordered"],
+      "effects": { "resource_a_delta": -1 }
+    },
+    {
+      "option_id": "reed_path",
+      "intent": "push through reeds, something unseen follows",
+      "tags": ["occult", "high_risk"],
+      "effects": { "health_delta": -1, "resource_b_delta": -1, "add_conditions": ["reed_whispers"] }
+    },
+    {
+      "option_id": "grave_trail",
+      "intent": "uncertain middle path, copy an omen symbol, meaning unclear",
+      "tags": ["uncertain", "omens"],
+      "effects": { "resource_b_delta": -1 }
+    }
+  ]
+}
+```
+
+### ResolvedPack payload 示例（Generator 展开后）
+
+Generator 在 SeedPack 基础上填充散文字段，effects 原样保留：
+
+```json
+{
+  "scene_type": "crossroads",
+  "context_tags": ["branching_path", "omens", "risk_pressure"],
+  "scene_summary": "雨水把路牌上的字迹冲成了墨晕。三条路从脚下分岔，左侧灯火点点，中间是齐腰的芦苇，右侧的土路两旁插着刻了符文的木桩。",
+  "sanity_question": "你还记得自己为什么要离开城市吗？",
+  "options": [
+    {
+      "option_id": "lantern_road",
+      "label": "走有灯的大路，交过路费",
+      "tags": ["safe", "ordered"],
+      "effects": { "resource_a_delta": -1 },
+      "event": "哨兵收了铜子，挥手放行。路面平整，但你感觉有人在记录你的脸。"
+    },
+    {
+      "option_id": "reed_path",
+      "label": "推开芦苇穿行",
+      "tags": ["occult", "high_risk"],
+      "effects": { "health_delta": -1, "resource_b_delta": -1, "add_conditions": ["reed_whispers"] },
+      "event": "芦苇划破了手背。走到一半，身后开始有踩水声，停下来什么都没有，继续走声音又来了。"
+    },
+    {
+      "option_id": "grave_trail",
+      "label": "沿坟地小路，抄下路边符号",
+      "tags": ["uncertain", "omens"],
+      "effects": { "resource_b_delta": -1 },
+      "event": "符号抄完了，但笔画顺序怎么都想不起来，只留下一种说不清的熟悉感。"
+    }
+  ]
+}
+```
+
+`scene_summary`、`sanity_question`、`label`、`event` 四个字段由 Generator 生成，
+其余字段从 SeedPack 直接透传。Kernel 只验收 `effects` 里的数值字段。
+
 ---
 
 ## 翻译规则
@@ -449,6 +521,73 @@ class Pipeline:
 
 ---
 
+## Demo 场景
+
+用于跑通原型的最小可运行场景。不需要完整游戏内容，只需要能走完一个完整的
+节点生命周期（Phase 1 → Phase 2 → 进入下一节点）。
+
+### 初始状态
+
+```python
+CoreState(
+    health=8, max_health=10,
+    resource_a=5,   # 金币
+    resource_b=6,   # 理智
+    floor=1, act=1
+)
+MetaState()  # 全空，第一个节点不需要历史
+```
+
+世界设定一句话：**衰朽城市边缘，资源匮乏，occult 元素渗透日常，玩家是一个向外出走的旅人。**
+
+### 节点 0（硬编码，P0 启动节点）
+
+系统启动时唯一需要同步生成的节点，直接 hardcode SeedPack，跳过 Slow Core：
+
+```json
+{
+  "scene_type": "departure",
+  "context_tags": ["starting_point", "low_resources", "open_road"],
+  "scene_concept": "city's last gate, map is vague, three directions visible: guarded highway, collapsed bridge shortcut, unmarked trail into low hills",
+  "sanity_axis": "known danger vs unknown risk at the start of a long journey",
+  "options": [
+    {
+      "option_id": "highway",
+      "intent": "wide road with patrols, safe but slow and watched",
+      "tags": ["safe", "slow", "monitored"],
+      "effects": {}
+    },
+    {
+      "option_id": "bridge",
+      "intent": "shortcut over collapsed bridge, risky crossing, saves time",
+      "tags": ["high_risk", "fast"],
+      "effects": { "health_delta": -1 }
+    },
+    {
+      "option_id": "hills",
+      "intent": "unmarked trail, no one goes there, reason unknown",
+      "tags": ["unknown", "isolated"],
+      "effects": { "resource_b_delta": -1 }
+    }
+  ]
+}
+```
+
+### 节点 1（Slow Core 生成，预载目标）
+
+玩家在节点 0 Phase 1 做出选择后，Collector 将结果上行，Slow Core 异步生成
+节点 1 的 SeedPack。节点 1 的具体内容由 Slow Core 根据节点 0 的选择动态决定，
+无需 hardcode。
+
+### demo 跑通标准
+
+1. 节点 0 P0 路径：Generator 展开 hardcode SeedPack → 玩家看到场景和选项
+2. 玩家选择 → Phase 1 结束 → Collector 上行 + Generator 开始生成节点 1（并发）
+3. Phase 2 期间：打印一段过渡叙述，Generator 在后台完成节点 1
+4. 进入节点 1：内容已就绪，直接显示
+
+---
+
 ## 实现顺序建议
 
 **第一步：Kernel + 离散化**
@@ -459,13 +598,13 @@ class Pipeline:
 实现 `core_llm/client.py`，用 Anthropic API + tool use 拿结构化 `SeedPack`。
 先写一个 job kind（如 `node_seed`），跑通端到端调用。
 
-**第三步：DownwardTranslator（P0 路径）**
-实现最简版的向下翻译：本地 LLM 把 `SeedPack` 展开为 `ResolvedPack`，提交
+**第三步：Generator（P0 路径）**
+实现最简版的向下展开：本地 LLM 把 `SeedPack` 展开为 `ResolvedPack`，提交
 Kernel 验收。P0 阻塞路径跑通后，基本的内容生成闭环就完整了。
 
-**第四步：UpwardTranslator**
-实现 `summarizer.py`（本地 LLM 总结历史），再实现完整的向上翻译打包。
-此时 Core LLM 开始接收真实的上下文，而不是空 payload。
+**第四步：Collector**
+实现 `summarizer.py`（本地 LLM 总结历史），再实现完整的向上打包。
+此时 Slow Core 开始接收真实的上下文，而不是空 payload。
 
 **第五步：Scheduler + 预载**
 实现优先级队列和后台生成。节点进入时触发 P1 预生成，节点后段时完成展开。
