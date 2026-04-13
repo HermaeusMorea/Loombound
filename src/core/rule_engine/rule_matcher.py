@@ -31,9 +31,9 @@ def evaluate_rule(
             )
         reasons.append("context_tags_matched")
 
-    health = int(arbitration.context.resources.get("health", 0))
-    money = int(arbitration.context.resources.get("money", 0))
-    sanity = int(arbitration.context.resources.get("sanity", 0))
+    health = int(arbitration.context.resources.get("health") or 0)
+    money = int(arbitration.context.resources.get("money") or 0)
+    sanity = int(arbitration.context.resources.get("sanity") or 0)
 
     # Numeric bounds are the first prototype's main trigger language.
     if rule.min_health is not None and health < rule.min_health:

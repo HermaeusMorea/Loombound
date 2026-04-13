@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 from src.core.deterministic_kernel.models import (
@@ -277,8 +277,8 @@ class Run:
             scene_type="run",
             floor=self.floor,
             act=self.act,
-            core_state_view=self.core_state,
-            meta_state_view=self.meta_state,
+            core_state_view=replace(self.core_state),
+            meta_state_view=replace(self.meta_state),
         )
         self.current_arbitration = arbitration
         return arbitration
@@ -291,8 +291,8 @@ class Run:
             node_type=node_type,
             floor=floor,
             parent_run_id=self.run_id,
-            entered_core_state=self.core_state,
-            entered_meta_state=self.meta_state,
+            entered_core_state=replace(self.core_state),
+            entered_meta_state=replace(self.meta_state),
             memory=memory,
             rule_state=NodeRuleState(
                 available_rule_ids=[template.id for template in self.rule_system.templates] if self.rule_system else []

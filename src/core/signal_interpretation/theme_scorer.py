@@ -22,7 +22,7 @@ def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[s
 
     # These heuristics are intentionally simple for the prototype: readable,
     # tunable, and easy to inspect in CLI output.
-    if "branching_path" in arbitration.context.tags or "branching_path" in context_tags:
+    if "branching_path" in context_tags:
         scores["clarity"] += 2.0
     if tag_counts.get("safe", 0):
         scores["composure"] += 1.5
@@ -36,7 +36,7 @@ def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[s
         scores["clarity"] += 0.5
     if tag_counts.get("volatile", 0) or tag_counts.get("occult", 0):
         scores["self_preservation"] += 1.0
-    if "temptation" in arbitration.context.tags:
+    if "temptation" in context_tags:
         scores["detachment"] += 1.5
         scores["composure"] += 1.0
     if arbitration.context.scene_type == "market_offer":

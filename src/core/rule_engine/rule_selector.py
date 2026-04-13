@@ -70,18 +70,19 @@ def select_rule(
     if not matched:
         return None
 
+    # Pre-compute scores once per candidate so the sort key never re-evaluates.
     # Sort order expresses the current policy:
     # 1. higher adjusted theme fit
     # 2. higher rule priority
     # 3. stable deterministic tie-break by id
+    scored = [
+        (item, _compute_selection_score(item, rule_system=rule_system, run_memory=run_memory))
+        for item in matched
+    ]
     return sorted(
-        matched,
-        key=lambda item: (
-            -_compute_selection_score(item, rule_system=rule_system, run_memory=run_memory)[0],
-            -_compute_selection_score(item, rule_system=rule_system, run_memory=run_memory)[1],
-            _compute_selection_score(item, rule_system=rule_system, run_memory=run_memory)[2],
-        ),
-    )[0]
+        scored,
+        key=lambda pair: (-pair[1][0], -pair[1][1], pair[1][2]),
+    )[0][0]
 
 
 # TODO: Revisit tie-breaking once multiple simultaneously active rules are allowed.

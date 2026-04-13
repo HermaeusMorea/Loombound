@@ -21,7 +21,6 @@ def update_after_node(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemo
     for choice in node_memory.choices_made:
         if choice.active_rule_id:
             run_memory.recent_rules.append(choice.active_rule_id)
-        run_memory.recent_rules = run_memory.recent_rules[-5:]
 
         if choice.active_rule_theme:
             theme_key = choice.active_rule_theme
@@ -29,6 +28,11 @@ def update_after_node(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemo
 
         for flag in choice.local_flags:
             run_memory.behavior_counters[flag] = run_memory.behavior_counters.get(flag, 0) + 1
+
+    run_memory.recent_rules = run_memory.recent_rules[-5:]
+
+    for flag in node_memory.important_flags:
+        run_memory.behavior_counters[flag] = run_memory.behavior_counters.get(flag, 0) + 1
 
     if node_memory.shocks_in_node:
         run_memory.recent_shocks.extend(node_memory.shocks_in_node)
@@ -40,20 +44,11 @@ def update_after_node(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemo
     else:
         run_memory.narrator_mood.leniency += 1
 
-    for flag in node_memory.important_flags:
-        run_memory.behavior_counters[flag] = run_memory.behavior_counters.get(flag, 0) + 1
-
     if node_memory.node_summary:
         run_memory.important_incidents.append(node_memory.node_summary)
         run_memory.important_incidents = run_memory.important_incidents[-5:]
 
     return run_memory
-
-
-def update_after_choice(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemory:
-    """Backward-compatible alias kept while runtime callers are being renamed."""
-
-    return update_after_node(run_memory, node_memory)
 
 
 def run_memory_to_dict(run_memory: RunMemory) -> dict:
@@ -72,5 +67,4 @@ __all__ = [
     "ShockRecord",
     "update_after_node",
     "run_memory_to_dict",
-    "update_after_choice",
 ]

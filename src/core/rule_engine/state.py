@@ -47,13 +47,9 @@ class NodeRuleState:
         self.selection_trace = []
 
     def record_evaluations(self, evaluations: list[RuleEvaluation]) -> None:
-        """Store candidate rule ids and a compact selection trace."""
+        """Store matched candidate rule ids for this arbitration pass."""
 
         self.candidate_rule_ids = [item.rule.id for item in evaluations if item.matched]
-        self.selection_trace = [
-            f"{item.rule.id}:matched={item.matched}:theme={item.theme_score}"
-            for item in evaluations
-        ]
 
     def record_selected_rule(self, rule_id: str | None) -> None:
         """Remember the winning rule inside the current node."""

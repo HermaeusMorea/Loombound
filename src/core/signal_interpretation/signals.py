@@ -12,9 +12,9 @@ def build_signals(arbitration: Arbitration) -> dict[str, object]:
     # Later stages should mostly consume these signals rather than repeatedly
     # re-reading raw option data.
     option_tags = Counter(tag for option in arbitration.options for tag in option.get("tags", []))
-    health = int(arbitration.context.resources.get("health", 0))
-    money = int(arbitration.context.resources.get("money", 0))
-    sanity = int(arbitration.context.resources.get("sanity", 0))
+    health = int(arbitration.context.resources.get("health") or 0)
+    money = int(arbitration.context.resources.get("money") or 0)
+    sanity = int(arbitration.context.resources.get("sanity") or 0)
 
     return {
         "scene_type": arbitration.context.scene_type,

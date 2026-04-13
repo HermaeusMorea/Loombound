@@ -12,7 +12,6 @@ from .types import (
 from .run_memory import (
     update_after_node,
     run_memory_to_dict,
-    update_after_choice,
 )
 from .recording import (
     append_node_event,
@@ -29,7 +28,6 @@ __all__ = [
     "ShockRecord",
     "update_after_node",
     "run_memory_to_dict",
-    "update_after_choice",
     "append_node_event",
     "record_choice",
 ]

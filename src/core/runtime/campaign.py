@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -80,5 +81,5 @@ def sync_arbitration_resources(run: Run, arbitration: Any) -> None:
         }
     )
     arbitration.update_context(resources=resources)
-    arbitration.context.core_state_view = run.core_state
-    arbitration.context.meta_state_view = run.meta_state
+    arbitration.context.core_state_view = replace(run.core_state)
+    arbitration.context.meta_state_view = replace(run.meta_state)

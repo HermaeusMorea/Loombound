@@ -115,7 +115,12 @@ class ArbitrationContext:
         metadata: dict[str, Any] | None = None,
         scene_type: str | None = None,
     ) -> None:
-        """Update the live arbitration context in place."""
+        """Update the live arbitration context in place.
+
+        State views are not refreshed here — callers that need an updated
+        core_state_view (e.g. sync_arbitration_resources) must assign it
+        directly after calling update().
+        """
 
         if resources is not None:
             self.resources = resources
@@ -125,7 +130,6 @@ class ArbitrationContext:
             self.metadata = metadata
         if scene_type is not None:
             self.scene_type = scene_type
-        self.ensure_state_views()
 
 
 @dataclass(slots=True)
