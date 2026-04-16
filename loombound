@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# loombound — unified CLI for Loombound
+#
+# SUBCOMMANDS
+#   arc-palette  [--count N] [--output PATH]
+#       Generate the global arc-state palette (Table A). One-time setup.
+#
+#   clean-palette
+#       Delete data/m2_table_a.json.
+#
+#   gen "theme" [--nodes N] [--lang zh] [--tone "..."] [--worldview "..."]
+#               [--model PROVIDER[:MODEL]] [--skip-table-b]
+#       Generate a campaign graph (Opus) + Table B skeletons (Haiku).
+#
+#   preload [--campaign ID_OR_PATH]
+#       (Re)generate Table B for an existing campaign that lacks one.
+#
+#   run [--campaign ID_OR_PATH] [--slow PROVIDER[:MODEL]] [--fast MODEL]
+#       [--lang zh] [--nodes N]
+#       Launch the game.
+#
+#   report [--campaign ID]
+#       Print LLM usage / cost report for the last run.
+#
+#   clean [--campaign ID_OR_PATH] [--all]
+#       Remove campaign JSON and node files. Keeps data/m2_table_a.json.
+#       --campaign : remove only that campaign's files
+#       --all (or no flag) : remove ALL campaigns and node directories
+#
+# EXAMPLES
+#   ./loombound arc-palette
+#   ./loombound gen "亚南猎人之夜" --nodes 4 --lang zh --tone "哥特克苏鲁"
+#   ./loombound run --slow anthropic --lang zh
+#   ./loombound run --campaign hunters_night_yharnam_last_lucid --slow anthropic --lang zh
+#   ./loombound report
+#   ./loombound clean --campaign wall_street_undercurrent_act1
+#   ./loombound clean --all
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [[ -f ".env" ]]; then
+    set -a
+    source .env
+    set +a
+fi
+
+PYTHON="$SCRIPT_DIR/.venv/bin/python"
+DATA_DIR="$SCRIPT_DIR/data"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_die() { echo "loombound: $*" >&2; exit 1; }
+
+_usage() {
+    sed -n '2,38p' "$0"
+    exit 0
+}
+
+# Resolve a campaign ID or path to a JSON file path.
+# Accepts: bare ID, data/campaigns/ID.json, or absolute path.
+_resolve_campaign() {
+    local id="$1"
+    if [[ "$id" == /* ]] || [[ "$id" == ./* ]]; then
+        echo "$id"
+    elif [[ "$id" == data/campaigns/* ]]; then
+        echo "$SCRIPT_DIR/$id"
+    else
+        echo "$DATA_DIR/campaigns/${id%.json}.json"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand dispatch
+# ---------------------------------------------------------------------------
+
+[[ $# -eq 0 ]] && _usage
+
+subcmd="$1"; shift
+
+case "$subcmd" in
+
+    # ── arc-palette ─────────────────────────────────────────────────────────
+    arc-palette)
+        exec "$PYTHON" generate_arc_palette.py "$@"
+        ;;
+
+    # ── clean-palette ────────────────────────────────────────────────────────
+    clean-palette)
+        target="$DATA_DIR/m2_table_a.json"
+        if [[ -f "$target" ]]; then
+            rm "$target"
+            echo "Deleted $target"
+        else
+            echo "Nothing to clean — $target does not exist."
+        fi
+        ;;
+
+    # ── gen ─────────────────────────────────────────────────────────────────
+    gen)
+        provider=""
+        provider_model=""
+        passthrough=()
+
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --model)
+                    val="$2"; shift 2
+                    if [[ "$val" == *:* ]]; then
+                        provider="${val%%:*}"
+                        provider_model="${val#*:}"
+                    else
+                        provider="$val"
+                    fi
+                    ;;
+                *) passthrough+=("$1"); shift ;;
+            esac
+        done
+
+        [[ -n "$provider" ]]       && passthrough+=(--provider "$provider")
+        [[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
+
+        exec "$PYTHON" generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"
+        ;;
+
+    # ── preload ──────────────────────────────────────────────────────────────
+    preload)
+        exec "$PYTHON" generate_table_b.py "$@"
+        ;;
+
+    # ── run ─────────────────────────────────────────────────────────────────
+    run)
+        slow_provider=""
+        slow_model=""
+        fast_model=""
+        passthrough=()
+
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --slow)
+                    val="$2"; shift 2
+                    if [[ "$val" == *:* ]]; then
+                        slow_provider="${val%%:*}"
+                        slow_model="${val#*:}"
+                    else
+                        slow_provider="$val"
+                    fi
+                    ;;
+                --fast)
+                    fast_model="$2"; shift 2
+                    ;;
+                --campaign)
+                    passthrough+=(--campaign "$(_resolve_campaign "$2")"); shift 2
+                    ;;
+                *) passthrough+=("$1"); shift ;;
+            esac
+        done
+
+        py_args=("${passthrough[@]+"${passthrough[@]}"}")
+        if [[ -n "$slow_provider" ]]; then
+            py_args+=(--llm --slow-provider "$slow_provider")
+            [[ -n "$slow_model" ]] && py_args+=(--slow-model "$slow_model")
+        fi
+        [[ -n "$fast_model" ]] && py_args+=(--fast "$fast_model")
+
+        exec "$PYTHON" -m src.core.runtime.play_cli "${py_args[@]+"${py_args[@]}"}"
+        ;;
+
+    # ── report ───────────────────────────────────────────────────────────────
+    report)
+        exec "$PYTHON" report_llm_usage.py "$@"
+        ;;
+
+    # ── clean ────────────────────────────────────────────────────────────────
+    clean)
+        campaign_id=""
+        clean_all=0
+
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --campaign) campaign_id="$2"; shift 2 ;;
+                --all)      clean_all=1; shift ;;
+                *) _die "clean: unknown flag '$1'" ;;
+            esac
+        done
+
+        if [[ -n "$campaign_id" ]]; then
+            # Remove a single campaign
+            campaign_file="$(_resolve_campaign "$campaign_id")"
+            campaign_stem="${campaign_id%.json}"
+            campaign_stem="${campaign_stem##*/}"           # basename without .json
+            nodes_dir="$DATA_DIR/nodes/$campaign_stem"
+            removed=0
+
+            if [[ -f "$campaign_file" ]]; then
+                rm "$campaign_file"
+                echo "Removed $campaign_file"
+                removed=1
+            fi
+            if [[ -d "$nodes_dir" ]]; then
+                rm -rf "$nodes_dir"
+                echo "Removed $nodes_dir/"
+                removed=1
+            fi
+            [[ $removed -eq 0 ]] && echo "Nothing to clean for campaign '$campaign_stem'."
+
+        else
+            # Remove all campaigns and node directories (keep Table A + rules/text/arbitrations)
+            echo "Cleaning all campaign data (keeping data/m2_table_a.json)..."
+            removed=0
+
+            for f in "$DATA_DIR/campaigns/"*.json; do
+                [[ -f "$f" ]] || continue
+                rm "$f"
+                echo "  Removed $f"
+                removed=1
+            done
+
+            for d in "$DATA_DIR/nodes/"/*/; do
+                [[ -d "$d" ]] || continue
+                rm -rf "$d"
+                echo "  Removed $d"
+                removed=1
+            done
+
+            [[ $removed -eq 0 ]] && echo "Nothing to clean."
+            [[ $removed -eq 1 ]] || echo "Done."
+        fi
+        ;;
+
+    # ── help / unknown ───────────────────────────────────────────────────────
+    help|--help|-h)
+        _usage
+        ;;
+    *)
+        echo "loombound: unknown subcommand '$subcmd'" >&2
+        echo "Run './loombound --help' for usage." >&2
+        exit 1
+        ;;
+esac
