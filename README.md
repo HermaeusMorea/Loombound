@@ -85,7 +85,6 @@ cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 
 ./loombound run                            # 启动游戏（需要 ANTHROPIC_API_KEY + ollama）
 ./loombound run --lang zh                  # 中文内容
-./loombound run --slow deepseek            # 切换 Slow Core provider
 
 ./loombound report                         # 最新一轮 token 用量 / 成本
 ./loombound report --campaign ID
@@ -105,6 +104,10 @@ cp .env.example .env   # 填入需要的 API key
 
 - `ANTHROPIC_API_KEY` — 必须，`gen` 和 `run` 都需要
 - ollama 在跑（`ollama serve`），已下载 `ollama pull gemma3:4b` — `run` 需要（Fast Core 本地展开）
+
+> **运行时只支持 Claude API。** `./loombound run` 的 M2 分类器和 Slow Core 均调用 Anthropic——
+> prompt caching（Table A prefix）是 Anthropic 独有特性，切换其他 provider 会破坏缓存策略。
+> `./loombound gen --model deepseek` 是离线操作，不影响运行时，可以用其他 provider。
 
 ### 支持的 Campaign 图 Provider（`--model`）
 

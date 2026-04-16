@@ -12,9 +12,8 @@
 #               [--model PROVIDER[:MODEL]] [--skip-table-b]
 #       Generate a campaign graph (Opus) + Table B skeletons (Haiku).
 #
-#   run [--campaign ID_OR_PATH] [--slow PROVIDER[:MODEL]] [--fast MODEL]
-#       [--lang zh] [--nodes N]
-#       Launch the game.
+#   run [--campaign ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
+#       Launch the game. Requires ANTHROPIC_API_KEY (Claude API only).
 #
 #   report [--campaign ID]
 #       Print LLM usage / cost report for the last run.
@@ -30,8 +29,8 @@
 # EXAMPLES
 #   ./loombound arc-palette
 #   ./loombound gen "亚南猎人之夜" --nodes 4 --lang zh --tone "哥特克苏鲁"
-#   ./loombound run --slow anthropic --lang zh
-#   ./loombound run --campaign hunters_night_yharnam_last_lucid --slow anthropic --lang zh
+#   ./loombound run --lang zh
+#   ./loombound run --campaign hunters_night_yharnam_last_lucid --lang zh
 #   ./loombound report
 #   ./loombound clean --campaign wall_street_undercurrent_act1
 #   ./loombound clean --all
@@ -141,22 +140,11 @@ case "$subcmd" in
 
     # ── run ─────────────────────────────────────────────────────────────────
     run)
-        slow_provider=""
-        slow_model=""
         fast_model=""
         passthrough=()
 
         while [[ $# -gt 0 ]]; do
             case "$1" in
-                --slow)
-                    val="$2"; shift 2
-                    if [[ "$val" == *:* ]]; then
-                        slow_provider="${val%%:*}"
-                        slow_model="${val#*:}"
-                    else
-                        slow_provider="$val"
-                    fi
-                    ;;
                 --fast)
                     fast_model="$2"; shift 2
                     ;;
@@ -168,8 +156,6 @@ case "$subcmd" in
         done
 
         py_args=("${passthrough[@]+"${passthrough[@]}"}")
-        [[ -n "$slow_provider" ]] && py_args+=(--slow-provider "$slow_provider")
-        [[ -n "$slow_model" ]] && py_args+=(--slow-model "$slow_model")
         [[ -n "$fast_model" ]] && py_args+=(--fast "$fast_model")
 
         exec "$PYTHON" -m src.core.runtime.play_cli "${py_args[@]+"${py_args[@]}"}"

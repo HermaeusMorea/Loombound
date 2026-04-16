@@ -576,6 +576,7 @@ class PrefetchCache:
 
         _md_log([
             f"## [{_ts()}] SLOW CORE REQUEST — node `{target_node_id}`",
+            f"model: {self._slow.config.model}",
             f"arbitration_count: {arbitration_count}",
             "```",
             quasi,

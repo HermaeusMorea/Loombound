@@ -77,6 +77,7 @@ RE_ARC_PALETTE   = re.compile(r"^## \[(?P<ts>[^\]]+)\] ARC PALETTE GENERATED$")
 
 # Token lines
 RE_SLOW_TOKENS  = re.compile(r"^tokens — input: (?P<input>\d+)  output: (?P<output>\d+)")
+RE_SLOW_MODEL   = re.compile(r"^model: (?P<model>\S+)")
 RE_M2_TOKENS    = re.compile(
     r"^tokens — input: (?P<input>\d+)  output: (?P<output>\d+)"
     r"(?:  cache_created: (?P<cc>\d+))?(?:  cache_read: (?P<cr>\d+))?"
@@ -229,6 +230,7 @@ class RunReport:
     slow_calls: int = 0
     slow_input: int = 0
     slow_output: int = 0
+    slow_model: str = "claude-opus-4-6"
     fast_calls: int = 0
     fast_prompt: int = 0
     fast_eval: int = 0
@@ -545,12 +547,15 @@ def analyze_run(
     pending_slow_node: str | None = None   # set when a token line is expected for slow core
     pending_fast_node: str | None = None
     pending_m2_node:   str | None = None
+    pending_slow_model = False  # True immediately after a SLOW CORE REQUEST header
     job_arb_count: dict[str, int] = {}  # node_id → expected arb count
 
     for line in lines[run.start_line - 1 : run.end_line]:
         ts_m = RE_TIMESTAMP.match(line)
         if ts_m:
             end_ts = parse_timestamp(ts_m.group("ts"))
+            # A new ## header resets pending_slow_model (model: line must follow immediately)
+            pending_slow_model = False
 
         slow_req = RE_SLOW_REQUEST.match(line)
         if slow_req:
@@ -559,7 +564,15 @@ def analyze_run(
             current_slow_node = nid
             pending_slow_node = nid
             pending_fast_node = pending_m2_node = None
+            pending_slow_model = True
             continue
+
+        if pending_slow_model:
+            slow_mdl = RE_SLOW_MODEL.match(line)
+            if slow_mdl:
+                report.slow_model = slow_mdl.group("model")
+                pending_slow_model = False
+                continue
 
         arb_cnt = RE_ARB_COUNT.match(line)
         if arb_cnt and current_slow_node:
@@ -825,10 +838,10 @@ def render_report(report: RunReport) -> str:
         ))
 
     if report.slow_calls:
-        slow_cost = opus_cost(report.slow_input, report.slow_output)
+        slow_cost = _model_cost(report.slow_model, report.slow_input, report.slow_output)
         lines.append(_row(
             f"slow core ×{report.slow_calls}",
-            "deepseek-chat",
+            report.slow_model,
             report.slow_input, report.slow_output,
             slow_cost,
         ))
@@ -847,11 +860,15 @@ def render_report(report: RunReport) -> str:
     lines.append("  TOTALS")
     lines.append("")
 
-    total_opus_cost  = offline_opus_cost + report.m2_cost
+    runtime_slow_cost = (
+        _model_cost(report.slow_model, report.slow_input, report.slow_output)
+        if report.slow_calls else 0.0
+    )
+    total_opus_cost  = offline_opus_cost + report.m2_cost + runtime_slow_cost
     total_haiku_cost = offline_haiku_cost
     total_api_cost   = total_opus_cost + total_haiku_cost
 
-    lines.append(f"  {'opus (all)':<28}  {_usd(total_opus_cost)}")
+    lines.append(f"  {'claude (all)':<28}  {_usd(total_opus_cost)}")
     if total_haiku_cost:
         lines.append(f"  {'haiku (table b)':<28}  {_usd(total_haiku_cost)}")
     lines.append(f"  {'─' * 40}")

@@ -14,7 +14,7 @@ from src.core.enforcement import apply_option_effects, enforce_rule
 from src.core.llm_interface import M2Classifier, M2ClassifierConfig, PrefetchCache
 from src.core.llm_interface.collector import build_m1_entry
 from src.core.llm_interface.fast_core import FastCoreConfig
-from src.core.llm_interface.slow_core import SlowCoreConfig, api_key_env_for, default_model_for
+from src.core.llm_interface.slow_core import SlowCoreConfig
 from src.core.memory import append_node_event, record_choice, update_after_node
 from src.core.narration import render_narration
 from src.core.presentation import (
@@ -74,41 +74,6 @@ def _load_dotenv() -> None:
             val = val.strip().strip('"').strip("'")
             os.environ.setdefault(key, val)
 
-
-# ---------------------------------------------------------------------------
-# Slow Core config builder
-# ---------------------------------------------------------------------------
-
-def _make_slow_cfg(args: argparse.Namespace) -> SlowCoreConfig:
-    """Build SlowCoreConfig from CLI args and environment variables.
-
-    Resolution order (highest priority first):
-      1. --slow-model / --slow-provider CLI args
-      2. SLOW_CORE_MODEL / SLOW_CORE_PROVIDER env vars
-      3. Provider registry defaults
-    """
-    provider = (
-        args.slow_provider
-        or os.environ.get("SLOW_CORE_PROVIDER", "anthropic")
-    )
-    model = (
-        args.slow_model
-        or os.environ.get("SLOW_CORE_MODEL")
-        or default_model_for(provider)
-    )
-    # API key: SLOW_CORE_API_KEY overrides provider-specific key
-    api_key = (
-        os.environ.get("SLOW_CORE_API_KEY")
-        or os.environ.get(api_key_env_for(provider))
-    )
-    base_url = os.environ.get("SLOW_CORE_BASE_URL") or None
-
-    return SlowCoreConfig(
-        provider=provider,
-        model=model,
-        base_url=base_url,
-        api_key=api_key,
-    )
 
 
 def _parse_arbitrations(node_spec: dict) -> tuple[int, list[dict]]:
@@ -332,22 +297,6 @@ def main() -> None:
     parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
     parser.add_argument(
-        "--slow-provider",
-        dest="slow_provider",
-        default=None,
-        metavar="PROVIDER",
-        help="Slow Core provider: anthropic (default), openai, qwen, deepseek. "
-             "Can also be set via SLOW_CORE_PROVIDER env var.",
-    )
-    parser.add_argument(
-        "--slow-model",
-        dest="slow_model",
-        default=None,
-        metavar="MODEL",
-        help="Override Slow Core model name (e.g. gpt-4o, qwen-plus, claude-opus-4-6). "
-             "Can also be set via SLOW_CORE_MODEL env var.",
-    )
-    parser.add_argument(
         "--fast",
         dest="fast_model",
         default=None,
@@ -357,18 +306,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # --- Startup checks ---
-    provider = args.slow_provider or os.environ.get("SLOW_CORE_PROVIDER", "anthropic")
-    api_key = (
-        os.environ.get("SLOW_CORE_API_KEY")
-        or os.environ.get(api_key_env_for(provider))
-    )
+    # --- Startup check: Claude API key required ---
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        env_var = api_key_env_for(provider)
         print(
-            f"Error: {env_var} is not set.\n"
-            f"Loombound requires a Claude API key to run.\n"
-            f"Set it in .env: {env_var}=sk-ant-...",
+            "Error: ANTHROPIC_API_KEY is not set.\n"
+            "Loombound requires a Claude API key to run.\n"
+            "Set it in .env: ANTHROPIC_API_KEY=sk-ant-...",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -385,9 +329,13 @@ def main() -> None:
     run = make_run(campaign)
     run.rule_system.set_templates(rules)
 
-    slow_cfg = _make_slow_cfg(args)
-    slow_cfg.lang = args.lang
-    slow_cfg.tone = campaign.get("tone") or None
+    slow_cfg = SlowCoreConfig(
+        provider="anthropic",
+        model=os.environ.get("SLOW_CORE_MODEL", "claude-opus-4-6"),
+        api_key=api_key,
+        lang=args.lang,
+        tone=campaign.get("tone") or None,
+    )
 
     fast_model = (
         args.fast_model
@@ -420,10 +368,20 @@ def main() -> None:
     prefetch = PrefetchCache(slow_cfg=slow_cfg, fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
     prefetch.warmup()
 
+    current_node_id = campaign["start_node_id"]
+
+    # Prefetch the start node while the player reads the intro.
+    # The main loop only prefetches next_nodes, so without this the first
+    # LLM-mode node would always have empty arbitrations.
+    _prefetch_targets(
+        prefetch=prefetch,
+        campaign=campaign,
+        target_ids=[current_node_id],
+        run=run,
+    )
+
     render_run_intro(campaign)
     pause("Press Enter to step onto the road...")
-
-    current_node_id = campaign["start_node_id"]
     nodes_played = 0
     try:
         while current_node_id:

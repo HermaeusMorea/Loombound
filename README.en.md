@@ -86,7 +86,6 @@ These numbers come from a real run: campaign "Heritage Liquidation Bureau" (5 no
 
 ./loombound run                            # Launch game (requires ANTHROPIC_API_KEY + ollama)
 ./loombound run --lang zh                  # Chinese content
-./loombound run --slow deepseek            # Use a different Slow Core provider
 
 ./loombound report                         # Token usage / cost for latest run
 ./loombound report --campaign ID
@@ -106,6 +105,11 @@ cp .env.example .env   # then fill in your API keys
 
 - `ANTHROPIC_API_KEY` in `.env` — required for both `gen` and `run`
 - ollama running (`ollama serve`) with `ollama pull gemma3:4b` — required for `run` (Fast Core local expansion)
+
+> **Runtime requires Claude API only.** `./loombound run` uses Anthropic for both M2 classifier and
+> Slow Core — the prompt caching strategy (Table A prefix) is an Anthropic-specific feature and
+> breaks with other providers. `./loombound gen --model deepseek` is an offline operation and
+> can use any supported provider.
 
 ### Supported Campaign Graph Providers (`--model`)
 
