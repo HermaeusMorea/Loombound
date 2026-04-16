@@ -36,10 +36,9 @@ from src.core.deterministic_kernel.models import CoreStateView, NodeSummary
 from src.core.memory.m2_store import M2Store
 from src.core.memory.types import NodeMemory, RunMemory
 
-from .collector import build_classifier_input, build_quasi_description
+from .collector import build_classifier_input
 from .fast_core import FastCoreExpander, FastCoreConfig
 from .m2_classifier import M2Classifier
-from .slow_core import SlowCoreClient, SlowCoreConfig
 from .types import ArbitrationSeed, ArbitrationOptionSeed, NodeSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
@@ -147,16 +146,12 @@ class PrefetchCache:
 
     def __init__(
         self,
-        slow_cfg: SlowCoreConfig | None = None,
         fast_cfg: FastCoreConfig | None = None,
         lang: str = "en",
         m2_classifier: M2Classifier | None = None,
     ) -> None:
-        slow_cfg = slow_cfg or SlowCoreConfig()
         fast_cfg = fast_cfg or FastCoreConfig()
-        slow_cfg.lang = lang
         fast_cfg.lang = lang
-        self._slow = SlowCoreClient(slow_cfg)
         self._fast = FastCoreExpander(fast_cfg)
         self._m2_classifier = m2_classifier
         self._cache: dict[str, PrefetchEntry] = {}
@@ -190,8 +185,9 @@ class PrefetchCache:
         """Start background generation for target_node_id if not already running.
 
         Safe to call multiple times — ignores if entry already pending/ready.
-        Uses preloaded-table path (M2Classifier + Table B) when available,
-        falls back to dynamic Slow Core path otherwise.
+        Always uses the preloaded path (M2Classifier + Table B). If Table B or
+        M2 Classifier is unavailable the entry is marked failed and the caller
+        falls back to authored JSON.
         """
         with self._lock:
             existing = self._cache.get(target_node_id)
@@ -327,30 +323,23 @@ class PrefetchCache:
         arbitration_count: int,
         current_node_memory: NodeMemory | None = None,
     ) -> None:
-        # Choose path: preloaded (M2Classifier + Table B) or dynamic (SlowCore)
-        use_preloaded = (
-            self._m2_classifier is not None
-            and run_memory.m2.has_tables()
-        )
         try:
-            if use_preloaded:
-                await self._generate_preloaded(
-                    target_node_id,
-                    core_state,
-                    run_memory,
-                    node_history,
-                    arbitration_count,
-                    current_node_memory,
-                )
-            else:
-                await self._generate_dynamic(
-                    target_node_id,
-                    core_state,
-                    run_memory,
-                    node_history,
-                    arbitration_count,
-                    current_node_memory,
-                )
+            if self._m2_classifier is None or not run_memory.m2.has_tables():
+                reason = "m2_classifier not set" if self._m2_classifier is None else "table_a/table_b not loaded"
+                log.warning("Prefetch: '%s' skipped — %s.", target_node_id, reason)
+                with self._lock:
+                    entry = self._cache.get(target_node_id)
+                    if entry:
+                        entry.mark_failed(reason)
+                return
+            await self._generate_preloaded(
+                target_node_id,
+                core_state,
+                run_memory,
+                node_history,
+                arbitration_count,
+                current_node_memory,
+            )
         except Exception as exc:
             tb = traceback.format_exc()
             _md_log([
@@ -551,111 +540,3 @@ class PrefetchCache:
             target_node_id, len(resolved), m2_id,
         )
 
-    # ------------------------------------------------------------------
-    # Dynamic path: SlowCore plan → Fast Core expand (original behaviour)
-    # ------------------------------------------------------------------
-
-    async def _generate_dynamic(
-        self,
-        target_node_id: str,
-        core_state: CoreStateView,
-        run_memory: RunMemory,
-        node_history: list[NodeSummary],
-        arbitration_count: int,
-        current_node_memory: NodeMemory | None = None,
-    ) -> None:
-        # Step 1: Collector builds quasi description for Slow Core
-        quasi = build_quasi_description(
-            core_state,
-            run_memory,
-            node_history,
-            target_node_id=target_node_id,
-            arbitration_count=arbitration_count,
-            current_node_memory=current_node_memory,
-        )
-
-        _md_log([
-            f"## [{_ts()}] SLOW CORE REQUEST — node `{target_node_id}`",
-            f"model: {self._slow.config.model}",
-            f"arbitration_count: {arbitration_count}",
-            "```",
-            quasi,
-            "```",
-        ])
-
-        # Step 2: Slow Core plans each arbitration with one call each.
-        all_arbitrations = []
-        first_pack: NodeSeedPack | None = None
-        for arb_idx in range(arbitration_count):
-            context_hint = (
-                f"\n\n(This is arbitration {arb_idx + 1} of {arbitration_count} "
-                f"for this node. Make it thematically distinct from the others.)"
-                if arbitration_count > 1 else ""
-            )
-            pack_i = await self._slow.plan_node(
-                quasi_description=quasi + context_hint,
-                target_node_id=target_node_id,
-                arbitration_count=1,
-            )
-            if first_pack is None:
-                first_pack = pack_i
-            u = pack_i.usage
-            usage_line = (
-                f"tokens — input: {u.get('input', '?')}  "
-                f"output: {u.get('output', '?')}  "
-                f"cache_created: {u.get('cache_created', 0)}  "
-                f"cache_read: {u.get('cache_read', 0)}"
-            )
-            if pack_i.arbitrations:
-                all_arbitrations.append(pack_i.arbitrations[0])
-                _md_log([
-                    f"## [{_ts()}] SLOW CORE RESPONSE — seed `{pack_i.seed_id}` "
-                    f"({arb_idx + 1}/{arbitration_count})",
-                    usage_line,
-                    f"node_theme: {pack_i.node_theme}",
-                    f"narrative_direction: {pack_i.narrative_direction}",
-                    "```json",
-                    f"  [0] scene_type={pack_i.arbitrations[0].scene_type}"
-                    f"  options={[o.option_id for o in pack_i.arbitrations[0].options]}",
-                    "```",
-                ])
-            else:
-                _md_log([
-                    f"## [{_ts()}] SLOW CORE RESPONSE ⚠ empty arbitration {arb_idx + 1}/{arbitration_count}",
-                    usage_line,
-                ])
-
-        seed_pack = NodeSeedPack(
-            target_node_id=target_node_id,
-            node_theme=first_pack.node_theme if first_pack else "",
-            narrative_direction=first_pack.narrative_direction if first_pack else "",
-            arbitrations=all_arbitrations,
-        )
-
-        # Step 3: Fast Core expands each ArbitrationSeed, logging REQUEST inline
-        for idx, arb_seed in enumerate(seed_pack.arbitrations):
-            arb_id = f"{target_node_id}_gen_{idx:02d}"
-            _md_log([
-                f"## [{_ts()}] FAST CORE REQUEST (gen) — `{arb_id}`",
-                f"scene_type: {arb_seed.scene_type}",
-                f"scene_concept: {arb_seed.scene_concept}",
-                f"sanity_axis: {arb_seed.sanity_axis}",
-                f"options: {[o.option_id for o in arb_seed.options]}",
-            ])
-
-        resolved = await self._expand_arbitrations(
-            seed_pack.arbitrations, target_node_id, "gen", core_state
-        )
-
-        # Step 4: Store result
-        with self._lock:
-            entry = self._cache.get(target_node_id)
-            if entry:
-                entry.mark_ready(seed_pack, resolved)
-
-        _md_log([
-            f"## [{_ts()}] COMPLETE — `{target_node_id}` ({len(resolved)} arbitration(s) ready)",
-            f"(see SLOW CORE RESPONSE entries above for per-call token breakdowns)",
-        ])
-        log.info("Prefetch: '%s' generation complete (%d arbitration(s)).",
-                 target_node_id, len(resolved))

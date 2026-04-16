@@ -14,7 +14,6 @@ from src.core.enforcement import apply_option_effects, enforce_rule
 from src.core.llm_interface import M2Classifier, M2ClassifierConfig, PrefetchCache
 from src.core.llm_interface.collector import build_m1_entry
 from src.core.llm_interface.fast_core import FastCoreConfig
-from src.core.llm_interface.slow_core import SlowCoreConfig
 from src.core.memory import append_node_event, record_choice, update_after_node
 from src.core.narration import render_narration
 from src.core.presentation import (
@@ -329,14 +328,6 @@ def main() -> None:
     run = make_run(campaign)
     run.rule_system.set_templates(rules)
 
-    slow_cfg = SlowCoreConfig(
-        provider="anthropic",
-        model=os.environ.get("SLOW_CORE_MODEL", "claude-opus-4-6"),
-        api_key=api_key,
-        lang=args.lang,
-        tone=campaign.get("tone") or None,
-    )
-
     fast_model = (
         args.fast_model
         or os.environ.get("FAST_CORE_MODEL", "gemma3:4b")
@@ -365,7 +356,7 @@ def main() -> None:
             table_a_json=run.memory.m2.table_a_prompt_json(),
         )
 
-    prefetch = PrefetchCache(slow_cfg=slow_cfg, fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
+    prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
     prefetch.warmup()
 
     current_node_id = campaign["start_node_id"]
