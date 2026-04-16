@@ -1,0 +1,136 @@
+{
+  "campaign_id": "ashes_era_border_pilgrimage",
+  "title": "灰烬时代的边境巡礼",
+  "intro": "火将熄灭，世界垂暮。你从余烬中醒来，背负着不死人的诅咒，踏上前往边境的巡礼之路。钟声在废墟间回荡，残火在灰烬中闪烁，所有道路都通向衰败与牺牲。",
+  "tone": "黑暗肃穆的高幻想末世叙事，基调悲怆而庄严。世界处于火将熄灭的末期，一切荣耀都已燃尽，只剩灰烬、钟声、废墟与残火。不死人诅咒蔓延，骑士、余火守护者、堕落圣职者与游魂商人在残存秩序里苟活。魔法、奇迹与咒术都带着沉重代价，神明神话正在剥落，所有叙事都暗示着衰败、轮回与不可避免的牺牲。视觉意象：破碎的哥特式教堂、被灰烬覆盖的墓地、深渊边缘的哨站、诅咒村落中摇曳的残火、剥落的壁画与锈蚀的盔甲。",
+  "initial_core_state": {
+    "health": 8,
+    "max_health": 10,
+    "money": 5,
+    "sanity": 7,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "awakening_in_ashes",
+  "nodes": {
+    "awakening_in_ashes": {
+      "label": "灰烬中苏醒",
+      "map_blurb": "从墓地的灰烬堆中爬起，远方钟声敲响，宣告又一个衰败纪元的开始。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/awakening_in_ashes.json",
+      "next_nodes": [
+        "ruined_chapel_crossroads",
+        "cursed_village_path"
+      ]
+    },
+    "ruined_chapel_crossroads": {
+      "label": "破碎教堂岔路",
+      "map_blurb": "哥特式教堂的残骸矗立在灰烬平原上，三条道路延伸向不同的衰败命运。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/ruined_chapel_crossroads.json",
+      "next_nodes": [
+        "fallen_knight_encounter",
+        "ashes_archive"
+      ]
+    },
+    "cursed_village_path": {
+      "label": "诅咒村落小径",
+      "map_blurb": "被灰烬覆盖的村落，游魂在残火间徘徊，空气中弥漫着绝望的祈祷声。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/cursed_village_path.json",
+      "next_nodes": [
+        "wandering_merchant_market",
+        "village_ritual_site"
+      ]
+    },
+    "fallen_knight_encounter": {
+      "label": "堕落骑士的哨站",
+      "map_blurb": "一位失去信仰的骑士守卫着深渊边缘，他的盔甲锈蚀，剑刃却依然锋利。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/fallen_knight_encounter.json",
+      "next_nodes": [
+        "abyss_threshold",
+        "knights_rest"
+      ]
+    },
+    "ashes_archive": {
+      "label": "灰烬档案馆",
+      "map_blurb": "古老图书馆的残卷记载着火的衰亡史，以及不死人诅咒的真相。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/ashes_archive.json",
+      "next_nodes": [
+        "forbidden_knowledge_revelation"
+      ]
+    },
+    "wandering_merchant_market": {
+      "label": "游魂商人的集市",
+      "map_blurb": "不死商人在废墟间摆摊，交易着残火、记忆碎片与代价沉重的奇迹。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/wandering_merchant_market.json",
+      "next_nodes": [
+        "village_ritual_site",
+        "knights_rest"
+      ]
+    },
+    "village_ritual_site": {
+      "label": "村落的献祭仪式",
+      "map_blurb": "村民正在进行古老的灰烬仪式，试图用牺牲延缓火的熄灭。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/village_ritual_site.json",
+      "next_nodes": [
+        "forbidden_knowledge_revelation",
+        "final_confrontation_prelude"
+      ]
+    },
+    "abyss_threshold": {
+      "label": "深渊边界",
+      "map_blurb": "世界的边缘，灰烬如瀑布般落入虚无，这里是所有巡礼的终点。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/abyss_threshold.json",
+      "next_nodes": [
+        "final_confrontation_prelude"
+      ]
+    },
+    "knights_rest": {
+      "label": "骑士的短暂休憩",
+      "map_blurb": "在废弃哨站的火堆旁，可以暂时放下诅咒的重担，聆听灰烬的低语。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/knights_rest.json",
+      "next_nodes": [
+        "abyss_threshold",
+        "village_ritual_site"
+      ]
+    },
+    "forbidden_knowledge_revelation": {
+      "label": "禁忌知识的启示",
+      "map_blurb": "真相如刀刃般锋利：火的熄灭不是终结，而是另一种轮回的开始。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/forbidden_knowledge_revelation.json",
+      "next_nodes": [
+        "final_confrontation_prelude"
+      ]
+    },
+    "final_confrontation_prelude": {
+      "label": "最终对峙的前奏",
+      "map_blurb": "钟声停止，残火摇曳，你必须选择：延续这衰败的轮回，还是让一切归于永恒的灰烬。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/final_confrontation_prelude.json",
+      "next_nodes": [
+        "ashes_cycle_climax"
+      ]
+    },
+    "ashes_cycle_climax": {
+      "label": "灰烬轮回的终局",
+      "map_blurb": "在世界的灰烬核心，面对火的守护者或熄灭者，你的选择将决定下一个纪元的本质。",
+      "node_file": "data/nodes/ashes_era_border_pilgrimage/ashes_cycle_climax.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "灰烬时代的边境巡礼",
+    "language": "zh",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "generation_mode": "preloaded",
+    "tone_hint": "黑暗、肃穆、衰败、悲怆的高幻想末世；少解释，多暗示；一切荣耀都已燃尽，只剩灰烬、钟声、废墟与残火",
+    "worldview_hint": "世界处于火将熄灭的末期，王国早已破败，城塞、墓地、深渊、古教堂与诅咒村落彼此相连；不死人诅咒蔓延，骑士、余火守护者、堕落圣职者与游魂商人都在残存秩序里苟活；魔法、奇迹与咒术都带着代价，神明神话正在剥落，所有道路都通向衰败、轮回与牺牲",
+    "table_a_path": "/home/eixco/projects/black-Archive/data/m2_table_a.json",
+    "table_a_entry_count": 50
+  }
+}

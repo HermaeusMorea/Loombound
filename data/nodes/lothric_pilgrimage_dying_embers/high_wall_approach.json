@@ -1,0 +1,9 @@
+{
+  "node_id": "high_wall_approach:floor_01",
+  "node_type": "encounter",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "灰烬从传火祭祀场的篝火旁醒来，高墙在晨雾中如枯骨般耸立。朝圣者的尸体沿阶梯蜿蜒向上，背上的石块刻着无人再读的祈祷文。"
+  },
+  "arbitrations": 2
+}

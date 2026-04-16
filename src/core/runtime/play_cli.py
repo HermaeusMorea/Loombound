@@ -213,12 +213,13 @@ def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str
 
 def _play_node(
     run,
+    campaign: dict[str, object],
     campaign_node: dict[str, object],
     rules,
     templates: dict[str, list[str]],
     prefetch: PrefetchCache | None = None,
     campaign_node_id: str | None = None,
-) -> None:
+) -> object | None:
     node_path = resolve_asset_path(campaign_node["node_file"])
     node_spec = validate_node_asset(load_json_asset(node_path), source=node_path)
     run.core_state.floor = node_spec["floor"]
@@ -275,6 +276,62 @@ def _play_node(
     run.memory.m1.push(build_m1_entry(run.core_state, run.memory, node.memory))
     summary = node.build_summary(sanity_delta=node.memory.sanity_lost_in_node)
     run.close_current_node(summary=summary)
+    return node.memory
+
+
+def _prefetch_targets(
+    *,
+    prefetch: PrefetchCache | None,
+    campaign: dict[str, object],
+    target_ids: list[str],
+    run,
+    current_node_memory=None,
+) -> None:
+    """Trigger prefetch for a list of campaign node IDs."""
+
+    if prefetch is None:
+        return
+
+    seen: set[str] = set()
+    for target_id in target_ids:
+        if target_id in seen:
+            continue
+        seen.add(target_id)
+        next_campaign_node = campaign["nodes"].get(target_id, {})
+        next_node_path = resolve_asset_path(next_campaign_node.get("node_file", ""))
+        try:
+            next_spec = validate_node_asset(
+                load_json_asset(next_node_path), source=next_node_path
+            )
+            llm_c, authored = _parse_arbitrations(next_spec)
+            arb_count = llm_c or len(authored)
+            if arb_count:
+                prefetch.trigger(
+                    target_node_id=target_id,
+                    core_state=run.core_state,
+                    run_memory=run.memory,
+                    node_history=list(run.node_history),
+                    arbitration_count=arb_count,
+                    current_node_memory=current_node_memory,
+                )
+        except (AssetValidationError, ValueError):
+            pass
+
+
+def _collect_lookahead_targets(campaign: dict[str, object], next_nodes: list[str]) -> list[str]:
+    """Return unique grandchild campaign node IDs in stable order."""
+
+    targets: list[str] = []
+    seen: set[str] = set()
+    nodes = campaign.get("nodes", {})
+    for next_id in next_nodes:
+        next_campaign_node = nodes.get(next_id, {})
+        for lookahead_id in next_campaign_node.get("next_nodes", []):
+            if lookahead_id in seen:
+                continue
+            seen.add(lookahead_id)
+            targets.append(lookahead_id)
+    return targets
 
 
 def main() -> None:
@@ -383,28 +440,33 @@ def main() -> None:
 
             # Trigger background generation for each candidate next node
             if prefetch and next_nodes:
-                for next_id in next_nodes:
-                    next_campaign_node = campaign["nodes"].get(next_id, {})
-                    next_node_path = resolve_asset_path(next_campaign_node.get("node_file", ""))
-                    try:
-                        next_spec = validate_node_asset(
-                            load_json_asset(next_node_path), source=next_node_path
-                        )
-                        llm_c, authored = _parse_arbitrations(next_spec)
-                        arb_count = llm_c or len(authored)
-                        if arb_count:
-                            prefetch.trigger(
-                                target_node_id=next_id,
-                                core_state=run.core_state,
-                                run_memory=run.memory,
-                                node_history=list(run.node_history),
-                                arbitration_count=arb_count,
-                            )
-                    except (AssetValidationError, ValueError):
-                        pass  # next node spec unreadable — skip prefetch for it
+                _prefetch_targets(
+                    prefetch=prefetch,
+                    campaign=campaign,
+                    target_ids=next_nodes,
+                    run=run,
+                )
 
-            _play_node(run, campaign_node, rules, templates, prefetch=prefetch, campaign_node_id=current_node_id)
+            completed_node_memory = _play_node(
+                run,
+                campaign,
+                campaign_node,
+                rules,
+                templates,
+                prefetch=prefetch,
+                campaign_node_id=current_node_id,
+            )
             nodes_played += 1
+
+            if prefetch and next_nodes:
+                lookahead_targets = _collect_lookahead_targets(campaign, next_nodes)
+                _prefetch_targets(
+                    prefetch=prefetch,
+                    campaign=campaign,
+                    target_ids=lookahead_targets,
+                    run=run,
+                    current_node_memory=completed_node_memory,
+                )
 
             if not next_nodes:
                 break

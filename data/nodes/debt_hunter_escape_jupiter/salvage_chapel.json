@@ -1,0 +1,9 @@
+{
+  "node_id": "salvage_chapel:floor_02",
+  "node_type": "ritual",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "通风管道的尽头是一座由废弃反应堆外壳改建的礼拜堂，打捞教团的祭司们正在用焊枪进行某种仪式。他们或许会庇护你——如果你愿意付出代价。"
+  },
+  "arbitrations": 3
+}

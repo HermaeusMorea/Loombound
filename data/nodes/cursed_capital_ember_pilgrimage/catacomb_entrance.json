@@ -1,0 +1,9 @@
+{
+  "node_id": "catacomb_entrance:floor_02",
+  "node_type": "threshold",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "向下延伸的石阶被幽蓝余火照亮，空气中弥漫着古老防腐剂和腐烂记忆的气味。"
+  },
+  "arbitrations": 1
+}

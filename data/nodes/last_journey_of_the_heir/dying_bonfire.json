@@ -1,0 +1,9 @@
+{
+  "node_id": "dying_bonfire:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "一堆即将熄灭的篝火旁，一位失去双眼的铁匠仍在锤打一柄永远不会完成的剑。他不记得自己在等谁，但他知道——那个人终会来到。"
+  },
+  "arbitrations": 2
+}

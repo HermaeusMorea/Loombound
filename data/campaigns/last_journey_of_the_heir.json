@@ -1,0 +1,63 @@
+{
+  "campaign_id": "last_journey_of_the_heir",
+  "title": "薪火传承者的最后征途",
+  "intro": "灰烬从传火祭祀场的篝火旁醒来，炉中仅余一缕将熄的微光。钟声早已沉默，诸王弃位而去，唯有你——最后的余烬——被古老法则驱使着，踏上这条注定燃尽自身的道路。洛斯里克的天空凝固成铅灰色，仿佛世界本身也在等待最终的熄灭。",
+  "tone": "枯竭、疲倦而崇高的末世悲壮——类型为黑暗奇幻史诗，基调是\"一切终将熄灭，但仍要燃尽最后一点余烬\"。画面应反复出现灰烬、残火、石化的骑士、空洞的眼眶、锈蚀的铠甲、坍塌的大教堂与被遗忘的旗帜。语言风格沉郁庄重，带有挽歌般的节奏感，角色对话稀少而沉重，如同石碑上最后的铭文。世界已精疲力竭却仍被古老法则强迫运转，NPC们不知为何仍在坚守早已失去意义的岗位——这种荒诞的忠诚本身就是最深的悲哀。魔法以火焰为核心意象：火焰的赐予、传递、衰微与熄灭贯穿一切仪式与战斗。",
+  "initial_core_state": {
+    "health": 70,
+    "max_health": 100,
+    "money": 30,
+    "sanity": 60,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "ashen_ruins",
+  "nodes": {
+    "ashen_ruins": {
+      "label": "灰烬废墟·高墙残径",
+      "map_blurb": "洛斯里克高墙下的废墟中，空洞化的士兵仍在巡逻着早已不存在的边界。石阶上覆满冷却的余烬，远处传来锈蚀铠甲碰撞的声响。",
+      "node_file": "data/nodes/last_journey_of_the_heir/ashen_ruins.json",
+      "next_nodes": [
+        "hollow_archive",
+        "dying_bonfire"
+      ]
+    },
+    "hollow_archive": {
+      "label": "空洞学院·残缺经卷",
+      "map_blurb": "大书库的穹顶早已坍塌，月光从裂缝中泻入。一位石化了半身的学者仍在翻阅同一页经卷——关于初始之火的最后记录，墨迹已近乎褪尽。",
+      "node_file": "data/nodes/last_journey_of_the_heir/hollow_archive.json",
+      "next_nodes": [
+        "kiln_of_the_first_flame"
+      ]
+    },
+    "dying_bonfire": {
+      "label": "将熄篝火·最后的锻造",
+      "map_blurb": "一堆即将熄灭的篝火旁，一位失去双眼的铁匠仍在锤打一柄永远不会完成的剑。他不记得自己在等谁，但他知道——那个人终会来到。",
+      "node_file": "data/nodes/last_journey_of_the_heir/dying_bonfire.json",
+      "next_nodes": [
+        "kiln_of_the_first_flame"
+      ]
+    },
+    "kiln_of_the_first_flame": {
+      "label": "初始之炉·薪火终焉",
+      "map_blurb": "灰烬的尽头。无数代薪王的残骸堆积成一座沉默的山丘，炉中最后的火焰不过指尖大小，却仍在顽固地燃烧。是传火，还是让黑暗降临——选择在你手中，或者说，选择从来就不在你手中。",
+      "node_file": "data/nodes/last_journey_of_the_heir/kiln_of_the_first_flame.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "薪火传承者的最后征途",
+    "language": "zh",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tone_hint": "枯竭、疲倦而崇高的末世悲壮感——一切终将熄灭，但仍要燃尽最后一点余烬",
+    "worldview_hint": "火焰即将永久熄灭的洛斯里克末期：不死人诅咒蔓延，空洞化的士兵在废墟中漫游，古老的神明早已腐朽或疯癫，只剩下石化的骑士和不知为何仍在坚守岗位的亡灵——世界本身已经精疲力竭，但某种古老的法则仍在强迫一切继续运转"
+  }
+}

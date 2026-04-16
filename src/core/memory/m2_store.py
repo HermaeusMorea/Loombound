@@ -1,17 +1,13 @@
-"""M2 memory store — arc-level trajectory state.
+"""M2 memory store — runtime arc tendencies plus per-node scene skeletons.
 
 Two tables:
-  Table A  (data/m2_table_a.json): campaign-agnostic, generated once offline by Claude.
-           Contains only the 4 arc-state enum fields + an integer ID.
-           Loaded at game startup; placed as a cached prefix in every Claude classifier call.
+  Table A  (data/m2_table_a.json): campaign-agnostic arc-state catalogue.
+           Loaded at game startup and cached into every Claude classifier call.
 
-  Table B  (data/nodes/<campaign_id>/table_b.json): per-campaign, generated offline by DeepSeek.
-           Maps each Table A ID to a full ArbitrationSeed (scene_concept, sanity_axis, options).
-           Loaded at game startup if present; used as fast lookup during prefetch.
-
-At runtime the M2Classifier (Claude) receives Table A (cached) + current M1+M0 quasi state
-and returns a single entry_id. The pipeline then looks up Table B[entry_id] to get the
-ArbitrationSeed that Fast Core (gemma3) will expand into display text.
+  Table B  (data/nodes/<campaign_id>/table_b.json): per-campaign node skeletons.
+           Each row is keyed by campaign node_id and stores one or more scene
+           skeletons for that node. These skeletons are later modulated by the
+           runtime Table A tendency selected by Claude.
 """
 
 from __future__ import annotations
@@ -21,19 +17,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-# ---------------------------------------------------------------------------
-# Table A row
-# ---------------------------------------------------------------------------
-
 @dataclass(slots=True)
 class M2Entry:
     """One row of Table A — arc state classification only, no narrative content."""
 
     entry_id: int
-    arc_trajectory: str   # rising | plateau | climax | resolution | pivot
-    world_pressure: str   # low | moderate | high | critical
-    narrative_pacing: str # slow | steady | accelerating | sprint
-    pending_intent: str   # exploration | confrontation | revelation | recovery | transition
+    arc_trajectory: str
+    world_pressure: str
+    narrative_pacing: str
+    pending_intent: str
 
     def to_dict(self) -> dict:
         return {
@@ -45,23 +37,16 @@ class M2Entry:
         }
 
 
-# ---------------------------------------------------------------------------
-# Table B row
-# ---------------------------------------------------------------------------
-
 @dataclass(slots=True)
-class M2SeedEntry:
-    """One row of Table B — Table A state + full ArbitrationSeed content (from DeepSeek)."""
+class M2NodeArbitrationSkeleton:
+    """One preloaded scene skeleton for a campaign node arbitration slot."""
 
-    entry_id: int
-    m2: M2Entry
     scene_type: str
     scene_concept: str
     sanity_axis: str
-    options: list[dict]  # [{option_id, intent, tags, effects}]
+    options: list[dict]
 
-    def to_arbitration_seed_dict(self) -> dict:
-        """Return a dict compatible with ArbitrationSeed dataclass fields."""
+    def to_seed_dict(self) -> dict:
         return {
             "scene_type": self.scene_type,
             "scene_concept": self.scene_concept,
@@ -70,25 +55,29 @@ class M2SeedEntry:
         }
 
 
-# ---------------------------------------------------------------------------
-# Store
-# ---------------------------------------------------------------------------
+@dataclass(slots=True)
+class M2NodeSkeletonEntry:
+    """One row of Table B — keyed by campaign node_id, not Table A entry_id."""
+
+    node_id: str
+    node_type: str
+    label: str
+    map_blurb: str
+    arbitrations: list[M2NodeArbitrationSkeleton] = field(default_factory=list)
+
 
 @dataclass
 class M2Store:
-    """Holds Table A, Table B, and the runtime arc classification history."""
+    """Holds Table A, node-keyed Table B, and runtime arc classification history."""
 
     table_a: dict[int, M2Entry] = field(default_factory=dict)
-    table_b: dict[int, M2SeedEntry] = field(default_factory=dict)
+    table_b: dict[str, M2NodeSkeletonEntry] = field(default_factory=dict)
     current_id: int | None = None
-    history: list[tuple[str, int]] = field(default_factory=list)  # [(node_id, m2_id)]
-
-    # ------------------------------------------------------------------
-    # Loading
-    # ------------------------------------------------------------------
+    history: list[tuple[str, int]] = field(default_factory=list)
 
     def load_table_a(self, path: Path) -> None:
         """Load Table A from JSON. Expected format: list of M2Entry dicts."""
+
         data = json.loads(path.read_text(encoding="utf-8"))
         self.table_a = {}
         for row in data:
@@ -102,47 +91,55 @@ class M2Store:
             self.table_a[entry.entry_id] = entry
 
     def load_table_b(self, path: Path) -> None:
-        """Load Table B from JSON. Expected format: list of M2SeedEntry dicts."""
+        """Load node-keyed Table B from JSON."""
+
         data = json.loads(path.read_text(encoding="utf-8"))
         self.table_b = {}
         for row in data:
-            entry_id = int(row["entry_id"])
-            m2_row = row.get("m2", row)  # support flat or nested format
-            m2 = M2Entry(
-                entry_id=entry_id,
-                arc_trajectory=m2_row.get("arc_trajectory", ""),
-                world_pressure=m2_row.get("world_pressure", ""),
-                narrative_pacing=m2_row.get("narrative_pacing", ""),
-                pending_intent=m2_row.get("pending_intent", ""),
+            node_id = row.get("node_id", "")
+            if not node_id:
+                continue
+            arbitrations = [
+                M2NodeArbitrationSkeleton(
+                    scene_type=arb.get("scene_type", ""),
+                    scene_concept=arb.get("scene_concept", ""),
+                    sanity_axis=arb.get("sanity_axis", ""),
+                    options=arb.get("options", []),
+                )
+                for arb in row.get("arbitrations", [])
+                if isinstance(arb, dict)
+            ]
+            self.table_b[node_id] = M2NodeSkeletonEntry(
+                node_id=node_id,
+                node_type=row.get("node_type", ""),
+                label=row.get("label", ""),
+                map_blurb=row.get("map_blurb", ""),
+                arbitrations=arbitrations,
             )
-            seed = M2SeedEntry(
-                entry_id=entry_id,
-                m2=m2,
-                scene_type=row.get("scene_type", ""),
-                scene_concept=row.get("scene_concept", ""),
-                sanity_axis=row.get("sanity_axis", ""),
-                options=row.get("options", []),
-            )
-            self.table_b[entry_id] = seed
-
-    # ------------------------------------------------------------------
-    # Runtime
-    # ------------------------------------------------------------------
 
     def update(self, node_id: str, m2_id: int) -> None:
         """Record the arc classification result for a node."""
+
         self.current_id = m2_id
         self.history.append((node_id, m2_id))
 
-    def lookup_seed(self, m2_id: int) -> M2SeedEntry | None:
-        """Look up Table B by entry_id. Returns None if Table B not loaded or ID missing."""
-        return self.table_b.get(m2_id)
+    def lookup_arc(self, m2_id: int) -> M2Entry | None:
+        """Look up a Table A row by entry_id."""
+
+        return self.table_a.get(m2_id)
+
+    def lookup_node(self, node_id: str) -> M2NodeSkeletonEntry | None:
+        """Look up a preloaded node skeleton by campaign node_id."""
+
+        return self.table_b.get(node_id)
 
     def has_tables(self) -> bool:
-        """True if both Table A and Table B are loaded."""
+        """True if both Table A and node-keyed Table B are loaded."""
+
         return bool(self.table_a) and bool(self.table_b)
 
     def table_a_prompt_json(self) -> str:
-        """Serialize Table A to a compact JSON string for use as a cached prompt prefix."""
+        """Serialize Table A to compact JSON for the Claude classifier prefix."""
+
         rows = [e.to_dict() for e in sorted(self.table_a.values(), key=lambda e: e.entry_id)]
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))

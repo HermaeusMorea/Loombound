@@ -1,0 +1,9 @@
+{
+  "node_id": "final_confrontation_prelude:floor_05",
+  "node_type": "threshold",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "钟声停止，残火摇曳，你必须选择：延续这衰败的轮回，还是让一切归于永恒的灰烬。"
+  },
+  "arbitrations": 2
+}

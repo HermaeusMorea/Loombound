@@ -1,0 +1,9 @@
+{
+  "node_id": "knights_rest:floor_04",
+  "node_type": "rest",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "在废弃哨站的火堆旁，可以暂时放下诅咒的重担，聆听灰烬的低语。"
+  },
+  "arbitrations": 1
+}

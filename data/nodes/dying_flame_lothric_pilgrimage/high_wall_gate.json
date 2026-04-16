@@ -1,0 +1,9 @@
+{
+  "node_id": "high_wall_gate:floor_01",
+  "node_type": "crossroads",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "洛斯里克高墙的巨门半掩，石像鬼的残骸散落台阶，远方钟声沉闷如丧钟。"
+  },
+  "arbitrations": 2
+}

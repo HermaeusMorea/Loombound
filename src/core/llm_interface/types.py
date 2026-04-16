@@ -54,6 +54,7 @@ class ArbitrationSeed:
     scene_concept: str        # e.g. "rain-soaked crossroads, three paths..."
     sanity_axis: str          # e.g. "safety vs occult risk when already strained"
     options: list[ArbitrationOptionSeed] = field(default_factory=list)
+    tendency: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

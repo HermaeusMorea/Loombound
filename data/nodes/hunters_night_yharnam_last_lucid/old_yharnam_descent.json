@@ -1,0 +1,9 @@
+{
+  "node_id": "old_yharnam_descent:floor_02",
+  "node_type": "encounter",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "石阶向下延伸，空气变得潮湿而腥甜。旧城区早已被教堂放弃，留下的只有彻底兽化的居民和一位仍在屋顶架着加特林的老猎人。"
+  },
+  "arbitrations": 3
+}

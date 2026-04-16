@@ -1,109 +1,100 @@
 # 启动游戏
 
-## 快速开始
+## 标准工作流
 
 ```bash
-# 生成 campaign（Campaign Core 默认用 Claude Opus 4.6）
-./gen.sh "新加坡地下黑客社区" --nodes 6 --lang zh
+# 一次性全局设置（生成 arc-state 调色板，约 50 行，供运行时 Claude 分类器使用）
+python generate_arc_palette.py
 
-# 显式指定故事基调
-./gen.sh "太阳帆时代考古调查" --tone "忧郁、诗性、带一点希望感的太空悬疑"
+# 生成 campaign（Claude Opus 生成图，Haiku 自动接着生成 Table B，两步合一）
+./gen "新加坡地下黑客社区" --lang zh
+./gen "太阳帆时代考古调查" --tone "忧郁、诗性、带一点希望感的太空悬疑" --lang zh
+./gen "债务猎人逃亡" --worldview "木星轨道殖民地由债务公会和打捞教团共同统治" --lang zh
 
-# 显式指定世界观
-./gen.sh "债务猎人逃亡" --worldview "木星轨道殖民地由债务公会和打捞教团共同统治"
-
-# 运行游戏（DeepSeek 做 Slow Core，gemma3:4b 做 Fast Core）
-./run.sh --slow deepseek --lang zh
+# 运行游戏（自动走预载路径：Claude arc 分类 + gemma3 本地展开）
+./run --slow anthropic --lang zh
 
 # 指定 campaign 文件
-./run.sh --campaign data/campaigns/my_campaign.json --slow deepseek --lang zh
+./run --campaign data/campaigns/singapore_underground_hackers.json --slow anthropic --lang zh
 
 # 限制节点数（测试用）
-./run.sh --slow deepseek --nodes 2
-
-# 不用 LLM（纯 authored 内容）
-./run.sh
+./run --slow anthropic --nodes 2 --lang zh
 ```
 
-## 预载路径（可选，节省运行时 token）
+---
 
-预载路径用 Claude 做轻量 arc 分类器（~10 tokens/节点），DeepSeek 离线填充内容表。
-没有这两个表时，游戏自动回退到动态路径，完全兼容。
+## 三层架构：哪个 AI 做什么
 
-```bash
-# 第一步：一次性生成 Table A（arc state 枚举，约 50 行，无叙事文字）
-python generate_table_a.py
-
-# 第二步：per-campaign 生成 Table B（DeepSeek 填充完整场景内容）
-python generate_table_b.py --campaign data/campaigns/singapore_shadow_net.json
-
-# 之后正常运行，自动走预载路径
-./run.sh --slow deepseek --lang zh
-```
-
-Table A 存在 `data/m2_table_a.json`，Table B 存在 `data/nodes/<campaign_id>/table_b.json`。
-
-## 三层抽象架构
-
-游戏引擎按 IRIS 分三个抽象层，每层由不同模型负责：
-
-| 层 | 职责 | 模型 | 调用时机 |
-|---|---|---|---|
-| **M0 Kernel** | 精确状态、事件记录 | 无（纯确定性） | 始终运行 |
-| **M1 Fast Core** | M1 → M0：展开场景文字 | gemma3:4b（本地） | 运行时，每个 arbitration |
-| **M2 Slow Core** | M2 → M1：内容规划 / 弧线分类 | DeepSeek + Claude（见下） | 运行时后台 或 离线预生成 |
-
-M2 层由两个模型分担，互不替代：
-
-| M2 角色 | 模型 | 何时用 | 切换方式 |
-|---|---|---|---|
-| Campaign Core（离线） | claude-opus-4-6 | `./gen.sh` 一次性生成节点图 | `--model deepseek` |
-| Table A 生成（离线） | claude-opus-4-6 | `python generate_table_a.py` 一次性 | 暂不支持切换 |
-| Arc 分类器（运行时）| claude-opus-4-6 | 预载路径，每节点 ~10 tokens | 暂不支持切换 |
-| Table B 生成（离线）| deepseek-chat | `python generate_table_b.py` per-campaign | `--model` 传给脚本 |
-| Slow Core 动态路径（运行时）| deepseek-chat | 无预载表时的 fallback | `./run.sh --slow anthropic` |
-
-> Fast Core（gemma3）必须配合 `--slow` 启用，单独传 `--fast` 无效。
-
-### `--model` / `--slow` 语法
-
-```bash
-# gen.sh 用 --model 选 Campaign Core provider
-./gen.sh "theme" --model deepseek
-./gen.sh "theme" --model anthropic:claude-haiku-4-5
-
-# run.sh 用 --slow 选 Slow Core provider（同时开启 LLM 模式）
-./run.sh --slow openai
-./run.sh --slow deepseek:deepseek-reasoner --fast gemma3:4b
-```
-
-### 支持的 Provider
-
-| Provider | 默认模型 | API Key 环境变量 |
+| 阶段 | AI | 做什么 |
 |---|---|---|
-| `anthropic` | claude-opus-4-6 | `ANTHROPIC_API_KEY` |
+| **一次性** | Claude Opus | 生成全局 arc-state 调色板（`generate_arc_palette.py`，~50 行枚举） |
+| **每个 campaign** | Claude Opus | 生成 campaign 图（节点拓扑、标签、map_blurb） |
+| **每个 campaign** | Claude Haiku | 生成 Table B（每节点场景骨架：scene_concept、选项结构） |
+| **运行时** | Claude Opus | M2 分类器：当前游戏状态 + arc 调色板 → 返回 arc state ID（~10 tokens/节点） |
+| **运行时** | gemma3:4b（本地） | Fast Core：Table B 骨架 + arc state 倾向 → 展开完整场景文字 |
+
+全程只需要 `ANTHROPIC_API_KEY` + ollama（本地 gemma3）。
+
+### 数据文件
+
+| 文件 | 来源 | 内容 |
+|---|---|---|
+| `data/m2_table_a.json` | Claude Opus（一次性） | arc-state 调色板（50 行枚举，运行时缓存） |
+| `data/campaigns/<id>.json` | Claude Opus（每 campaign） | Campaign 图：节点拓扑，无场景内容 |
+| `data/nodes/<id>/*.json` | Claude Opus（每 campaign） | 节点 spec：floor、type、arbitration 数量 |
+| `data/nodes/<id>/table_b.json` | Claude Haiku（每 campaign） | 场景骨架：scene_concept、sanity_axis、选项 |
+
+---
+
+## `./gen` 参数
+
+```bash
+./gen "theme" --lang zh            # 默认：Claude Opus 生图 + Haiku 生 Table B
+./gen "theme" --skip-table-b       # 只生成 campaign 图，跳过 Table B
+./gen "theme" --nodes 8            # 节点数（默认 6）
+./gen "theme" --tone "..."         # 指定基调
+./gen "theme" --worldview "..."    # 指定世界观
+./gen "theme" --model deepseek     # 改用 DeepSeek 生成 campaign 图（Haiku 仍做 Table B）
+```
+
+## `./run` 参数
+
+```bash
+# --slow PROVIDER[:MODEL] 开启 LLM 模式（有 Table A + B → 预载路径；否则动态回退）
+./run --slow anthropic             # 推荐：预载路径
+./run --slow anthropic --lang zh   # 中文内容
+./run --slow deepseek              # 动态路径 fallback（无 Table B 时）
+./run                              # 纯 authored 内容，不用 LLM
+```
+
+---
+
+## 前置条件
+
+- `.env` 里有 `ANTHROPIC_API_KEY`
+- ollama 在跑（`ollama serve`），已下载：`ollama pull gemma3:4b`
+
+### 支持的 Campaign 图 Provider（`--model`）
+
+| Provider | 默认模型 | API Key |
+|---|---|---|
+| `anthropic`（默认） | claude-opus-4-6 | `ANTHROPIC_API_KEY` |
 | `deepseek` | deepseek-chat | `DEEPSEEK_API_KEY` |
 | `openai` | gpt-4o | `OPENAI_API_KEY` |
 | `qwen` | qwen-plus | `DASHSCOPE_API_KEY` |
 
+---
+
 ## 报表
 
 ```bash
-# 最新一轮（显示 M2 Classifier / Slow Core / Fast Core 三栏）
-./report.sh
-
-# 指定 campaign 的最近一轮
-./report.sh --campaign singapore_shadow_net
+./report                           # 最新一轮（M2 Classifier / Fast Core token 用量）
+./report --campaign singapore_shadow_net
 ```
-
-## 前置条件
-
-- `.env` 里有对应 API Key（至少 `ANTHROPIC_API_KEY` + `DEEPSEEK_API_KEY`）
-- ollama 在跑（`ollama serve`），Fast Core 模型已下载：`ollama pull gemma3:4b`
 
 ## 日志
 
-LLM 调用记录在 `logs/llm.md`，包含每次调用的 token 数和 cache 命中情况。
+LLM 调用记录在 `logs/llm.md`。
 
 ## 打包 Demo
 

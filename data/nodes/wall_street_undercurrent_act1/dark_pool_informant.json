@@ -1,0 +1,9 @@
+{
+  "node_id": "dark_pool_informant:floor_02",
+  "node_type": "investigation",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "华尔街四号楼地下停车场，B3层。一个自称在Citadel做过高频交易的女人递给你一个加密U盘，说里面有某家生物科技公司的暗池大宗交易流水。代价是你基金净值的百分之五——或者一个你还不知道的「小忙」。"
+  },
+  "arbitrations": 3
+}

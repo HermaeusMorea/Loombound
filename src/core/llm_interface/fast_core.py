@@ -66,6 +66,7 @@ Tone guidelines:
 - If no campaign tone is provided, infer it from the scene seed instead of inventing a default genre.
 - Do not inject Cthulhu, dark fantasy, cyberpunk, or any other stock aesthetic unless the seed or campaign tone implies it.
 - Concrete sensory detail beats generic filler.
+- If the scene skeleton and the runtime arc tendency conflict, preserve the scene's concrete facts but let the runtime arc tendency control dramatic pressure, pacing, and emotional direction.
 - option labels are short action phrases (5-10 words), not descriptions.
 - add_events must causally explain what happened as a result of the effects listed.
 """
@@ -80,6 +81,7 @@ _SYSTEM_PROMPT_ZH = """\
 - 如果没有提供 campaign tone，就从 scene seed 自己推断，不要默认套用固定题材。
 - 不要擅自加入克苏鲁、黑暗奇幻、赛博朋克等模板化风格，除非 seed 或 campaign tone 明确要求。
 - 多用具体感官细节，少用空泛套话。
+- 如果场景骨架和 runtime arc tendency 有冲突，要保留场景的客观事实，但让 runtime arc tendency 主导压力、节奏和情绪方向。
 - 选项标签是简短的行动短语（10-20个汉字），不是描述。
 - add_events必须从因果上解释所列效果发生的原因。用中文写。
 """
@@ -134,10 +136,23 @@ def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
         indent=2,
     )
 
+    tendency_block = ""
+    if seed.tendency:
+        tendency_lines = [
+            f"{key}: {value}"
+            for key, value in seed.tendency.items()
+        ]
+        tendency_block = (
+            "Runtime arc tendency:\n"
+            + "\n".join(f"  {line}" for line in tendency_lines)
+            + "\n\n"
+        )
+
     return (
         f"Scene concept: {seed.scene_concept}\n"
         f"Sanity axis: {seed.sanity_axis}\n"
         f"Floor: {core_state.floor}, Act: {core_state.act}\n\n"
+        f"{tendency_block}"
         f"Options:\n{options_block}\n\n"
         f"Return this JSON structure exactly:\n"
         f"{{\n"

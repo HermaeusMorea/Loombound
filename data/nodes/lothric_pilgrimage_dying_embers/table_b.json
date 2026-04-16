@@ -1,0 +1,265 @@
+[
+  {
+    "node_id": "undead_settlement_market",
+    "node_type": "market",
+    "label": "不死聚落·游魂商贩",
+    "map_blurb": "聚落的吊桥在风中呻吟，腐树之下，几个尚未完全活尸化的商贩摆出沾血的货物。他们用空洞的眼神盯着你手中微弱的余火。",
+    "arbitrations": [
+      {
+        "scene_type": "market",
+        "scene_concept": "一株巨大的腐树下，三个游魂商贩各自占据一块残破的摊位。货物散落在沾血的麻布上：从洛斯里克骑士的残甲、熄灭的咒术之火余烬，到可疑的紫色苔藓球。商贩们的记忆碎片化，交易时反复呢喃着矛盾的价码和早已逝去的朝圣者名字。",
+        "sanity_axis": "面对逐渐丧失人性的交易者，你必须在获取物资与保持自身人性之间找到平衡。",
+        "options": [
+          {
+            "option_id": "barter_armor",
+            "intent": "用余火交换一件洛斯里克骑士的残破胸甲",
+            "tags": [
+              "交易",
+              "防御",
+              "人性流失"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": -15,
+              "sanity_delta": -5,
+              "add_conditions": [
+                "洛斯里克残甲"
+              ]
+            }
+          },
+          {
+            "option_id": "purchase_ember",
+            "intent": "购买一小块尚有余温的咒术之火余烬",
+            "tags": [
+              "恢复",
+              "风险",
+              "火焰"
+            ],
+            "effects": {
+              "health_delta": 10,
+              "money_delta": -20,
+              "sanity_delta": -3,
+              "add_conditions": [
+                "微弱余火"
+              ]
+            }
+          },
+          {
+            "option_id": "inquire_pilgrims",
+            "intent": "询问商贩关于过往朝圣者的信息",
+            "tags": [
+              "信息",
+              "记忆碎片",
+              "人性"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": 0,
+              "sanity_delta": -8,
+              "add_conditions": [
+                "朝圣者残影"
+              ]
+            }
+          },
+          {
+            "option_id": "leave_quietly",
+            "intent": "不进行交易，默默离开这片腐化之地",
+            "tags": [
+              "回避",
+              "保存人性",
+              "孤独"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": 0,
+              "sanity_delta": 2,
+              "add_conditions": []
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "farron_keep_archive",
+    "node_type": "ritual",
+    "label": "法兰要塞·不灭者的祭火",
+    "map_blurb": "毒沼吞没了曾经的练兵场，三座篝火已有两座彻底熄灭。深渊监视者的残甲散落在祭坛周围，断剑上的铭文仍在微微发光——那是对抗深渊的最后誓言。",
+    "arbitrations": [
+      {
+        "scene_type": "ritual",
+        "scene_concept": "在毒沼中央的祭坛上，三座石质篝火台呈三角排列，其中两座已完全熄灭，只有中央那座还闪烁着微弱的余烬。祭坛周围散落着深渊监视者的残甲，每片甲胄上都刻有对抗深渊的誓言符文，断剑插入地面，剑身上的狼血契约仍在发出幽蓝微光。",
+        "sanity_axis": "面对即将熄灭的祭火与监视者破碎的誓言，是选择继承这对抗深渊的使命，还是任由誓言随余烬一同消散？",
+        "options": [
+          {
+            "option_id": "rekindle_oath",
+            "intent": "将余烬投入祭火，重燃监视者的誓言",
+            "tags": [
+              "继承",
+              "牺牲",
+              "深渊对抗"
+            ],
+            "effects": {
+              "health_delta": -10,
+              "money_delta": 0,
+              "sanity_delta": -5,
+              "add_conditions": [
+                "狼血契约印记"
+              ]
+            }
+          },
+          {
+            "option_id": "gather_remnants",
+            "intent": "收集监视者的残甲与断剑，保留对抗深渊的记忆",
+            "tags": [
+              "收集",
+              "记忆保存",
+              "谨慎"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": 15,
+              "sanity_delta": -3,
+              "add_conditions": [
+                "深渊监视者残甲"
+              ]
+            }
+          },
+          {
+            "option_id": "let_fade",
+            "intent": "任由祭火自然熄灭，誓言已随时代终结",
+            "tags": [
+              "放弃",
+              "接受终结",
+              "现实"
+            ],
+            "effects": {
+              "health_delta": 5,
+              "money_delta": 0,
+              "sanity_delta": 10,
+              "add_conditions": [
+                "无负担的灰烬"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "hazard",
+        "scene_concept": "毒沼中浮现出被深渊侵蚀的监视者亡魂，它们重复着生前的战斗姿态，但动作已扭曲变形。亡魂们围绕祭火游荡，时而攻击任何靠近余烬的存在，时而跪倒在断剑前发出无声的哀嚎。沼泽深处，某种巨大的阴影在毒雾中缓缓移动。",
+        "sanity_axis": "面对被深渊扭曲的昔日英雄，是选择终结它们的痛苦，还是试图唤醒残存的意志？",
+        "options": [
+          {
+            "option_id": "purify_phantoms",
+            "intent": "用余火净化被侵蚀的监视者亡魂",
+            "tags": [
+              "净化",
+              "终结痛苦",
+              "神圣"
+            ],
+            "effects": {
+              "health_delta": -15,
+              "money_delta": 5,
+              "sanity_delta": -8,
+              "add_conditions": [
+                "净化者的疲惫"
+              ]
+            }
+          },
+          {
+            "option_id": "avoid_conflict",
+            "intent": "避开亡魂，利用毒雾掩护接近祭坛",
+            "tags": [
+              "潜行",
+              "规避",
+              "实用"
+            ],
+            "effects": {
+              "health_delta": -5,
+              "money_delta": 0,
+              "sanity_delta": 5,
+              "add_conditions": [
+                "毒沼侵蚀"
+              ]
+            }
+          },
+          {
+            "option_id": "communicate_remnants",
+            "intent": "尝试与亡魂残存的意志沟通，寻找对抗深渊的线索",
+            "tags": [
+              "沟通",
+              "探索真相",
+              "风险"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "money_delta": 0,
+              "sanity_delta": -15,
+              "add_conditions": [
+                "深渊的低语"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "clue",
+        "scene_concept": "在祭坛后方，一座半淹没的石碑上刻着监视者最后的记录。文字已被毒沼腐蚀大半，但残存的片段揭示了深渊监视者内战的真相：当深渊侵蚀无法遏制时，他们开始互相厮杀，直到最后一人。石碑旁散落着破损的卷轴，记载着狼血契约的代价。",
+        "sanity_axis": "揭示监视者自我毁灭的真相，是选择铭记这悲剧的教训，还是将记录彻底销毁以免后人重蹈覆辙？",
+        "options": [
+          {
+            "option_id": "decipher_records",
+            "intent": "仔细解读石碑与卷轴，拼凑出完整的真相",
+            "tags": [
+              "求知",
+              "铭记",
+              "沉重"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": 0,
+              "sanity_delta": -12,
+              "add_conditions": [
+                "监视者的真相"
+              ]
+            }
+          },
+          {
+            "option_id": "take_fragment",
+            "intent": "只带走最关键的文字片段，其余留给毒沼吞噬",
+            "tags": [
+              "选择记忆",
+              "实用主义",
+              "保留"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "money_delta": 8,
+              "sanity_delta": -5,
+              "add_conditions": [
+                "破碎的誓言片段"
+              ]
+            }
+          },
+          {
+            "option_id": "erase_evidence",
+            "intent": "摧毁所有记录，让监视者的悲剧彻底被遗忘",
+            "tags": [
+              "抹除",
+              "保护",
+              "决绝"
+            ],
+            "effects": {
+              "health_delta": -5,
+              "money_delta": 0,
+              "sanity_delta": 8,
+              "add_conditions": [
+                "被埋葬的真相"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

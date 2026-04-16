@@ -33,7 +33,7 @@ from typing import Any
 
 from src.core.deterministic_kernel.models import CoreStateView, NodeSummary
 from src.core.memory.m2_store import M2Store
-from src.core.memory.types import RunMemory
+from src.core.memory.types import NodeMemory, RunMemory
 
 from .collector import build_classifier_input, build_quasi_description
 from .fast_core import FastCoreExpander, FastCoreConfig
@@ -42,6 +42,12 @@ from .slow_core import SlowCoreClient, SlowCoreConfig
 from .types import ArbitrationSeed, ArbitrationOptionSeed, NodeSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
+
+_OPUS_INPUT_COST       = 5.0  / 1_000_000
+_OPUS_OUTPUT_COST      = 25.0 / 1_000_000
+_OPUS_CACHE_READ_COST  = 0.50 / 1_000_000  # 10% of input rate
+_HAIKU_INPUT_COST      = 0.80 / 1_000_000
+_HAIKU_OUTPUT_COST     = 4.0  / 1_000_000
 
 _REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()
@@ -64,6 +70,56 @@ def _md_log(lines: list[str]) -> None:
     with _log_lock:
         with _LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(block)
+
+
+def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
+    """Convert a Table A row into a Fast Core tendency payload."""
+
+    return {
+        "entry_id": str(getattr(arc_row, "entry_id", "")),
+        "arc_trajectory": getattr(arc_row, "arc_trajectory", ""),
+        "world_pressure": getattr(arc_row, "world_pressure", ""),
+        "narrative_pacing": getattr(arc_row, "narrative_pacing", ""),
+        "pending_intent": getattr(arc_row, "pending_intent", ""),
+    }
+
+
+def _merge_preloaded_seed(skeleton: Any, arc_row: Any) -> ArbitrationSeed:
+    """Blend a node skeleton from Table B with the runtime Table A tendency."""
+
+    raw_options = skeleton.options or []
+    arb_options = [
+        ArbitrationOptionSeed(
+            option_id=o.get("option_id", f"opt_{i}"),
+            intent=o.get("intent", ""),
+            tags=o.get("tags", []),
+            effects=o.get("effects", {}),
+        )
+        for i, o in enumerate(raw_options)
+    ]
+
+    tendency = _arc_row_to_tendency(arc_row)
+    tendency_text = (
+        f"arc_trajectory={tendency['arc_trajectory']}, "
+        f"world_pressure={tendency['world_pressure']}, "
+        f"narrative_pacing={tendency['narrative_pacing']}, "
+        f"pending_intent={tendency['pending_intent']}"
+    )
+
+    return ArbitrationSeed(
+        scene_type=skeleton.scene_type,
+        scene_concept=(
+            f"{skeleton.scene_concept}\n"
+            f"Runtime arc tendency to honor: {tendency_text}."
+        ),
+        sanity_axis=(
+            f"{skeleton.sanity_axis}\n"
+            f"Current dramatic emphasis: {tendency['world_pressure']} pressure, "
+            f"{tendency['narrative_pacing']} pacing, {tendency['pending_intent']} intent."
+        ),
+        options=arb_options,
+        tendency=tendency,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +184,7 @@ class PrefetchCache:
         run_memory: RunMemory,
         node_history: list[NodeSummary],
         arbitration_count: int,
+        current_node_memory: NodeMemory | None = None,
     ) -> None:
         """Start background generation for target_node_id if not already running.
 
@@ -151,6 +208,7 @@ class PrefetchCache:
         state_snapshot = core_state
         memory_snapshot = run_memory
         history_snapshot = list(node_history)
+        current_node_snapshot = current_node_memory
 
         def _run() -> None:
             asyncio.run(
@@ -160,6 +218,7 @@ class PrefetchCache:
                     memory_snapshot,
                     history_snapshot,
                     arbitration_count,
+                    current_node_snapshot,
                 )
             )
 
@@ -254,6 +313,7 @@ class PrefetchCache:
         run_memory: RunMemory,
         node_history: list[NodeSummary],
         arbitration_count: int,
+        current_node_memory: NodeMemory | None = None,
     ) -> None:
         # Choose path: preloaded (M2Classifier + Table B) or dynamic (SlowCore)
         use_preloaded = (
@@ -263,11 +323,21 @@ class PrefetchCache:
         try:
             if use_preloaded:
                 await self._generate_preloaded(
-                    target_node_id, core_state, run_memory, node_history, arbitration_count
+                    target_node_id,
+                    core_state,
+                    run_memory,
+                    node_history,
+                    arbitration_count,
+                    current_node_memory,
                 )
             else:
                 await self._generate_dynamic(
-                    target_node_id, core_state, run_memory, node_history, arbitration_count
+                    target_node_id,
+                    core_state,
+                    run_memory,
+                    node_history,
+                    arbitration_count,
+                    current_node_memory,
                 )
         except Exception as exc:
             tb = traceback.format_exc()
@@ -295,9 +365,15 @@ class PrefetchCache:
         run_memory: RunMemory,
         node_history: list[NodeSummary],
         arbitration_count: int,
+        current_node_memory: NodeMemory | None = None,
     ) -> None:
         # Step 1: build classifier input (M1+M0 tendencies only, no planning request)
-        quasi = build_classifier_input(core_state, run_memory, node_history)
+        quasi = build_classifier_input(
+            core_state,
+            run_memory,
+            node_history,
+            current_node_memory=current_node_memory,
+        )
 
         _md_log([
             f"## [{_ts()}] M2 CLASSIFIER REQUEST — node `{target_node_id}`",
@@ -308,11 +384,16 @@ class PrefetchCache:
 
         # Step 2: Claude classifier → m2_id
         m2_id, m2_usage = await self._m2_classifier.classify(quasi)  # type: ignore[union-attr]
+        _inp = m2_usage.get('input', 0)
+        _out = m2_usage.get('output', 0)
+        _cr  = m2_usage.get('cache_read', 0)
+        _cc  = m2_usage.get('cache_created', 0)
+        _cost  = _inp * _OPUS_INPUT_COST + _out * _OPUS_OUTPUT_COST + _cr * _OPUS_CACHE_READ_COST
+        _saved = _cr * (_OPUS_INPUT_COST - _OPUS_CACHE_READ_COST)
         _md_log([
             f"## [{_ts()}] M2 CLASSIFIER RESPONSE — node `{target_node_id}` entry_id={m2_id}",
-            f"tokens — input: {m2_usage.get('input', 0)}  output: {m2_usage.get('output', 0)}"
-            f"  cache_created: {m2_usage.get('cache_created', 0)}"
-            f"  cache_read: {m2_usage.get('cache_read', 0)}",
+            f"tokens — input: {_inp}  output: {_out}  cache_created: {_cc}  cache_read: {_cr}",
+            f"cost: ${_cost:.4f}  cache_savings: ${_saved:.4f}",
         ])
 
         # Store classification result for main loop to apply to run.memory.m2
@@ -326,54 +407,59 @@ class PrefetchCache:
                     entry.mark_failed("m2 no-match")
             return
 
-        # Step 3: Table B lookup — one seed entry per requested arbitration
-        # If arbitration_count > 1 and only one Table B entry exists, reuse it
-        # (Fast Core will produce different text each time due to different arb_id)
-        seed_entry = run_memory.m2.lookup_seed(m2_id)
-        if seed_entry is None:
+        # Step 3: resolve the runtime tendency row + node-keyed scene skeleton
+        arc_row = run_memory.m2.lookup_arc(m2_id)
+        if arc_row is None:
             log.warning(
-                "Prefetch[preloaded]: entry_id=%d not in Table B for '%s' — authored fallback.",
+                "Prefetch[preloaded]: entry_id=%d not in Table A for '%s' — authored fallback.",
                 m2_id, target_node_id,
             )
             with self._lock:
                 entry = self._cache.get(target_node_id)
                 if entry:
-                    entry.mark_failed(f"table_b missing entry_id={m2_id}")
+                    entry.mark_failed(f"table_a missing entry_id={m2_id}")
             return
 
-        # Convert M2SeedEntry → ArbitrationSeed dataclass
-        raw_options = seed_entry.options or []
-        arb_options = [
-            ArbitrationOptionSeed(
-                option_id=o.get("option_id", f"opt_{i}"),
-                intent=o.get("intent", ""),
-                tags=o.get("tags", []),
-                effects=o.get("effects", {}),
+        node_entry = run_memory.m2.lookup_node(target_node_id)
+        if node_entry is None or not node_entry.arbitrations:
+            log.warning(
+                "Prefetch[preloaded]: node_id='%s' not in Table B — authored fallback.",
+                target_node_id,
             )
-            for i, o in enumerate(raw_options)
-        ]
-        arb_seed = ArbitrationSeed(
-            scene_type=seed_entry.scene_type,
-            scene_concept=seed_entry.scene_concept,
-            sanity_axis=seed_entry.sanity_axis,
-            options=arb_options,
-        )
+            with self._lock:
+                entry = self._cache.get(target_node_id)
+                if entry:
+                    entry.mark_failed(f"table_b missing node_id={target_node_id}")
+            return
 
         _md_log([
-            f"## [{_ts()}] TABLE B LOOKUP — entry_id={m2_id}",
-            f"scene_type: {arb_seed.scene_type}",
-            f"scene_concept: {arb_seed.scene_concept}",
-            f"options: {[o.option_id for o in arb_seed.options]}",
+            f"## [{_ts()}] TABLE B NODE SKELETON LOOKUP — node `{target_node_id}`",
+            f"node_type: {node_entry.node_type}",
+            f"label: {node_entry.label}",
+            f"map_blurb: {node_entry.map_blurb}",
+            f"arbitrations: {len(node_entry.arbitrations)}",
+        ])
+        _md_log([
+            f"## [{_ts()}] RUNTIME ARC TENDENCY — node `{target_node_id}` entry_id={m2_id}",
+            f"arc_trajectory: {arc_row.arc_trajectory}",
+            f"world_pressure: {arc_row.world_pressure}",
+            f"narrative_pacing: {arc_row.narrative_pacing}",
+            f"pending_intent: {arc_row.pending_intent}",
         ])
 
         # Step 4: Fast Core expands each arbitration
         resolved: list[dict[str, Any]] = []
+        merged_seeds: list[ArbitrationSeed] = []
         for idx in range(arbitration_count):
+            skeleton = node_entry.arbitrations[min(idx, len(node_entry.arbitrations) - 1)]
+            arb_seed = _merge_preloaded_seed(skeleton, arc_row)
+            merged_seeds.append(arb_seed)
             arb_id = f"{target_node_id}_tb_{idx:02d}"
             _md_log([
                 f"## [{_ts()}] FAST CORE REQUEST (preloaded) — `{arb_id}`",
                 f"scene_concept: {arb_seed.scene_concept}",
                 f"sanity_axis: {arb_seed.sanity_axis}",
+                f"tendency: {arb_seed.tendency}",
             ])
 
             payload, fc_usage = await self._fast.expand(arb_seed, core_state, arb_id)
@@ -384,15 +470,16 @@ class PrefetchCache:
             _md_log([
                 f"## [{_ts()}] FAST CORE RESPONSE (preloaded) — `{arb_id}`",
                 f"tokens — prompt: {fc_usage.get('prompt_tokens', '?')}  eval: {fc_usage.get('eval_tokens', '?')}",
+                f"[local — gemma3, no API cost]",
                 f"scene_summary: {meta.get('scene_summary', '(empty)')}",
             ])
 
         # Step 5: Assemble a minimal seed_pack for the cache entry
         seed_pack = NodeSeedPack(
             target_node_id=target_node_id,
-            node_theme=seed_entry.m2.arc_trajectory,
-            narrative_direction=seed_entry.m2.pending_intent,
-            arbitrations=[arb_seed] * arbitration_count,
+            node_theme=arc_row.arc_trajectory,
+            narrative_direction=arc_row.pending_intent,
+            arbitrations=merged_seeds,
         )
 
         with self._lock:
@@ -420,6 +507,7 @@ class PrefetchCache:
         run_memory: RunMemory,
         node_history: list[NodeSummary],
         arbitration_count: int,
+        current_node_memory: NodeMemory | None = None,
     ) -> None:
         # Step 1: Collector builds quasi description for Slow Core
         quasi = build_quasi_description(
@@ -428,6 +516,7 @@ class PrefetchCache:
             node_history,
             target_node_id=target_node_id,
             arbitration_count=arbitration_count,
+            current_node_memory=current_node_memory,
         )
 
         _md_log([
@@ -508,6 +597,7 @@ class PrefetchCache:
             _md_log([
                 f"## [{_ts()}] FAST CORE RESPONSE — `{arb_id}`",
                 f"tokens — prompt: {fc_usage.get('prompt_tokens', '?')}  eval: {fc_usage.get('eval_tokens', '?')}",
+                f"[local — gemma3, no API cost]",
                 f"scene_summary: {meta.get('scene_summary', '(empty)')}",
                 f"sanity_question: {meta.get('sanity_question', '(empty)')}",
                 "options:",

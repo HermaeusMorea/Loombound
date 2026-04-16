@@ -1,0 +1,109 @@
+{
+  "campaign_id": "cursed_capital_ember_pilgrimage",
+  "title": "诅咒王城的残火巡礼",
+  "intro": "火之时代正在崩塌，而你是不死人中的一员。记忆如同余烬般从指缝间滑落，身份在每一次死亡中磨损。你踏上通往残火王座的巡礼之路，不是为了拯救，而是为了见证——见证这诅咒王城最后的呼吸，见证那终将熄灭的火焰。",
+  "tone": "这是一款黑暗、冷峻、压抑的高幻想废墟美学游戏。叙事采用碎片化手法，通过环境细节、古老遗物、残缺碑文和幸存者的只言片语拼凑真相。视觉上强调史诗残响：巨大王城的倾颓骨架、被时间侵蚀的骑士雕像、地下墓窟中永不熄灭的幽蓝余火、被淹没圣堂的水下光影。战胜不带来喜悦，只带来更沉重的代价——每一次胜利都意味着失去更多记忆，每一次选择都在磨损灵魂。货币、力量与知识都来自尸体、余烬和古老罪责，没有真正安全的避难所，只有暂时未熄的篝火。",
+  "initial_core_state": {
+    "health": 12,
+    "max_health": 12,
+    "money": 5,
+    "sanity": 10,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "outer_gate_crossroads",
+  "nodes": {
+    "outer_gate_crossroads": {
+      "label": "外城门十字路",
+      "map_blurb": "崩塌的城门拱廊下，三条道路延伸：通往王城废墟的主道、沉入地下的墓窟入口、以及被遗忘的侧翼要塞。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/outer_gate_crossroads.json",
+      "next_nodes": [
+        "ruined_market",
+        "catacomb_entrance",
+        "forgotten_archive"
+      ]
+    },
+    "ruined_market": {
+      "label": "废墟市集",
+      "map_blurb": "在倾颓的柱廊间，不死人商贩们交易着从尸体上剥离的遗物和记忆碎片。火焰在这里显得格外微弱。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/ruined_market.json",
+      "next_nodes": [
+        "drowned_sanctuary"
+      ]
+    },
+    "catacomb_entrance": {
+      "label": "墓窟入口",
+      "map_blurb": "向下延伸的石阶被幽蓝余火照亮，空气中弥漫着古老防腐剂和腐烂记忆的气味。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/catacomb_entrance.json",
+      "next_nodes": [
+        "deep_catacomb_ritual"
+      ]
+    },
+    "forgotten_archive": {
+      "label": "遗忘档案室",
+      "map_blurb": "一座半塌的图书馆，书页已化为灰烬，但石板上刻着王城鼎盛时期的律法和禁忌。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/forgotten_archive.json",
+      "next_nodes": [
+        "drowned_sanctuary",
+        "deep_catacomb_ritual"
+      ]
+    },
+    "deep_catacomb_ritual": {
+      "label": "深层墓窟仪式",
+      "map_blurb": "在地下深处的圆形墓室中，一群不死人正进行着诡异的记忆交换仪式，试图延缓灵魂的彻底消散。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/deep_catacomb_ritual.json",
+      "next_nodes": [
+        "abyssal_encounter"
+      ]
+    },
+    "drowned_sanctuary": {
+      "label": "淹没圣堂",
+      "map_blurb": "地下水脉上涨，淹没了这座古老的祈祷之所。水下，破碎的彩窗折射着余火的光芒，圣像沉默地凝视。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/drowned_sanctuary.json",
+      "next_nodes": [
+        "abyssal_encounter",
+        "last_bonfire_rest"
+      ]
+    },
+    "abyssal_encounter": {
+      "label": "深渊遭遇",
+      "map_blurb": "在通往王座区的裂谷边缘，你遭遇了被深渊腐蚀的昔日骑士——他们的盔甲内已空无一物，只有黑暗在涌动。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/abyssal_encounter.json",
+      "next_nodes": [
+        "last_bonfire_rest"
+      ]
+    },
+    "last_bonfire_rest": {
+      "label": "最后篝火",
+      "map_blurb": "在王座大厅的入口前，一小簇余火在石盆中摇曳。这是巡礼路上最后的喘息之地，之后便是不可回头的终局。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/last_bonfire_rest.json",
+      "next_nodes": [
+        "throne_of_dying_ember"
+      ]
+    },
+    "throne_of_dying_ember": {
+      "label": "残火王座",
+      "map_blurb": "巨大的石制王座上，最后的火焰守护者已化为枯骨。残火在他手中微弱地跳动，等待着被继承——或被熄灭。",
+      "node_file": "data/nodes/cursed_capital_ember_pilgrimage/throne_of_dying_ember.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "诅咒王城的残火巡礼",
+    "language": "zh",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "generation_mode": "preloaded",
+    "tone_hint": "黑暗、冷峻、压抑、史诗残响式的高幻想废墟美学；叙事碎片化，通过环境、遗物、碑文和幸存者只言片语拼出真相；战胜并不带来喜悦，只带来更沉重的代价",
+    "worldview_hint": "火之时代正在崩塌，王城、地下墓窟、被淹没的圣堂与失落要塞构成一条通往残火王座的巡礼路线；不死人诅咒使灵魂、记忆与身份不断磨损，骑士团早已分裂，古龙、深渊、余火与伪神信仰的遗毒仍影响世界；货币、力量与知识都来自尸体、余烬和古老罪责，没有真正安全的避难所，只有暂时未熄的篝火",
+    "table_a_path": "/home/eixco/projects/black-Archive/data/m2_table_a.json",
+    "table_a_entry_count": 50
+  }
+}

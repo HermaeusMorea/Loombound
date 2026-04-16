@@ -1,0 +1,456 @@
+[
+  {
+    "node_id": "central_yharnam_gate",
+    "node_type": "crossroads",
+    "label": "中央亚南·焚兽广场",
+    "map_blurb": "广场中央的焚兽篝火已烧了不知多少日夜，火光照亮四周钉死的门窗与堆叠的兽尸。两条路在此分岔——通往教堂区的石阶，与沉入旧城区的暗巷。",
+    "arbitrations": [
+      {
+        "scene_type": "crossroads",
+        "scene_concept": "你站在焚兽篝火前，余烬映照着自己血迹斑斑的猎人外衣。两条路在此分岔，每一条都通往不同的深渊——教堂区的神圣谎言，或旧城区的彻底真相。篝火劈啪作响，如同临终者的最后呼吸。",
+        "sanity_axis": "在已知与未知之间犹豫——你是否已准备好放弃最后一丝希冀，去面对那些不该被看见的东西？",
+        "options": [
+          {
+            "option_id": "cathedral_path",
+            "intent": "向教堂区前进，追寻光明的谎言",
+            "tags": [
+              "知识",
+              "秩序",
+              "自欺"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -5,
+              "money_delta": 0,
+              "add_conditions": [
+                "追寻真相_教堂线"
+              ]
+            }
+          },
+          {
+            "option_id": "old_city_path",
+            "intent": "下沉至旧城区，拥抱兽化的真实",
+            "tags": [
+              "感知",
+              "堕落",
+              "清醒"
+            ],
+            "effects": {
+              "health_delta": -10,
+              "sanity_delta": -15,
+              "money_delta": 0,
+              "add_conditions": [
+                "追寻真相_旧城线"
+              ]
+            }
+          },
+          {
+            "option_id": "remain_at_fire",
+            "intent": "在篝火前停留，思考这一切的意义",
+            "tags": [
+              "沉思",
+              "延缓",
+              "绝望"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -8,
+              "money_delta": 0,
+              "add_conditions": [
+                "篝火冥想"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "cathedral_ward_archive",
+    "node_type": "archive",
+    "label": "教堂区·禁忌文献室",
+    "map_blurb": "大教堂侧翼的文献室门虚掩着，里面散落着教堂猎人不愿公开的手记。墨水与血迹在羊皮纸上难以分辨，某些段落被反复涂抹，仿佛书写者中途发了疯。",
+    "arbitrations": [
+      {
+        "scene_type": "archive",
+        "scene_concept": "文献室的烛火摇曳，将手记上的文字投出扭曲的影子。你翻开一本泛黄的日志，前几页记录着教堂猎人规范的狩猎日常，但越往后翻，文字变得越来越疯狂——最后几页完全是血迹和无意义的符号。",
+        "sanity_axis": "在理性的知识与不可言说的秘密之间的界限——这些文献是在自我保护，还是在隐瞒更深层的罪孽？",
+        "options": [
+          {
+            "option_id": "study_carefully",
+            "intent": "仔细研究这些手记，试图从疯狂中提炼出真相",
+            "tags": [
+              "知识",
+              "执着",
+              "理智"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -20,
+              "money_delta": 10,
+              "add_conditions": [
+                "禁忌知识_初窥"
+              ]
+            }
+          },
+          {
+            "option_id": "burn_the_archives",
+            "intent": "用火焚毁这些见证罪孽的纸张",
+            "tags": [
+              "毁灭",
+              "遗忘",
+              "自救"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -10,
+              "money_delta": 0,
+              "add_conditions": [
+                "焚书灭迹"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "archive",
+        "scene_concept": "在文献室的深处，你发现了一个隐秘的柜子。里面放着的不是书籍，而是一些器具——手术刀、夹子、以及某种未知生物的器官浸泡在腐烂的液体中。柜子的内壁刻满了祈祷文，却被干涸的血液污染得面目全非。",
+        "sanity_axis": "对教堂真实目的的恐怖认知——他们声称在治疗，但实际在进行什么样的实验？",
+        "options": [
+          {
+            "option_id": "examine_specimens",
+            "intent": "检视这些标本，试图理解教堂在做什么",
+            "tags": [
+              "探求",
+              "禁忌",
+              "扩展认知"
+            ],
+            "effects": {
+              "health_delta": -5,
+              "sanity_delta": -25,
+              "money_delta": 0,
+              "add_conditions": [
+                "看见了不该看见的东西"
+              ]
+            }
+          },
+          {
+            "option_id": "destroy_evidence",
+            "intent": "彻底销毁这些证据，让真相随之消亡",
+            "tags": [
+              "毁灭",
+              "自我放逐",
+              "伪装"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -12,
+              "money_delta": 0,
+              "add_conditions": [
+                "共谋沉默"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "old_yharnam_descent",
+    "node_type": "encounter",
+    "label": "旧城区·兽血深巷",
+    "map_blurb": "石阶向下延伸，空气变得潮湿而腥甜。旧城区早已被教堂放弃，留下的只有彻底兽化的居民和一位仍在屋顶架着加特林的老猎人。",
+    "arbitrations": [
+      {
+        "scene_type": "encounter",
+        "scene_concept": "下沉的石阶最终汇入一条被血液和残肢染红的深巷。石墙上刻满了兽化者绝望的抓痕，天花板低得令人窒息。远处传来加特林枪的突突声——那位仍在坚守的老猎人正在屠杀自己曾经的邻居。",
+        "sanity_axis": "对理想破灭的直观目睹——秩序与狩猎的名义下，掩盖的只是无尽的屠杀与绝望",
+        "options": [
+          {
+            "option_id": "help_old_hunter",
+            "intent": "与老猎人并肩，继续这场永无休止的屠杀",
+            "tags": [
+              "同行",
+              "坚持",
+              "自我欺骗"
+            ],
+            "effects": {
+              "health_delta": 5,
+              "sanity_delta": -15,
+              "money_delta": 20,
+              "add_conditions": [
+                "猎人之誓_堕落"
+              ]
+            }
+          },
+          {
+            "option_id": "confront_old_hunter",
+            "intent": "质问老猎人——这一切是为了什么，他为什么还在继续",
+            "tags": [
+              "对峙",
+              "质问",
+              "清醒"
+            ],
+            "effects": {
+              "health_delta": 10,
+              "sanity_delta": -20,
+              "money_delta": 0,
+              "add_conditions": [
+                "老猎人的悲鸣"
+              ]
+            }
+          },
+          {
+            "option_id": "mercy_for_beasts",
+            "intent": "对这些扭曲的生物给予怜悯之死——也许这才是真正的狩猎",
+            "tags": [
+              "怜悯",
+              "选择权",
+              "背离"
+            ],
+            "effects": {
+              "health_delta": -15,
+              "sanity_delta": -18,
+              "money_delta": 0,
+              "add_conditions": [
+                "异端者的道路"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "encounter",
+        "scene_concept": "从某个积水的地下室中，你听到了节奏诡异的低吟——那不是人类的声音，也不是兽化者的嚎叫。墙壁开始渗出一种乳白色的液体，散发着令人眩晕的气味。旧城区的地基似乎不是石头，而是某种活着的、呼吸着的东西。",
+        "sanity_axis": "对亚南根本真实的触及——这座城市本身，或许从来都不是人类的领地",
+        "options": [
+          {
+            "option_id": "descend_deeper",
+            "intent": "跟随低吟声向下，去直面那座城市的心脏",
+            "tags": [
+              "深入",
+              "献祭",
+              "觉悟"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -30,
+              "money_delta": 0,
+              "add_conditions": [
+                "真相的触碰"
+              ]
+            }
+          },
+          {
+            "option_id": "flee_upward",
+            "intent": "尖叫着逃离这个地方，试图回到光线能及之处",
+            "tags": [
+              "逃亡",
+              "恐惧",
+              "延缓"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -25,
+              "money_delta": 0,
+              "add_conditions": [
+                "从深处逃出"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "encounter",
+        "scene_concept": "你遭遇了一个曾经的居民——一个半兽化的形态，保留着足够的人性去发出哀鸣。它认出了你，用支离破碎的语言乞求——乞求死亡，或者更可怕的，乞求被拥抱而不是被屠杀。你锯肉刀的刀锋反射着昏暗的光。",
+        "sanity_axis": "对同情与本分的撕裂——你是一位猎人，还是一个人？这个分别还重要吗？",
+        "options": [
+          {
+            "option_id": "grant_mercy_kill",
+            "intent": "迅速地、温柔地结束它的痛苦",
+            "tags": [
+              "怜悯",
+              "决断",
+              "负罪"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -12,
+              "money_delta": 0,
+              "add_conditions": [
+                "怜悯的杀手"
+              ]
+            }
+          },
+          {
+            "option_id": "refuse_and_witness",
+            "intent": "拒绝，让它明白你看到了它的痛苦，然后转身离开",
+            "tags": [
+              "见证",
+              "背离",
+              "内疚"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -18,
+              "money_delta": 0,
+              "add_conditions": [
+                "见证者的诅咒"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "moonlit_ritual_plaza",
+    "node_type": "ritual",
+    "label": "月下广场·苍白仪式",
+    "map_blurb": "所有道路最终汇聚于此。苍白之月悬在头顶，大得不合常理，表面似乎有无数眼瞳在转动。星之使徒的低语从地面的裂缝中涌出，而你必须做出最后的选择——是以仅存的理智封印真相，还是彻底睁开双眼。",
+    "arbitrations": [
+      {
+        "scene_type": "ritual",
+        "scene_concept": "苍白之月悬在广场上空，其表面确实在转动——无数眼瞳在月球状的皮肤上睁开又闭合。地面的裂缝中涌出星之使徒的低语，化作可见的雾气笼罩整个广场。你意识到，这不是一个地点，而是一个存在——这座城市从来都是一个活着的东西。",
+        "sanity_axis": "对宇宙真相的绝对认知——知道真相的代价是永远无法假装无知",
+        "options": [
+          {
+            "option_id": "seal_with_sacrifice",
+            "intent": "献祭自己仅存的理智，用血之契约封印真相，让这座城市永远沉睡",
+            "tags": [
+              "牺牲",
+              "秩序",
+              "自我抹灭"
+            ],
+            "effects": {
+              "health_delta": -30,
+              "sanity_delta": -50,
+              "money_delta": 0,
+              "add_conditions": [
+                "封印者之诅咒",
+                "理智破碎"
+              ]
+            }
+          },
+          {
+            "option_id": "embrace_ascension",
+            "intent": "放弃人性，接纳星之使徒的低语，成为这宇宙真相的见证者与工具",
+            "tags": [
+              "堕落",
+              "觉悟",
+              "超越"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -45,
+              "money_delta": 0,
+              "add_conditions": [
+                "星之眷属",
+                "超越人性"
+              ]
+            }
+          },
+          {
+            "option_id": "defiant_resistance",
+            "intent": "尽管知道结局已定，仍然握紧锯肉刀，用凡人的尊严与这不可名状之物对抗",
+            "tags": [
+              "反抗",
+              "尊严",
+              "徒劳"
+            ],
+            "effects": {
+              "health_delta": -40,
+              "sanity_delta": -40,
+              "money_delta": 0,
+              "add_conditions": [
+                "无望的抵抗"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "ritual",
+        "scene_concept": "在苍白月光下，你看到了所有在这座城市死去的灵魂的幽影——猎人、受害者、兽化者、教堂的神职人员——他们都在进行同一场永恒的舞蹈。他们转向你，用百般声音重复同一句话：'我们无法离开，你也不能。'",
+        "sanity_axis": "对循环诅咒的认知——这不是一场狩猎，而是一个已经存在无尽岁月的牢笼",
+        "options": [
+          {
+            "option_id": "join_the_dance",
+            "intent": "停止抵抗，加入幽影的永恒舞蹈，成为这循环的一部分",
+            "tags": [
+              "投降",
+              "接纳",
+              "消亡"
+            ],
+            "effects": {
+              "health_delta": -50,
+              "sanity_delta": -35,
+              "money_delta": 0,
+              "add_conditions": [
+                "舞蹈中的消融"
+              ]
+            }
+          },
+          {
+            "option_id": "seek_the_loophole",
+            "intent": "在幽影的低语中寻找破口，试图找到打破循环的方法，即使这是绝望的尝试",
+            "tags": [
+              "探寻",
+              "执着",
+              "希冀"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -32,
+              "money_delta": 0,
+              "add_conditions": [
+                "寻求破口"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "ritual",
+        "scene_concept": "月光变得灼热，开始灼伤你的皮肤。苍白之月垂下无数触须，每一根都在试图穿过你的眼睛进入你的大脑。你的刀在你手中变得沉重如铅，而你的最后一丝理智在尖叫——现在就是那个时刻，你必须做出最终的选择。",
+        "sanity_axis": "在存在与不存在之间的最后选择——你还想保有作为一个个体的记忆，还是完全融入那浩瀚的疯狂？",
+        "options": [
+          {
+            "option_id": "final_defiant_act",
+            "intent": "用锯肉刀切断那些触须，哪怕只是一瞬间的对抗，哪怕你知道这改变不了什么",
+            "tags": [
+              "反抗",
+              "尊严",
+              "徒劳的美学"
+            ],
+            "effects": {
+              "health_delta": -45,
+              "sanity_delta": -38,
+              "money_delta": 0,
+              "add_conditions": [
+                "最后的斩击"
+              ]
+            }
+          },
+          {
+            "option_id": "transcendent_acceptance",
+            "intent": "放下锯肉刀，睁大双眼，让理智完全破碎，去看那永不该被看见的全景",
+            "tags": [
+              "放弃",
+              "成仙",
+              "真相"
+            ],
+            "effects": {
+              "health_delta": -35,
+              "sanity_delta": -60,
+              "money_delta": 0,
+              "add_conditions": [
+                "彻底的视界"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

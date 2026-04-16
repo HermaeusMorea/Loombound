@@ -1,0 +1,9 @@
+{
+  "node_id": "central_yharnam_gate:floor_01",
+  "node_type": "crossroads",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "广场中央的焚兽篝火已烧了不知多少日夜，火光照亮四周钉死的门窗与堆叠的兽尸。两条路在此分岔——通往教堂区的石阶，与沉入旧城区的暗巷。"
+  },
+  "arbitrations": 1
+}

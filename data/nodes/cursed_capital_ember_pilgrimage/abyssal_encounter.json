@@ -1,0 +1,9 @@
+{
+  "node_id": "abyssal_encounter:floor_04",
+  "node_type": "encounter",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "在通往王座区的裂谷边缘，你遭遇了被深渊腐蚀的昔日骑士——他们的盔甲内已空无一物，只有黑暗在涌动。"
+  },
+  "arbitrations": 3
+}

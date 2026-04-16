@@ -1,0 +1,9 @@
+{
+  "node_id": "ashen_ruins:floor_01",
+  "node_type": "encounter",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "洛斯里克高墙下的废墟中，空洞化的士兵仍在巡逻着早已不存在的边界。石阶上覆满冷却的余烬，远处传来锈蚀铠甲碰撞的声响。"
+  },
+  "arbitrations": 2
+}

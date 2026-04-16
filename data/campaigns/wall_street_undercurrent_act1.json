@@ -1,0 +1,81 @@
+{
+  "campaign_id": "wall_street_undercurrent_act1",
+  "title": "华尔街暗流：衍生品猎场",
+  "intro": "2029年深秋，曼哈顿下城的天际线被无人机广告牌切割成碎片。你刚从一家倒闭的自营交易公司跳槽到「灰鲨资本」——一家以做空闻名的对冲基金。老板把二十亿美元的衍生品头寸扔在你桌上，说了一句话：「三个月，翻倍或者进联邦监狱。」Bloomberg终端亮起来的那一刻，你知道这不是交易，这是战争。",
+  "tone": "冷峻高压的黑色金融惊悚。类型介于《大空头》与赛博朋克noir之间，弥漫着数据中心的冷气、咖啡因过量的震颤和背叛前最后一秒的沉默。反复出现的意象：Bloomberg终端上绿红交替的数字如同心电图、暗池交易的黑色流动性像深海暗流、做空报告如同狙击步枪的瞄准镜读数。对话风格简短、充满行话与双关，每个数字背后都藏着一把刀。情绪基调在极度理性与濒临崩溃之间摆荡，人性在杠杆的放大下扭曲变形。",
+  "initial_core_state": {
+    "health": 80,
+    "max_health": 100,
+    "money": 200,
+    "sanity": 70,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "grey_shark_trading_floor",
+  "nodes": {
+    "grey_shark_trading_floor": {
+      "label": "灰鲨交易大厅",
+      "map_blurb": "四十七楼的交易大厅灯光惨白如太平间。六十块屏幕同时闪烁，每一块都在用红绿两色书写某人的命运。你的工位在最角落——离老板的玻璃办公室最远，离逃生通道最近。",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/grey_shark_trading_floor.json",
+      "next_nodes": [
+        "dark_pool_informant",
+        "quant_server_room"
+      ]
+    },
+    "dark_pool_informant": {
+      "label": "暗池线人",
+      "map_blurb": "华尔街四号楼地下停车场，B3层。一个自称在Citadel做过高频交易的女人递给你一个加密U盘，说里面有某家生物科技公司的暗池大宗交易流水。代价是你基金净值的百分之五——或者一个你还不知道的「小忙」。",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/dark_pool_informant.json",
+      "next_nodes": [
+        "sec_shadow_audit",
+        "derivatives_war_room"
+      ]
+    },
+    "quant_server_room": {
+      "label": "量化机房",
+      "map_blurb": "新泽西数据中心，零下五度的服务器机房里，灰鲨的量化引擎「深渊」正在以纳秒级速度吞噬市场订单。首席量化师告诉你，有人在代码里埋了一个后门——每笔交易都在向外泄露头寸信息。",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/quant_server_room.json",
+      "next_nodes": [
+        "sec_shadow_audit",
+        "derivatives_war_room"
+      ]
+    },
+    "sec_shadow_audit": {
+      "label": "SEC影子审计",
+      "map_blurb": "一封来自SEC执法部门的非正式「关切函」出现在你的加密邮箱里。没有抄送，没有案号，只有一个问题：「灰鲨资本在11月7日至9日的CDS头寸变动，你能解释吗？」这不是调查——这是有人在用监管当武器。",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/sec_shadow_audit.json",
+      "next_nodes": [
+        "midnight_margin_call"
+      ]
+    },
+    "derivatives_war_room": {
+      "label": "衍生品作战室",
+      "map_blurb": "凌晨三点，灰鲨的核心团队被召集到四十七楼的无窗会议室。桌上摊开的不是PPT，而是一张衍生品嵌套结构图——七层杠杆，横跨三个司法管辖区，对手方是一家开曼群岛壳公司。老板说：「全押。」",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/derivatives_war_room.json",
+      "next_nodes": [
+        "midnight_margin_call"
+      ]
+    },
+    "midnight_margin_call": {
+      "label": "午夜追保",
+      "map_blurb": "纽约时间凌晨四点十七分，你的手机和Bloomberg终端同时炸响。高盛的大宗经纪部门发来追保通知：灰鲨需要在开盘前补缴八亿美元保证金，否则全部头寸将被强制平仓。窗外曼哈顿的灯火像一片即将熄灭的星域。这是终局。",
+      "node_file": "data/nodes/wall_street_undercurrent_act1/midnight_margin_call.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "华尔街暗流：对冲基金猎手在衍生品市场的生死博弈",
+    "language": "zh",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tone_hint": "冷峻、高压、充满数字与人性的黑色金融惊悚。每一笔交易背后都是情报战、背叛与赌注，Bloomberg 终端的绿红闪烁像心跳监测仪，随时可能变成死亡通知。",
+    "worldview_hint": "2029年，量化基金与人类交易员的最后战场。SEC 监管形同虚设，暗池交易主宰价格，做空机构比猎豹还快，而你是一个拿着别人钱的人——赔了坐牢，赚了分红。"
+  }
+}

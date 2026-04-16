@@ -1,0 +1,9 @@
+{
+  "node_id": "ashen_market:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "游魂商人支起破布帐篷，兜售着发光的余烬、诅咒的圣物和褪色的记忆。空气中弥漫着腐烂花朵与古老香料的气味。"
+  },
+  "arbitrations": 2
+}

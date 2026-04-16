@@ -1,0 +1,63 @@
+{
+  "campaign_id": "hunters_night_yharnam_last_lucid",
+  "title": "猎人之夜：亚南的最后一位清醒者",
+  "intro": "永夜已降临第七日。钟塔的钟声早已停歇，取而代之的是远处此起彼伏的嚎叫与湿漉漉的咀嚼声。你握紧锯肉刀，从猎人梦境中醒来——或者说，你以为自己醒来了。血的气味浸透了每一块石砖，而你的理智像指间的旧绷带一样，正在一圈一圈地松开。",
+  "tone": "哥特式克苏鲁恐怖，基调是压抑、诗意且带着深沉的疲倦尊严——一位看透了宇宙荒谬真相却仍选择提刀前行之人的独白。画面意象应充斥永夜之下的维多利亚哥特建筑、淋漓的血与苍白的月光、兽化居民扭曲的轮廓、以及偶尔闪现的不可名状之物的触须与眼瞳。叙事语言应如旧日经文般凝重，短句与长句交替，保持一种仪式感的节奏；角色的情绪不是恐惧而是\"已经恐惧太久之后的平静\"，不是绝望而是\"清醒地选择继续\"。每一次理智的流失都应伴随着感知的扩展——你失去的越多，看见的越多，而看见的越多，你就越明白为什么有些东西不该被看见。",
+  "initial_core_state": {
+    "health": 80,
+    "max_health": 100,
+    "money": 5,
+    "sanity": 70,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "central_yharnam_gate",
+  "nodes": {
+    "central_yharnam_gate": {
+      "label": "中央亚南·焚兽广场",
+      "map_blurb": "广场中央的焚兽篝火已烧了不知多少日夜，火光照亮四周钉死的门窗与堆叠的兽尸。两条路在此分岔——通往教堂区的石阶，与沉入旧城区的暗巷。",
+      "node_file": "data/nodes/hunters_night_yharnam_last_lucid/central_yharnam_gate.json",
+      "next_nodes": [
+        "cathedral_ward_archive",
+        "old_yharnam_descent"
+      ]
+    },
+    "cathedral_ward_archive": {
+      "label": "教堂区·禁忌文献室",
+      "map_blurb": "大教堂侧翼的文献室门虚掩着，里面散落着教堂猎人不愿公开的手记。墨水与血迹在羊皮纸上难以分辨，某些段落被反复涂抹，仿佛书写者中途发了疯。",
+      "node_file": "data/nodes/hunters_night_yharnam_last_lucid/cathedral_ward_archive.json",
+      "next_nodes": [
+        "moonlit_ritual_plaza"
+      ]
+    },
+    "old_yharnam_descent": {
+      "label": "旧城区·兽血深巷",
+      "map_blurb": "石阶向下延伸，空气变得潮湿而腥甜。旧城区早已被教堂放弃，留下的只有彻底兽化的居民和一位仍在屋顶架着加特林的老猎人。",
+      "node_file": "data/nodes/hunters_night_yharnam_last_lucid/old_yharnam_descent.json",
+      "next_nodes": [
+        "moonlit_ritual_plaza"
+      ]
+    },
+    "moonlit_ritual_plaza": {
+      "label": "月下广场·苍白仪式",
+      "map_blurb": "所有道路最终汇聚于此。苍白之月悬在头顶，大得不合常理，表面似乎有无数眼瞳在转动。星之使徒的低语从地面的裂缝中涌出，而你必须做出最后的选择——是以仅存的理智封印真相，还是彻底睁开双眼。",
+      "node_file": "data/nodes/hunters_night_yharnam_last_lucid/moonlit_ritual_plaza.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "猎人之夜：亚南的最后一位清醒者",
+    "language": "zh",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tone_hint": "哥特式克苏鲁恐怖——压抑、诗意、带着一种看透一切后仍选择前行的疲倦尊严",
+    "worldview_hint": "永夜笼罩的亚南市，血之医疗已使大半居民兽化或疯癫，教堂猎人秘密知晓宇宙真相却选择封锁，古老星之使徒在城市深处低语，现实与梦境的边界已经溶解——玩家是极少数仍保有意识的猎人，但理智每消耗一分，就能看见更多不该被看见的东西"
+  }
+}

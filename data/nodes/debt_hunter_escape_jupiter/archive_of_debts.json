@@ -1,0 +1,9 @@
+{
+  "node_id": "archive_of_debts:floor_03",
+  "node_type": "archive",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "殖民地核心区的数据金库，存储着所有居民的债务记录。如果你能取得伪造债务的原始证据，就能揭露公会的谎言——但金库由公会最凶残的执行者亲自看守。"
+  },
+  "arbitrations": 3
+}

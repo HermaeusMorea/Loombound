@@ -1,0 +1,9 @@
+{
+  "node_id": "black_market_dock:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "殖民地底层的非法港口，走私者和逃亡者在此交易一切。也许你能在这里找到一艘能跑的船，或者至少买到一个假身份。"
+  },
+  "arbitrations": 2
+}

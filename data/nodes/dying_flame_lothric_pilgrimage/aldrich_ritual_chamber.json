@@ -1,0 +1,9 @@
+{
+  "node_id": "aldrich_ritual_chamber:floor_05",
+  "node_type": "ritual",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "教堂最深处的圆形大厅，地面覆盖着黏滑的深色物质，吞噬神祇的残渣仍在蠕动。"
+  },
+  "arbitrations": 3
+}

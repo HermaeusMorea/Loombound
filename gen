@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Unified generation entrypoint
+#
+# Usage:
+#   ./gen "新加坡地下黑客社区" --nodes 6 --lang zh
+#   ./gen preloaded "Singapore shadow net" --tone "humid techno-noir paranoia" --worldview "near-future Singapore corporate black sites and ghost infrastructure"
+#   ./gen table-a
+#   ./gen table-b --campaign data/campaigns/singapore_shadow_net.json
+#   ./gen --help
+#
+# Subcommands:
+#   table-a        Run generate_table_a.py
+#   table-b        Run generate_table_b.py
+#   preloaded      Generate a preloaded campaign and write Table B in the same model call
+#   <theme> ...    Default campaign generation mode
+#
+# Shorthand flags for campaign generation:
+#   --model PROVIDER[:MODEL]  → --provider PROVIDER [--provider-model MODEL]
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [[ -f ".env" ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+fi
+
+PYTHON="$SCRIPT_DIR/.venv/bin/python"
+
+show_help() {
+    sed -n '2,16p' "$0"
+}
+
+if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+fi
+
+case "${1:-}" in
+    --help|-h|help)
+        show_help
+        exit 0
+        ;;
+    table-a)
+        shift
+        exec "$PYTHON" generate_table_a.py "${@+"$@"}"
+        ;;
+    table-b)
+        shift
+        exec "$PYTHON" generate_table_b.py "${@+"$@"}"
+        ;;
+esac
+
+passthrough=()
+provider=""
+provider_model=""
+preloaded_mode=0
+campaign_help=0
+
+if [[ "${1:-}" == "preloaded" ]]; then
+    preloaded_mode=1
+    passthrough+=(--mode preloaded)
+    shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h|help)
+            campaign_help=1
+            passthrough+=("$1")
+            shift
+            ;;
+        --model)
+            val="$2"; shift 2
+            if [[ "$val" == *:* ]]; then
+                provider="${val%%:*}"
+                provider_model="${val#*:}"
+            else
+                provider="$val"
+            fi
+            ;;
+        *)
+            passthrough+=("$1"); shift
+            ;;
+    esac
+done
+
+[[ -n "$provider" ]] && passthrough+=(--provider "$provider")
+[[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
+
+exec "$PYTHON" generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"

@@ -1,0 +1,9 @@
+{
+  "node_id": "deep_church_entrance:floor_03",
+  "node_type": "threshold",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "巨大的哥特式教堂沉入地底，石桥断裂，深渊的雾气从下方涌出，吞噬光线。"
+  },
+  "arbitrations": 1
+}

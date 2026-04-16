@@ -1,0 +1,9 @@
+{
+  "node_id": "lothric_throne_approach:floor_07",
+  "node_type": "crossroads",
+  "floor": 7,
+  "metadata": {
+    "scene_summary": "通往洛斯里克双王子王座的最后长廊，两侧是历代薪王的空铠甲，如沉默的送葬队列。"
+  },
+  "arbitrations": 2
+}

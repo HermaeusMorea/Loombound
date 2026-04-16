@@ -1,0 +1,9 @@
+{
+  "node_id": "undead_settlement_market:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "聚落的吊桥在风中呻吟，腐树之下，几个尚未完全活尸化的商贩摆出沾血的货物。他们用空洞的眼神盯着你手中微弱的余火。"
+  },
+  "arbitrations": 1
+}

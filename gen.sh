@@ -27,6 +27,16 @@ if [[ -f ".env" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Subcommand dispatch
+# ---------------------------------------------------------------------------
+
+# arc-palette: one-time global arc state palette generation
+if [[ "${1:-}" == "arc-palette" ]]; then
+    shift
+    exec "$SCRIPT_DIR/.venv/bin/python" generate_arc_palette.py "$@"
+fi
+
+# ---------------------------------------------------------------------------
 # Parse shorthand flags
 # ---------------------------------------------------------------------------
 

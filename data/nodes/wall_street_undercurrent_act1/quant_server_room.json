@@ -1,0 +1,9 @@
+{
+  "node_id": "quant_server_room:floor_02",
+  "node_type": "archive",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "新泽西数据中心，零下五度的服务器机房里，灰鲨的量化引擎「深渊」正在以纳秒级速度吞噬市场订单。首席量化师告诉你，有人在代码里埋了一个后门——每笔交易都在向外泄露头寸信息。"
+  },
+  "arbitrations": 2
+}

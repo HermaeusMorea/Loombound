@@ -1,0 +1,9 @@
+{
+  "node_id": "grey_shark_trading_floor:floor_01",
+  "node_type": "encounter",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "四十七楼的交易大厅灯光惨白如太平间。六十块屏幕同时闪烁，每一块都在用红绿两色书写某人的命运。你的工位在最角落——离老板的玻璃办公室最远，离逃生通道最近。"
+  },
+  "arbitrations": 2
+}

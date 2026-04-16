@@ -1,0 +1,100 @@
+{
+  "campaign_id": "ash_age_border_pilgrimage",
+  "title": "灰烬时代的边境巡礼",
+  "intro": "钟声在废墟间回荡，宣告又一个黄昏的降临。你从余烬中苏醒，身负不死人的诅咒，踏上了前往边境的巡礼之路。前方只有衰败的教堂、被遗忘的墓地和游魂商人的低语，而世界的火焰正逐渐熄灭。",
+  "tone": "这是一部黑暗、肃穆、衰败、悲怆的高幻想末世作品。世界处于火将熄灭的末期，王国早已破败，城塞、墓地、深渊、古教堂与诅咒村落彼此相连。不死人诅咒蔓延，骑士、余火守护者、堕落圣职者与游魂商人都在残存秩序里苟活。魔法、奇迹与咒术都带着代价，神明神话正在剥落，所有道路都通向衰败、轮回与牺牲。少解释，多暗示；一切荣耀都已燃尽，只剩灰烬、钟声、废墟与残火。",
+  "initial_core_state": {
+    "health": 8,
+    "max_health": 10,
+    "money": 3,
+    "sanity": 7,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "ruined_chapel_entrance",
+  "nodes": {
+    "ruined_chapel_entrance": {
+      "label": "破败礼拜堂入口",
+      "map_blurb": "坍塌的拱门下，褪色的圣像凝视着灰烬覆盖的庭院。远处传来游魂的呻吟，与钟声交织。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/ruined_chapel_entrance.json",
+      "next_nodes": [
+        "graveyard_of_the_fallen",
+        "ashen_market"
+      ]
+    },
+    "graveyard_of_the_fallen": {
+      "label": "陨落者墓园",
+      "map_blurb": "歪斜的墓碑间，未安息的骸骨在灰雾中游荡。一座破损的骑士雕像手持断裂的长剑，指向地下的通道。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/graveyard_of_the_fallen.json",
+      "next_nodes": [
+        "forgotten_crypt",
+        "ritual_of_embers"
+      ]
+    },
+    "ashen_market": {
+      "label": "灰烬市集",
+      "map_blurb": "游魂商人支起破布帐篷，兜售着发光的余烬、诅咒的圣物和褪色的记忆。空气中弥漫着腐烂花朵与古老香料的气味。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/ashen_market.json",
+      "next_nodes": [
+        "ritual_of_embers",
+        "archive_of_fading_gods"
+      ]
+    },
+    "ritual_of_embers": {
+      "label": "余烬仪式",
+      "map_blurb": "圆形石坛上，三簇微弱的火焰在灰烬中燃烧。堕落圣职者低声吟唱着早已被遗忘的祷文，等待献祭者。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/ritual_of_embers.json",
+      "next_nodes": [
+        "threshold_of_the_abyss"
+      ]
+    },
+    "forgotten_crypt": {
+      "label": "被遗忘的墓穴",
+      "map_blurb": "深入地下，石棺上的铭文已模糊不清。墙壁上的壁画描绘着神明陨落的场景，色彩剥落如干涸的血迹。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/forgotten_crypt.json",
+      "next_nodes": [
+        "threshold_of_the_abyss"
+      ]
+    },
+    "archive_of_fading_gods": {
+      "label": "褪色神明的档案",
+      "map_blurb": "摇摇欲坠的书架承载着羊皮卷轴和破碎的泥板。记载着诸神如何因信仰的熄灭而逐渐化为灰烬。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/archive_of_fading_gods.json",
+      "next_nodes": [
+        "threshold_of_the_abyss"
+      ]
+    },
+    "threshold_of_the_abyss": {
+      "label": "深渊门槛",
+      "map_blurb": "巨大的裂谷边缘，风从地底带来硫磺与灰烬的气息。这是通往世界最后火焰所在的边界，也是巡礼的终点。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/threshold_of_the_abyss.json",
+      "next_nodes": [
+        "final_embers"
+      ]
+    },
+    "final_embers": {
+      "label": "最后的余烬",
+      "map_blurb": "深渊底部，世界最后的火焰在一口巨大的石碗中微弱地跳动。周围环绕着历代巡礼者的遗骸，他们的牺牲未能阻止衰败。",
+      "node_file": "data/nodes/ash_age_border_pilgrimage/final_embers.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "灰烬时代的边境巡礼",
+    "language": "zh",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "generation_mode": "preloaded",
+    "tone_hint": "黑暗、肃穆、衰败、悲怆的高幻想末世；少解释，多暗示；一切荣耀都已燃尽，只剩灰烬、钟声、废墟与残火",
+    "worldview_hint": "世界处于火将熄灭的末期，王国早已破败，城塞、墓地、深渊、古教堂与诅咒村落彼此相连；不死人诅咒蔓延，骑士、余火守护者、堕落圣职者与游魂商人都在残存秩序里苟活；魔法、奇迹与咒术都带着代价，神明神话正在剥落，所有道路都通向衰败、轮回与牺牲",
+    "table_a_path": "/home/eixco/projects/black-Archive/data/m2_table_a.json",
+    "table_a_entry_count": 50
+  }
+}

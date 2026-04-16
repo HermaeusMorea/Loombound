@@ -1,0 +1,9 @@
+{
+  "node_id": "cursed_village_path:floor_02",
+  "node_type": "encounter",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "被灰烬覆盖的村落，游魂在残火间徘徊，空气中弥漫着绝望的祈祷声。"
+  },
+  "arbitrations": 2
+}

@@ -18,7 +18,7 @@ from .recording import (
     record_choice,
 )
 from .m1_store import M1Entry, M1Store
-from .m2_store import M2Entry, M2SeedEntry, M2Store
+from .m2_store import M2Entry, M2NodeArbitrationSkeleton, M2NodeSkeletonEntry, M2Store
 
 __all__ = [
     "NarratorMood",
@@ -35,6 +35,7 @@ __all__ = [
     "M1Entry",
     "M1Store",
     "M2Entry",
-    "M2SeedEntry",
+    "M2NodeArbitrationSkeleton",
+    "M2NodeSkeletonEntry",
     "M2Store",
 ]

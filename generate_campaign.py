@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """Generate a Loombound campaign.
 
-Campaign graph structure is designed by a configurable AI provider (one API call, offline).
-Generated node files use  "arbitrations": N  (integer) so that the Slow Core
-decides the content for each arbitration at runtime.
+Step 1: Claude Opus generates the campaign graph (node topology, labels, map_blurbs).
+Step 2: Claude Haiku generates Table B — scene skeletons for every node (batch, one call).
+
+Both steps run automatically. Use --skip-table-b to stop after Step 1.
 
 Usage:
     python generate_campaign.py "drowned city cult investigation"
-    python generate_campaign.py --theme "lighthouse keeper's descent" --nodes 8
-    python generate_campaign.py --theme "canal district" --nodes 6 --out act2_campaign
-    python generate_campaign.py --lang zh --theme "渔村诅咒" --nodes 6
-    python generate_campaign.py "orbital salvage mutiny" --tone "dirty political thriller"
-    python generate_campaign.py "solar archaeology" --worldview "post-scarcity sailships between ring habitats"
+    python generate_campaign.py "lighthouse keeper's descent" --nodes 8
+    python generate_campaign.py "渔村诅咒" --lang zh --nodes 6
+    python generate_campaign.py "solar archaeology" --tone "dirty political thriller"
     python generate_campaign.py "theme" --provider deepseek
-    python generate_campaign.py "theme" --provider anthropic:claude-haiku-4-5
+    python generate_campaign.py "theme" --skip-table-b
 """
 
 from __future__ import annotations
@@ -61,7 +60,6 @@ _PROVIDERS: dict[str, tuple[str, str, str]] = {
 
 
 def _provider_defaults(provider: str) -> tuple[str, str, str]:
-    """Return (default_model, base_url, api_key_env) for a known provider."""
     if provider in _PROVIDERS:
         return _PROVIDERS[provider]
     raise ValueError(
@@ -92,12 +90,17 @@ def _ts() -> str:
 
 
 def _md_log(lines: list[str]) -> None:
-    """Append a markdown block to logs/llm.md."""
-
     _LLM_LOG.parent.mkdir(parents=True, exist_ok=True)
     block = "\n".join(lines) + "\n\n"
     with _LLM_LOG.open("a", encoding="utf-8") as fh:
         fh.write(block)
+
+
+_OPUS_INPUT_COST  = 5.0  / 1_000_000   # $/token
+_OPUS_OUTPUT_COST = 25.0 / 1_000_000
+_HAIKU_INPUT_COST  = 0.80 / 1_000_000
+_HAIKU_OUTPUT_COST = 4.0  / 1_000_000
+_OPUS_CACHE_READ_COST = 0.50 / 1_000_000  # 10% of input
 
 
 def _log_campaign_core_usage(
@@ -114,25 +117,27 @@ def _log_campaign_core_usage(
     usage_input: int,
     usage_output: int,
 ) -> None:
-    """Record one campaign-generation usage block in logs/llm.md."""
-
-    lines = [
+    is_opus = "opus" in model.lower()
+    cost = (
+        usage_input * _OPUS_INPUT_COST + usage_output * _OPUS_OUTPUT_COST
+        if is_opus
+        else usage_input * _HAIKU_INPUT_COST + usage_output * _HAIKU_OUTPUT_COST
+    )
+    _md_log([
         f"## [{_ts()}] CAMPAIGN CORE RESPONSE — `{campaign_id}`",
         f"provider: {provider}",
         f"model: {model}",
         f"theme: {theme}",
-        f"node_budget: {node_count}",
-        f"language: {lang}",
-        f"tone_hint: {tone_hint or '(none)'}",
-        f"worldview_hint: {worldview_hint or '(none)'}",
         f"title: {title}",
+        f"nodes: {node_count}  language: {lang}",
+        f"tone: {(tone_hint or '(none)')[:100]}",
         f"tokens — input: {usage_input}  output: {usage_output}",
-    ]
-    _md_log(lines)
+        f"cost: ${cost:.4f}",
+    ])
 
 
 # ---------------------------------------------------------------------------
-# System prompt
+# Campaign graph tool schema (Claude Opus)
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
@@ -175,10 +180,6 @@ intro: 2–3 sentences setting the whole campaign's opening mood.
 
 Call create_campaign exactly once.
 """
-
-# ---------------------------------------------------------------------------
-# Tool schema
-# ---------------------------------------------------------------------------
 
 _TOOL = {
     "name": "create_campaign",
@@ -254,11 +255,6 @@ _TOOL = {
     },
 }
 
-
-# ---------------------------------------------------------------------------
-# OpenAI-compatible tool schema
-# ---------------------------------------------------------------------------
-
 _TOOL_OPENAI = {
     "type": "function",
     "function": {
@@ -270,7 +266,82 @@ _TOOL_OPENAI = {
 
 
 # ---------------------------------------------------------------------------
-# Generation — Anthropic
+# Table B tool schema (Claude Haiku — batch, all nodes in one call)
+# ---------------------------------------------------------------------------
+
+_SKELETON_ITEM = {
+    "type": "object",
+    "properties": {
+        "scene_type": {"type": "string"},
+        "scene_concept": {
+            "type": "string",
+            "description": "1-2 sentences: what physically happens here. Specific, tendency-flexible.",
+        },
+        "sanity_axis": {
+            "type": "string",
+            "description": "Base psychological tension. Runtime arc tendency intensifies this later.",
+        },
+        "options": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "option_id": {"type": "string"},
+                    "intent":    {"type": "string"},
+                    "tags":      {"type": "array", "items": {"type": "string"}},
+                    "effects": {
+                        "type": "object",
+                        "properties": {
+                            "health_delta":    {"type": "integer"},
+                            "money_delta":     {"type": "integer"},
+                            "sanity_delta":    {"type": "integer"},
+                            "add_conditions":  {"type": "array", "items": {"type": "string"}},
+                        },
+                        "additionalProperties": False,
+                    },
+                },
+                "required": ["option_id", "intent", "tags", "effects"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["scene_type", "scene_concept", "sanity_axis", "options"],
+    "additionalProperties": False,
+}
+
+_TABLE_B_TOOL = {
+    "name": "generate_table_b",
+    "description": "Submit scene skeletons for ALL campaign nodes at once.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "nodes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "node_id": {"type": "string"},
+                        "arbitrations": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": _SKELETON_ITEM,
+                        },
+                    },
+                    "required": ["node_id", "arbitrations"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["nodes"],
+        "additionalProperties": False,
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Campaign graph generation — Anthropic
 # ---------------------------------------------------------------------------
 
 async def _generate_anthropic(
@@ -284,7 +355,6 @@ async def _generate_anthropic(
     worldview_hint: str | None = None,
 ) -> dict:
     client = anthropic.AsyncAnthropic(api_key=api_key)
-
     user_msg = _build_user_msg(theme, node_count, lang, tone_hint, worldview_hint)
 
     print(f"  Calling {model} ({node_count} nodes, theme: {theme!r})...")
@@ -298,7 +368,6 @@ async def _generate_anthropic(
     )
 
     u = response.usage
-    # Estimate cost (Opus 4.6 pricing)
     input_cost = u.input_tokens / 1e6 * 5
     output_cost = u.output_tokens / 1e6 * 25
     print(f"  Usage: input={u.input_tokens}  output={u.output_tokens}  "
@@ -307,19 +376,14 @@ async def _generate_anthropic(
     for block in response.content:
         if block.type == "tool_use" and block.name == "create_campaign":
             raw = block.input
-            # Force-convert to standard Python types (handles SDK wrapper objects)
             if isinstance(raw, str):
                 raw = json.loads(raw)
             else:
                 raw = json.loads(json.dumps(raw))
             _log_campaign_core_usage(
-                provider=provider,
-                model=model,
-                theme=theme,
-                node_count=node_count,
-                lang=lang,
-                tone_hint=tone_hint,
-                worldview_hint=worldview_hint,
+                provider=provider, model=model, theme=theme,
+                node_count=node_count, lang=lang,
+                tone_hint=tone_hint, worldview_hint=worldview_hint,
                 campaign_id=raw["campaign_id"],
                 title=raw.get("title", raw["campaign_id"]),
                 usage_input=u.input_tokens,
@@ -333,7 +397,7 @@ async def _generate_anthropic(
 
 
 # ---------------------------------------------------------------------------
-# Generation — OpenAI-compatible (DeepSeek, Qwen, GPT, …)
+# Campaign graph generation — OpenAI-compatible
 # ---------------------------------------------------------------------------
 
 async def _generate_openai_compat(
@@ -358,7 +422,6 @@ async def _generate_openai_compat(
         sys.exit(1)
 
     client = openai.AsyncOpenAI(api_key=api_key or "dummy", base_url=base_url)
-
     user_msg = _build_user_msg(theme, node_count, lang, tone_hint, worldview_hint)
 
     print(f"  Calling {model} via OpenAI-compat ({node_count} nodes, theme: {theme!r})...")
@@ -384,20 +447,14 @@ async def _generate_openai_compat(
                 raw = tc.function.arguments
                 if isinstance(raw, str):
                     raw = json.loads(raw)
-                usage_input = usage.prompt_tokens if usage else 0
-                usage_output = usage.completion_tokens if usage else 0
                 _log_campaign_core_usage(
-                    provider=provider,
-                    model=model,
-                    theme=theme,
-                    node_count=node_count,
-                    lang=lang,
-                    tone_hint=tone_hint,
-                    worldview_hint=worldview_hint,
+                    provider=provider, model=model, theme=theme,
+                    node_count=node_count, lang=lang,
+                    tone_hint=tone_hint, worldview_hint=worldview_hint,
                     campaign_id=raw["campaign_id"],
                     title=raw.get("title", raw["campaign_id"]),
-                    usage_input=usage_input,
-                    usage_output=usage_output,
+                    usage_input=usage.prompt_tokens if usage else 0,
+                    usage_output=usage.completion_tokens if usage else 0,
                 )
                 return raw
 
@@ -408,7 +465,7 @@ async def _generate_openai_compat(
 
 
 # ---------------------------------------------------------------------------
-# Generation — dispatcher
+# Campaign graph generation — dispatcher
 # ---------------------------------------------------------------------------
 
 async def _generate(
@@ -424,25 +481,12 @@ async def _generate(
 ) -> dict:
     if provider == "anthropic":
         return await _generate_anthropic(
-            theme,
-            node_count,
-            lang,
-            provider,
-            model,
-            api_key,
-            tone_hint=tone_hint,
-            worldview_hint=worldview_hint,
+            theme, node_count, lang, provider, model, api_key,
+            tone_hint=tone_hint, worldview_hint=worldview_hint,
         )
     return await _generate_openai_compat(
-        theme,
-        node_count,
-        lang,
-        provider,
-        model,
-        base_url or "",
-        api_key,
-        tone_hint=tone_hint,
-        worldview_hint=worldview_hint,
+        theme, node_count, lang, provider, model, base_url or "", api_key,
+        tone_hint=tone_hint, worldview_hint=worldview_hint,
     )
 
 
@@ -453,10 +497,8 @@ def _build_user_msg(
     tone_hint: str | None = None,
     worldview_hint: str | None = None,
 ) -> str:
-    """Build the generation request shared by all providers."""
-
     parts = [
-        f"Design a Loombound campaign with approximately {node_count} nodes.",
+        f"Design a Loombound campaign with exactly {node_count} nodes.",
         f"Theme: {theme}",
     ]
     if tone_hint:
@@ -471,7 +513,8 @@ def _build_user_msg(
         )
     parts.append(
         "Use a branching graph structure with at least one fork. "
-        "Make sure every node_id in next_nodes actually exists in your nodes list."
+        "Make sure every node_id in next_nodes actually exists in your nodes list. "
+        f"The final nodes list must contain exactly {node_count} unique nodes."
     )
     if lang == "zh":
         parts.append(
@@ -482,16 +525,164 @@ def _build_user_msg(
 
 
 # ---------------------------------------------------------------------------
+# Table B generation — Claude Haiku (batch, all nodes in one call)
+# ---------------------------------------------------------------------------
+
+_TABLE_B_SYSTEM = """\
+You are a narrative scene designer for a roguelite game.
+Your task: generate stable, tendency-flexible scene skeletons for every node in this campaign.
+
+Rules:
+- Call generate_table_b exactly once with ALL nodes.
+- Each node must have EXACTLY the number of arbitrations specified.
+- scene_concept: what physically happens — specific but not locked to one dramatic outcome.
+- sanity_axis: the psychological tension at stake — not the result.
+- Do not hardcode a single dramatic tendency; runtime arc state will modulate these later.
+"""
+
+
+async def _generate_table_b(
+    nodes_raw: list[dict],
+    campaign_id: str,
+    tone: str,
+    title: str,
+    intro: str,
+    lang: str,
+    api_key: str,
+    *,
+    max_retries: int = 2,
+) -> list[dict] | None:
+    """Call Claude Haiku to generate Table B for all nodes in one batch."""
+
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+    model = "claude-haiku-4-5-20251001"
+
+    # Build per-node summary for the user message
+    node_lines = []
+    expected: dict[str, int] = {}
+    for node in nodes_raw:
+        nid = node["node_id"]
+        arb_n = int(node.get("arbitration_count", 1))
+        expected[nid] = arb_n
+        node_lines.append(
+            f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
+            f"floor: {node.get('floor', 1)}  arbitrations_required: {arb_n}\n"
+            f"    label: {node.get('label', '')}\n"
+            f"    map_blurb: {node.get('map_blurb', '')}"
+        )
+
+    lang_note = "Write all narrative text (scene_concept, sanity_axis, intent) in Chinese (中文).\n" if lang == "zh" else ""
+    user_msg = (
+        f"Campaign: {title}\n"
+        f"Tone: {tone}\n"
+        f"Premise: {intro}\n\n"
+        f"{lang_note}"
+        f"Generate Table B skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
+        f"Each node must have EXACTLY the specified number of arbitrations.\n\n"
+        + "\n".join(node_lines)
+    )
+
+    _md_log([
+        f"## [{_ts()}] TABLE B REQUEST — `{campaign_id}` ({len(nodes_raw)} nodes)",
+        f"model: {model}",
+        *[f"  {n['node_id']} arb×{n.get('arbitration_count', 1)}" for n in nodes_raw],
+    ])
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = await client.messages.create(
+                model=model,
+                max_tokens=8000,
+                system=_TABLE_B_SYSTEM,
+                messages=[{"role": "user", "content": user_msg}],
+                tools=[_TABLE_B_TOOL],
+                tool_choice={"type": "tool", "name": "generate_table_b"},
+            )
+        except Exception as exc:
+            print(f"  [Table B attempt {attempt}] API error: {exc}")
+            if attempt == max_retries:
+                return None
+            continue
+
+        u = response.usage
+        raw: dict | None = None
+        for block in response.content:
+            if block.type == "tool_use" and block.name == "generate_table_b":
+                r = block.input
+                if isinstance(r, str):
+                    r = json.loads(r)
+                else:
+                    r = json.loads(json.dumps(r))
+                raw = r
+                break
+
+        if raw is None:
+            print(f"  [Table B attempt {attempt}] no tool call returned, retrying...")
+            continue
+
+        result_nodes = raw.get("nodes", [])
+        result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
+
+        # Validate per-node arbitration counts
+        errors: list[str] = []
+        for nid, want in expected.items():
+            got_node = result_by_id.get(nid)
+            if got_node is None:
+                errors.append(f"missing node_id={nid}")
+                continue
+            got = len(got_node.get("arbitrations", []))
+            if got != want:
+                errors.append(f"{nid}: expected {want} arbitrations, got {got}")
+
+        if errors:
+            print(f"  [Table B attempt {attempt}] validation errors: {errors}")
+            _md_log([
+                f"## [{_ts()}] TABLE B RETRY — `{campaign_id}` attempt={attempt}",
+                *errors,
+            ])
+            if attempt == max_retries:
+                return None
+            continue
+
+        # Stamp node metadata client-side (keeps Table B self-contained)
+        node_meta = {n["node_id"]: n for n in nodes_raw}
+        table_b: list[dict] = []
+        for n in result_nodes:
+            nid = n["node_id"]
+            meta = node_meta.get(nid, {})
+            table_b.append({
+                "node_id":    nid,
+                "node_type":  meta.get("node_type", ""),
+                "label":      meta.get("label", ""),
+                "map_blurb":  meta.get("map_blurb", ""),
+                "arbitrations": n["arbitrations"],
+            })
+
+        haiku_cost = u.input_tokens * _HAIKU_INPUT_COST + u.output_tokens * _HAIKU_OUTPUT_COST
+        print(f"  Table B: input={u.input_tokens}  output={u.output_tokens}  "
+              f"(~${haiku_cost:.4f})")
+        _md_log([
+            f"## [{_ts()}] TABLE B RESPONSE — `{campaign_id}` attempt={attempt}",
+            f"model: {model}",
+            f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
+            f"cost: ${haiku_cost:.4f}",
+            "summaries:",
+            *[
+                f"  {row['node_id']} (arb×{len(row['arbitrations'])}): "
+                + (row['arbitrations'][0].get('scene_concept', '')[:90] if row.get('arbitrations') else '(empty)')
+                for row in table_b
+            ],
+        ])
+        return table_b
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Response normalisation
 # ---------------------------------------------------------------------------
 
 def _normalise(data: dict) -> dict:
-    """Normalise model response: accept nodes as list OR dict.
-
-    Some models return "nodes" as {node_id: spec} instead of the required array.
-    Non-dict list items (bare strings, etc.) are dropped so validate_graph can
-    report a clean error instead of crashing with a TypeError.
-    """
     nodes = data.get("nodes", [])
     data = dict(data)
     if isinstance(nodes, dict):
@@ -503,7 +694,6 @@ def _normalise(data: dict) -> dict:
                 normalised.append(spec)
         data["nodes"] = normalised
     elif isinstance(nodes, list):
-        # Drop any items that are not dicts (e.g. bare node_id strings)
         data["nodes"] = [n for n in nodes if isinstance(n, dict)]
     return data
 
@@ -512,7 +702,11 @@ def _normalise(data: dict) -> dict:
 # Validation
 # ---------------------------------------------------------------------------
 
-def validate_graph(nodes: list[dict], start_node_id: str) -> list[str]:
+def validate_graph(
+    nodes: list[dict],
+    start_node_id: str,
+    expected_node_count: int | None = None,
+) -> list[str]:
     errors: list[str] = []
     if not nodes:
         errors.append("nodes list is empty — model returned no nodes or wrong format")
@@ -525,6 +719,11 @@ def validate_graph(nodes: list[dict], start_node_id: str) -> list[str]:
 
     if start_node_id not in node_ids:
         errors.append(f"start_node_id '{start_node_id}' not found in nodes")
+
+    if expected_node_count is not None and len(node_ids) != expected_node_count:
+        errors.append(
+            f"Expected exactly {expected_node_count} unique nodes, got {len(node_ids)}"
+        )
 
     for node in nodes:
         for ref in node.get("next_nodes", []):
@@ -543,7 +742,7 @@ def validate_graph(nodes: list[dict], start_node_id: str) -> list[str]:
 # File writing
 # ---------------------------------------------------------------------------
 
-def write_campaign(data: dict, out_name: str) -> tuple[Path, int]:
+def write_campaign(data: dict, out_name: str, generation_context: dict | None = None) -> tuple[Path, int]:
     campaign_id = data["campaign_id"]
     nodes_raw: list[dict] = data["nodes"]
 
@@ -558,7 +757,6 @@ def write_campaign(data: dict, out_name: str) -> tuple[Path, int]:
         node_file_rel = f"data/nodes/{campaign_id}/{nid}.json"
         node_file_abs = REPO_ROOT / node_file_rel
 
-        # Write node spec file (arbitrations is an integer → LLM-generated at runtime)
         node_spec = {
             "node_id": f"{nid}:floor_{node['floor']:02d}",
             "node_type": node["node_type"],
@@ -590,12 +788,23 @@ def write_campaign(data: dict, out_name: str) -> tuple[Path, int]:
         "start_node_id": data["start_node_id"],
         "nodes":         campaign_nodes,
     }
+    if generation_context:
+        campaign_json["generation_context"] = generation_context
 
     out_path = campaigns_dir / f"{out_name}.json"
     out_path.write_text(
         json.dumps(campaign_json, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+
     return out_path, len(nodes_raw)
+
+
+def write_table_b(table_b: list[dict], campaign_id: str) -> Path:
+    out_dir = REPO_ROOT / "data" / "nodes" / campaign_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "table_b.json"
+    out_path.write_text(json.dumps(table_b, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out_path
 
 
 # ---------------------------------------------------------------------------
@@ -632,7 +841,7 @@ def print_graph(data: dict) -> None:
     terminal = [n["node_id"] for n in data["nodes"] if not n.get("next_nodes")]
     print(f"\n  Terminal node(s): {terminal}")
     total_arbs = sum(n["arbitration_count"] for n in data["nodes"])
-    print(f"  Total arbitrations (LLM-generated at runtime): {total_arbs}")
+    print(f"  Total arbitrations: {total_arbs}")
 
 
 # ---------------------------------------------------------------------------
@@ -642,9 +851,7 @@ def print_graph(data: dict) -> None:
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(
-        description="Generate a Loombound campaign."
-    )
+    parser = argparse.ArgumentParser(description="Generate a Loombound campaign.")
     parser.add_argument(
         "theme",
         nargs="?",
@@ -652,49 +859,40 @@ def main() -> None:
         help="Campaign theme (default: 'drowned city cult investigation')",
     )
     parser.add_argument("--nodes", type=int, default=6, metavar="N",
-                        help="Approximate number of nodes (default: 6)")
+                        help="Exact number of nodes to generate (default: 6)")
     parser.add_argument("--out", default=None, metavar="NAME",
                         help="Output filename stem (default: campaign_id from model)")
     parser.add_argument("--lang", choices=["en", "zh"], default="en",
                         help="Language for narrative text (default: en)")
     parser.add_argument(
-        "--tone",
-        default=None,
-        metavar="TEXT",
-        help="Explicit tone guidance for campaign generation "
-             "(e.g. 'melancholic solarpunk mystery with hopeful undertones').",
+        "--tone", default=None, metavar="TEXT",
+        help="Explicit tone guidance (e.g. 'melancholic solarpunk mystery').",
     )
     parser.add_argument(
-        "--worldview",
-        default=None,
-        metavar="TEXT",
-        help="Explicit worldview/setting guidance for campaign generation "
-             "(e.g. 'post-collapse orbital stations run by debt guilds').",
+        "--worldview", default=None, metavar="TEXT",
+        help="Explicit worldview/setting guidance.",
     )
     parser.add_argument("--retries", type=int, default=3,
                         help="Max attempts on graph validation failure (default: 3)")
     parser.add_argument(
-        "--provider",
-        default="anthropic",
-        metavar="PROVIDER",
-        help="AI provider: anthropic (default), deepseek, openai, qwen. "
+        "--skip-table-b", action="store_true",
+        help="Skip Table B generation (campaign graph only).",
+    )
+    parser.add_argument(
+        "--provider", default=None, metavar="PROVIDER",
+        help="Campaign graph provider: anthropic (default), deepseek, openai, qwen. "
              "Can also be set via CAMPAIGN_CORE_PROVIDER env var.",
     )
     parser.add_argument(
-        "--provider-model",
-        dest="provider_model",
-        default=None,
-        metavar="MODEL",
-        help="Override model name for the chosen provider. "
+        "--provider-model", dest="provider_model", default=None, metavar="MODEL",
+        help="Override model name for the campaign graph provider. "
              "Can also be set via CAMPAIGN_CORE_MODEL env var.",
     )
     args = parser.parse_args()
 
-    # Resolve provider and model
-    provider = os.environ.get("CAMPAIGN_CORE_PROVIDER", args.provider)
-    provider_model_override = (
-        args.provider_model or os.environ.get("CAMPAIGN_CORE_MODEL")
-    )
+    # Resolve campaign graph provider / model
+    provider = os.environ.get("CAMPAIGN_CORE_PROVIDER") or args.provider or "anthropic"
+    provider_model_override = args.provider_model or os.environ.get("CAMPAIGN_CORE_MODEL")
 
     if provider == "anthropic":
         default_model = "claude-opus-4-6"
@@ -711,14 +909,30 @@ def main() -> None:
     api_key = os.environ.get(api_key_env)
     if not api_key:
         print(
-            f"Error: {api_key_env} not set in .env or environment "
+            f"Error: {api_key_env} not set "
             f"(required for provider '{provider}').",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    print(f"Generating campaign: '{args.theme}' (~{args.nodes} nodes) via {provider}/{model}")
+    # Anthropic key is always needed for Table B (Haiku)
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not args.skip_table_b and not anthropic_key:
+        print(
+            "Warning: ANTHROPIC_API_KEY not set — skipping Table B generation.\n"
+            "Run with --skip-table-b to suppress this warning, or add the key to .env.",
+            file=sys.stderr,
+        )
+        args.skip_table_b = True
 
+    print(
+        f"Generating campaign: '{args.theme}' ({args.nodes} nodes) "
+        f"via {provider}/{model}"
+    )
+
+    # ── Step 1: generate campaign graph ────────────────────────────────────
+
+    data: dict | None = None
     for attempt in range(1, args.retries + 1):
         if attempt > 1:
             print(f"\nRetrying (attempt {attempt}/{args.retries})...")
@@ -738,7 +952,7 @@ def main() -> None:
                 sys.exit(1)
             continue
 
-        errors = validate_graph(data["nodes"], data["start_node_id"])
+        errors = validate_graph(data["nodes"], data["start_node_id"], expected_node_count=args.nodes)
         if errors:
             print(f"\nGraph validation failed (attempt {attempt}):")
             for e in errors:
@@ -746,19 +960,56 @@ def main() -> None:
             if attempt == args.retries:
                 print("\nAll retries exhausted.", file=sys.stderr)
                 sys.exit(1)
+            data = None
             continue
 
-        # Success
-        print_graph(data)
-
-        out_name = args.out or data["campaign_id"]
-        out_path, node_count = write_campaign(data, out_name)
-
-        print(f"\n  Written: {out_path}")
-        print(f"  Written: data/nodes/{data['campaign_id']}/ ({node_count} node files)")
-        print(f"\nTo play:")
-        print(f"  ./run.sh --campaign {out_path} --slow deepseek --lang {args.lang}")
         break
+
+    if data is None:
+        sys.exit(1)
+
+    print_graph(data)
+
+    out_name = args.out or data["campaign_id"]
+    generation_context = {
+        "theme":          args.theme,
+        "language":       args.lang,
+        "provider":       provider,
+        "model":          model,
+        "tone_hint":      args.tone,
+        "worldview_hint": args.worldview,
+    }
+    out_path, node_count = write_campaign(data, out_name, generation_context=generation_context)
+
+    print(f"\n  Written: {out_path}")
+    print(f"  Written: data/nodes/{data['campaign_id']}/ ({node_count} node files)")
+
+    # ── Step 2: generate Table B (Haiku, all nodes in one call) ───────────
+
+    if not args.skip_table_b:
+        print(f"\nGenerating Table B via claude-haiku ({node_count} nodes)...")
+        table_b = asyncio.run(
+            _generate_table_b(
+                nodes_raw=data["nodes"],
+                campaign_id=data["campaign_id"],
+                tone=data.get("tone", ""),
+                title=data.get("title", ""),
+                intro=data.get("intro", ""),
+                lang=args.lang,
+                api_key=anthropic_key,
+            )
+        )
+        if table_b:
+            tb_path = write_table_b(table_b, data["campaign_id"])
+            print(f"  Written: {tb_path}")
+        else:
+            print("  Table B generation failed — run manually if needed:", file=sys.stderr)
+            print(f"    python generate_table_b.py --campaign {out_path}", file=sys.stderr)
+
+    print(f"\nCAMPAIGN_ID={data['campaign_id']}")
+    print(f"CAMPAIGN_PATH={out_path}")
+    print(f"\nTo play:")
+    print(f"  ./run --campaign {out_path} --slow anthropic --lang {args.lang}")
 
 
 if __name__ == "__main__":

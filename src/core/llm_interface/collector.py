@@ -122,6 +122,7 @@ def _build_state_sections(
     run_memory: RunMemory,
     node_history: list[NodeSummary],
     previous_core_state: CoreStateView | None = None,
+    current_node_memory: NodeMemory | None = None,
 ) -> list[str]:
     """Build the shared state sections used by both classifier and planner."""
     sections: list[str] = []
@@ -184,6 +185,28 @@ def _build_state_sections(
     else:
         sections.append("\n## Node trajectory\n  Run just started — no nodes completed yet.")
 
+    if current_node_memory is not None and current_node_memory.choices_made:
+        sections.append("\n## Active node so far (partial)")
+        sections.append(
+            f"  node={current_node_memory.node_id} type={current_node_memory.node_type}"
+            f" floor={current_node_memory.floor}"
+        )
+        sections.append(
+            f"  arbitrations_resolved={len(current_node_memory.choices_made)}"
+            f" sanity_lost={current_node_memory.sanity_lost_in_node}"
+        )
+        if current_node_memory.important_flags:
+            sections.append(
+                "  active flags: "
+                + ", ".join(current_node_memory.important_flags[-4:])
+            )
+        for choice in current_node_memory.choices_made[-2:]:
+            flags = ", ".join(choice.local_flags) if choice.local_flags else "none"
+            sections.append(
+                f"  - [{choice.scene_type}] option={choice.player_choice or 'unknown'}"
+                f" sanity={choice.sanity_delta} flags={flags}"
+            )
+
     if run_memory.m1.entries:
         sections.append("\n## Scene history (M1 — last 3 nodes)")
         for line in run_memory.m1.to_prompt_lines(n=3):
@@ -197,6 +220,7 @@ def build_classifier_input(
     run_memory: RunMemory,
     node_history: list[NodeSummary],
     previous_core_state: CoreStateView | None = None,
+    current_node_memory: NodeMemory | None = None,
 ) -> str:
     """Build the input sent to the M2 arc-state classifier (Claude).
 
@@ -204,7 +228,11 @@ def build_classifier_input(
     The classifier's job is purely structural: pick the best-matching Table A row.
     """
     sections = _build_state_sections(
-        core_state, run_memory, node_history, previous_core_state
+        core_state,
+        run_memory,
+        node_history,
+        previous_core_state,
+        current_node_memory=current_node_memory,
     )
     sections.append("\nClassify the arc state that best matches the current game state above.")
     return "\n".join(sections)
@@ -218,6 +246,7 @@ def build_quasi_description(
     target_node_id: str,
     arbitration_count: int,
     previous_core_state: CoreStateView | None = None,
+    current_node_memory: NodeMemory | None = None,
 ) -> str:
     """Build the user-message payload sent to Slow Core (dynamic path).
 
@@ -230,7 +259,11 @@ def build_quasi_description(
         previous_core_state:  State before the last node — used for direction signals.
     """
     sections = _build_state_sections(
-        core_state, run_memory, node_history, previous_core_state
+        core_state,
+        run_memory,
+        node_history,
+        previous_core_state,
+        current_node_memory=current_node_memory,
     )
 
     sections.append(

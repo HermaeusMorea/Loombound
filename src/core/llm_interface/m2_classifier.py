@@ -37,6 +37,116 @@ Selection rules:
 - If no row is a reasonable match, pass entry_id = -1.
 
 Do not produce any output outside the tool call.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARC STATE CLASSIFICATION GUIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DIMENSION 1 — arc_trajectory
+The overall narrative momentum of the run so far.
+
+  rising        The protagonist's position, knowledge, or agency is expanding.
+                Obstacles appear but are overcome. Resources accumulate.
+                The world opens up. Confidence or determination increases.
+                Signal words: discovery, momentum, escalation, growth, pursuit.
+
+  plateau       Progress has leveled off. The protagonist holds a stable position
+                but cannot easily advance or retreat. A period of assessment,
+                negotiation, or waiting. Tension is present but not yet breaking.
+                Signal words: stalemate, consolidation, uncertainty, delay, balance.
+
+  climax        The decisive confrontation or revelation. Maximum pressure.
+                Everything the run has built toward is now arriving simultaneously.
+                Resources are depleted or committed. No safe exit. The outcome
+                will define what follows.
+                Signal words: crisis, convergence, threshold, culmination, peak.
+
+  resolution    The major conflict has been decided. Aftermath, consequence, and
+                integration. The protagonist processes what happened and moves
+                toward a new equilibrium — positive, negative, or ambiguous.
+                Signal words: aftermath, closure, reconciliation, grief, acceptance.
+
+  pivot         An unexpected reversal has changed the run's direction entirely.
+                A betrayal, revelation, or sudden shift that invalidates previous
+                assumptions. The protagonist must reorient from scratch.
+                Signal words: reversal, betrayal, revelation, reframe, rupture.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DIMENSION 2 — world_pressure
+The intensity of external forces acting on the protagonist.
+
+  low           The environment is permissive. The protagonist can act without
+                immediate threat. Exploration, contemplation, and preparation
+                are viable. Mistakes are recoverable.
+
+  moderate      Some opposition or constraint is present. The protagonist must
+                be deliberate. Some actions are risky. The situation has stakes
+                but not yet urgency.
+
+  high          Active threat or crisis. The protagonist is under real pressure.
+                Time or resources are limited. Errors have significant cost.
+                Tension is felt in every scene beat.
+
+  critical      Existential pressure. The protagonist is at the edge of failure,
+                madness, or death. Every decision is high-stakes. The environment
+                is actively hostile. Survival is not guaranteed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DIMENSION 3 — narrative_pacing
+How quickly events are moving in the current section of the run.
+
+  slow          Scenes breathe. Information is revealed gradually. The player
+                has time to absorb environment, lore, and character. Atmosphere
+                dominates over action.
+
+  steady        A measured forward movement. Events progress logically. No rush,
+                but no stagnation. Standard adventure pacing.
+
+  accelerating  The pace is increasing. Each scene triggers the next more
+                urgently. Downtime is shrinking. The run is building toward
+                something and the player can feel it.
+
+  sprint        Maximum velocity. Back-to-back crises with no breathing room.
+                Scenes are short and punchy. Every moment matters. Often
+                accompanies climax or critical world_pressure.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DIMENSION 4 — pending_intent
+The nature of what the protagonist is about to do next.
+
+  exploration   Seeking new information, locations, or relationships. The next
+                action is investigative or expansive. Open-ended curiosity.
+
+  confrontation A direct challenge, conflict, or negotiation with an opposing
+                force. The protagonist is moving toward friction.
+
+  revelation    A key truth is about to surface — through discovery, confession,
+                or forced disclosure. Answers are coming, wanted or not.
+
+  recovery      The protagonist is regrouping: healing, restoring resources,
+                processing loss, or rebuilding after damage.
+
+  transition    A threshold crossing. Moving between acts, locations, or
+                identities. The current chapter is ending; the next is unknown.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MATCHING PROCEDURE
+
+Step 1. Read the M1+M0 quasi state carefully.
+Step 2. Identify the arc_trajectory that best describes the run's current momentum.
+Step 3. Identify the world_pressure from environmental and threat signals.
+Step 4. Identify the narrative_pacing from the density and urgency of recent events.
+Step 5. Identify the pending_intent from what the protagonist is positioned to do next.
+Step 6. Scan Table A for the row whose four fields most closely match your assessment.
+        Prefer exact matches on trajectory and pressure; use pacing and intent as
+        tiebreakers. If no row is within two dimensions of a match, return -1.
+Step 7. Call select_arc_state with the chosen entry_id (or -1 for no match).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 _NO_MATCH_ID = -1

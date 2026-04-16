@@ -1,0 +1,352 @@
+[
+  {
+    "entry_id": 0,
+    "arc_trajectory": "rising",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 1,
+    "arc_trajectory": "rising",
+    "world_pressure": "low",
+    "narrative_pacing": "steady",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 2,
+    "arc_trajectory": "rising",
+    "world_pressure": "moderate",
+    "narrative_pacing": "slow",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 3,
+    "arc_trajectory": "rising",
+    "world_pressure": "moderate",
+    "narrative_pacing": "steady",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 4,
+    "arc_trajectory": "rising",
+    "world_pressure": "moderate",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 5,
+    "arc_trajectory": "rising",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 6,
+    "arc_trajectory": "rising",
+    "world_pressure": "high",
+    "narrative_pacing": "steady",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 7,
+    "arc_trajectory": "rising",
+    "world_pressure": "high",
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 8,
+    "arc_trajectory": "rising",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 9,
+    "arc_trajectory": "rising",
+    "world_pressure": "critical",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 10,
+    "arc_trajectory": "plateau",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 11,
+    "arc_trajectory": "plateau",
+    "world_pressure": "low",
+    "narrative_pacing": "steady",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 12,
+    "arc_trajectory": "plateau",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 13,
+    "arc_trajectory": "plateau",
+    "world_pressure": "moderate",
+    "narrative_pacing": "steady",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 14,
+    "arc_trajectory": "plateau",
+    "world_pressure": "moderate",
+    "narrative_pacing": "slow",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 15,
+    "arc_trajectory": "plateau",
+    "world_pressure": "moderate",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 16,
+    "arc_trajectory": "plateau",
+    "world_pressure": "high",
+    "narrative_pacing": "steady",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 17,
+    "arc_trajectory": "plateau",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 18,
+    "arc_trajectory": "plateau",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 19,
+    "arc_trajectory": "plateau",
+    "world_pressure": "critical",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 20,
+    "arc_trajectory": "climax",
+    "world_pressure": "high",
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 21,
+    "arc_trajectory": "climax",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 22,
+    "arc_trajectory": "climax",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 23,
+    "arc_trajectory": "climax",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 24,
+    "arc_trajectory": "climax",
+    "world_pressure": "critical",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 25,
+    "arc_trajectory": "climax",
+    "world_pressure": "moderate",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 26,
+    "arc_trajectory": "climax",
+    "world_pressure": "moderate",
+    "narrative_pacing": "sprint",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 27,
+    "arc_trajectory": "climax",
+    "world_pressure": "high",
+    "narrative_pacing": "sprint",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 28,
+    "arc_trajectory": "climax",
+    "world_pressure": "low",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 29,
+    "arc_trajectory": "climax",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 30,
+    "arc_trajectory": "resolution",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 31,
+    "arc_trajectory": "resolution",
+    "world_pressure": "low",
+    "narrative_pacing": "steady",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 32,
+    "arc_trajectory": "resolution",
+    "world_pressure": "moderate",
+    "narrative_pacing": "slow",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 33,
+    "arc_trajectory": "resolution",
+    "world_pressure": "moderate",
+    "narrative_pacing": "steady",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 34,
+    "arc_trajectory": "resolution",
+    "world_pressure": "high",
+    "narrative_pacing": "steady",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 35,
+    "arc_trajectory": "resolution",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 36,
+    "arc_trajectory": "resolution",
+    "world_pressure": "critical",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 37,
+    "arc_trajectory": "resolution",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 38,
+    "arc_trajectory": "resolution",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 39,
+    "arc_trajectory": "resolution",
+    "world_pressure": "moderate",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 40,
+    "arc_trajectory": "pivot",
+    "world_pressure": "low",
+    "narrative_pacing": "steady",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 41,
+    "arc_trajectory": "pivot",
+    "world_pressure": "low",
+    "narrative_pacing": "slow",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 42,
+    "arc_trajectory": "pivot",
+    "world_pressure": "moderate",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 43,
+    "arc_trajectory": "pivot",
+    "world_pressure": "moderate",
+    "narrative_pacing": "steady",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 44,
+    "arc_trajectory": "pivot",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "confrontation"
+  },
+  {
+    "entry_id": 45,
+    "arc_trajectory": "pivot",
+    "world_pressure": "high",
+    "narrative_pacing": "sprint",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 46,
+    "arc_trajectory": "pivot",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "recovery"
+  },
+  {
+    "entry_id": 47,
+    "arc_trajectory": "pivot",
+    "world_pressure": "critical",
+    "narrative_pacing": "accelerating",
+    "pending_intent": "transition"
+  },
+  {
+    "entry_id": 48,
+    "arc_trajectory": "pivot",
+    "world_pressure": "moderate",
+    "narrative_pacing": "slow",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 49,
+    "arc_trajectory": "pivot",
+    "world_pressure": "high",
+    "narrative_pacing": "steady",
+    "pending_intent": "recovery"
+  }
+]
