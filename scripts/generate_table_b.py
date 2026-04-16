@@ -24,7 +24,7 @@ from typing import Any
 
 import openai
 
-REPO_ROOT = Path(__file__).parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = REPO_ROOT / ".env"
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"

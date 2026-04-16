@@ -11,7 +11,7 @@ import tarfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 APP_FILES = [
     "generate_campaign.py",

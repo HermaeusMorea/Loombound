@@ -86,7 +86,7 @@ case "$subcmd" in
 
     # ── arc-palette ─────────────────────────────────────────────────────────
     arc-palette)
-        exec "$PYTHON" generate_arc_palette.py "$@"
+        exec "$PYTHON" scripts/generate_arc_palette.py "$@"
         ;;
 
     # ── clean-palette ────────────────────────────────────────────────────────
@@ -124,12 +124,12 @@ case "$subcmd" in
         [[ -n "$provider" ]]       && passthrough+=(--provider "$provider")
         [[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
 
-        exec "$PYTHON" generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"
+        exec "$PYTHON" scripts/generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"
         ;;
 
     # ── preload ──────────────────────────────────────────────────────────────
     preload)
-        exec "$PYTHON" generate_table_b.py "$@"
+        exec "$PYTHON" scripts/generate_table_b.py "$@"
         ;;
 
     # ── run ─────────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ case "$subcmd" in
 
     # ── report ───────────────────────────────────────────────────────────────
     report)
-        exec "$PYTHON" report_llm_usage.py "$@"
+        exec "$PYTHON" scripts/report_llm_usage.py "$@"
         ;;
 
     # ── clean ────────────────────────────────────────────────────────────────

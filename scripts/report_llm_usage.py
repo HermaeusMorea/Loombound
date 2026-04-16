@@ -93,7 +93,7 @@ ROOT = (
     if os.environ.get("LOOMBOUND_ROOT")
     else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
     if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).resolve().parent
+    else Path(__file__).resolve().parent.parent
 )
 DEFAULT_LOG       = ROOT / "logs" / "llm.md"
 DEFAULT_CAMPAIGNS = ROOT / "data" / "campaigns"
