@@ -1,9 +1,0 @@
-{
-  "node_id": "server_farm_encounter:floor_03",
-  "node_type": "encounter",
-  "floor": 3,
-  "metadata": {
-    "scene_summary": "裕廊工业区深处一座废弃的数据中心仍在运转，冷却风扇的嗡鸣声掩盖了你的脚步。有人在这里布下了陷阱——或者说，一个邀请。"
-  },
-  "arbitrations": 3
-}

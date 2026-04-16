@@ -1,9 +1,0 @@
-{
-  "node_id": "changi_safehouse:floor_04",
-  "node_type": "rest",
-  "floor": 4,
-  "metadata": {
-    "scene_summary": "机场附近一间改装过的集装箱，内壁贴满法拉第屏蔽层。这里信号全无，是唯一可以安心闭眼的地方。"
-  },
-  "arbitrations": 1
-}

@@ -1,9 +1,0 @@
-{
-  "node_id": "cargo_bay_escape:floor_01",
-  "node_type": "encounter",
-  "floor": 1,
-  "metadata": {
-    "scene_summary": "债务公会的猎杀令已经下达，你藏身在第七区废弃货舱的集装箱夹层中。追踪无人机的嗡鸣声正从通风口逼近。"
-  },
-  "arbitrations": 2
-}

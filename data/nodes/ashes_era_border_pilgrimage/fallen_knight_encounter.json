@@ -1,9 +1,0 @@
-{
-  "node_id": "fallen_knight_encounter:floor_03",
-  "node_type": "encounter",
-  "floor": 3,
-  "metadata": {
-    "scene_summary": "一位失去信仰的骑士守卫着深渊边缘，他的盔甲锈蚀，剑刃却依然锋利。"
-  },
-  "arbitrations": 2
-}

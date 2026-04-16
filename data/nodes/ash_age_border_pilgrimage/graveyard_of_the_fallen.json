@@ -1,9 +1,0 @@
-{
-  "node_id": "graveyard_of_the_fallen:floor_02",
-  "node_type": "encounter",
-  "floor": 2,
-  "metadata": {
-    "scene_summary": "歪斜的墓碑间，未安息的骸骨在灰雾中游荡。一座破损的骑士雕像手持断裂的长剑，指向地下的通道。"
-  },
-  "arbitrations": 2
-}

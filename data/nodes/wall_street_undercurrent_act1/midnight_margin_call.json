@@ -1,9 +1,0 @@
-{
-  "node_id": "midnight_margin_call:floor_04",
-  "node_type": "threshold",
-  "floor": 4,
-  "metadata": {
-    "scene_summary": "纽约时间凌晨四点十七分，你的手机和Bloomberg终端同时炸响。高盛的大宗经纪部门发来追保通知：灰鲨需要在开盘前补缴八亿美元保证金，否则全部头寸将被强制平仓。窗外曼哈顿的灯火像一片即将熄灭的星域。这是终局。"
-  },
-  "arbitrations": 3
-}

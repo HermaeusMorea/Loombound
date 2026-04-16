@@ -1,9 +1,0 @@
-{
-  "node_id": "mrt_dead_drop:floor_02",
-  "node_type": "encounter",
-  "floor": 2,
-  "metadata": {
-    "scene_summary": "环线地铁隧道维护通道的第七个接线盒里，有人用旧SIM卡拼成了一段坐标。列车轰鸣声掩盖了身后逐渐逼近的脚步。"
-  },
-  "arbitrations": 3
-}

@@ -1,9 +1,0 @@
-{
-  "node_id": "beacon_signal_archive:floor_02",
-  "node_type": "archive",
-  "floor": 2,
-  "metadata": {
-    "scene_summary": "信标脉冲被解码为一组古老的航海日志碎片。文字断续如梦呓，记录着永昼号船员在最后航程中目睹的某种'光的异象'。"
-  },
-  "arbitrations": 2
-}

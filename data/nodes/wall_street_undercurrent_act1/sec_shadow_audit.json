@@ -1,9 +1,0 @@
-{
-  "node_id": "sec_shadow_audit:floor_03",
-  "node_type": "encounter",
-  "floor": 3,
-  "metadata": {
-    "scene_summary": "一封来自SEC执法部门的非正式「关切函」出现在你的加密邮箱里。没有抄送，没有案号，只有一个问题：「灰鲨资本在11月7日至9日的CDS头寸变动，你能解释吗？」这不是调查——这是有人在用监管当武器。"
-  },
-  "arbitrations": 2
-}

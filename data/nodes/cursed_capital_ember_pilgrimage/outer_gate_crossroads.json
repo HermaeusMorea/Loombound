@@ -1,9 +1,0 @@
-{
-  "node_id": "outer_gate_crossroads:floor_01",
-  "node_type": "crossroads",
-  "floor": 1,
-  "metadata": {
-    "scene_summary": "崩塌的城门拱廊下，三条道路延伸：通往王城废墟的主道、沉入地下的墓窟入口、以及被遗忘的侧翼要塞。"
-  },
-  "arbitrations": 1
-}

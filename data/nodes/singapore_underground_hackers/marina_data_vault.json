@@ -1,9 +1,0 @@
-{
-  "node_id": "marina_data_vault:floor_03",
-  "node_type": "encounter",
-  "floor": 3,
-  "metadata": {
-    "scene_summary": "金沙酒店地下六层，一座由某主权基金秘密运营的量子数据库。你的旧友在这里留下了最后的痕迹。"
-  },
-  "arbitrations": 3
-}

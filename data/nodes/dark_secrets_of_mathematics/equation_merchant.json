@@ -1,9 +1,0 @@
-{
-  "node_id": "equation_merchant:floor_03",
-  "node_type": "market",
-  "floor": 3,
-  "metadata": {
-    "scene_summary": "校园后巷的旧书店里，一位面容模糊的老者出售手抄的数学残篇。他说每一条定理都有价格——有些用金钱支付，有些用记忆，有些用理智。"
-  },
-  "arbitrations": 1
-}

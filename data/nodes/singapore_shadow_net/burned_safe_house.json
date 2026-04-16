@@ -1,9 +1,0 @@
-{
-  "node_id": "burned_safe_house:floor_01",
-  "node_type": "investigation",
-  "floor": 1,
-  "metadata": {
-    "scene_summary": "芽笼区一间破旧组屋的角落，空气中弥漫着烧焦电路板的味道。你的旧身份已死，但硬盘里残留的数据碎片或许能指引下一步。"
-  },
-  "arbitrations": 2
-}

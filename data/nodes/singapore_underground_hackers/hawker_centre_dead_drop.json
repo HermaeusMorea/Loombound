@@ -1,9 +1,0 @@
-{
-  "node_id": "hawker_centre_dead_drop:floor_01",
-  "node_type": "investigation",
-  "floor": 1,
-  "metadata": {
-    "scene_summary": "老巴刹深处一间无人问津的炒粿条摊位，桌底焊着一个微型数据接口。你旧友的加密信息就藏在这里。"
-  },
-  "arbitrations": 2
-}
