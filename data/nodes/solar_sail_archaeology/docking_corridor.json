@@ -1,0 +1,9 @@
+{
+  "node_id": "docking_corridor:floor_01",
+  "node_type": "threshold",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "接驳舱的气密门缓缓开启，一条长满白色结晶的廊道向黑暗深处延伸。空气中有一种古老的甜味——三百年前密封舱内最后一批氧气循环留下的残余。"
+  },
+  "arbitrations": 2
+}

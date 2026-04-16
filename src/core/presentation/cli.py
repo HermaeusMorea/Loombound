@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from shutil import get_terminal_size
 from typing import Any
 
@@ -20,6 +21,7 @@ FG_MAGENTA = "\033[35m"
 FG_WHITE = "\033[37m"
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+ANSI_TOKEN_RE = re.compile(r"(\x1b\[[0-9;]*m)")
 
 
 def _hud_bar(run: Any, title: str, subtitle: str = "") -> str:
@@ -30,9 +32,11 @@ def _hud_bar(run: Any, title: str, subtitle: str = "") -> str:
     money = f"{FG_YELLOW}$ {run.core_state.money}{RESET}"
     sanity = f"{FG_MAGENTA}SAN {run.core_state.sanity}{RESET}"
     scene = f"{FG_BLUE}{title}{RESET}"
-    line = f"{BOLD}BLACK ARCHIVE{RESET}  |  {scene}  |  {health}  |  {money}  |  {sanity}"
+    line = f"{BOLD}LOOMBOUND{RESET}  |  {scene}  |  {health}  |  {money}  |  {sanity}"
     if subtitle:
         line = f"{line}  |  {DIM}{subtitle}{RESET}"
+    if _visible_len(line) > width:
+        line = _truncate_visible(line, width)
     padding = max(0, width - _visible_len(line))
     padded = f"{line}{' ' * padding}"
     return f"{FG_WHITE}{'═' * width}{RESET}\n{padded}\n{FG_WHITE}{'═' * width}{RESET}"
@@ -55,10 +59,23 @@ def _wrap(text: str, width: int) -> list[str]:
 
     if not text:
         return [""]
+    if width <= 0:
+        return [text]
+
+    stripped = _strip_ansi(text)
+    if " " not in stripped:
+        return _hard_wrap(text, width)
+
     words = text.split()
     lines: list[str] = []
     current = ""
     for word in words:
+        if _visible_len(word) > width:
+            if current:
+                lines.append(current)
+                current = ""
+            lines.extend(_hard_wrap(word, width))
+            continue
         candidate = word if not current else f"{current} {word}"
         if _visible_len(candidate) <= width:
             current = candidate
@@ -74,13 +91,16 @@ def _wrap(text: str, width: int) -> list[str]:
 def _box(title: str, lines: list[str], *, width: int, color: str = FG_CYAN) -> str:
     """Render a titled box with wrapped lines."""
 
-    inner = max(20, width - 4)
+    inner = max(1, width - 4)
     wrapped: list[str] = []
     for line in lines or [""]:
         wrapped.extend(_wrap(str(line), inner))
 
     top = f"{color}┌{'─' * (width - 2)}┐{RESET}"
+    max_header_width = max(0, width - 2)
     header_text = f" {title} "
+    if _visible_len(header_text) > max_header_width:
+        header_text = _truncate_visible(header_text, max_header_width)
     header_fill = max(0, width - 2 - _visible_len(header_text))
     header = f"{color}│{BOLD}{header_text}{RESET}{color}{'─' * header_fill}│{RESET}"
     body = [f"{color}│{RESET} {_pad_visible(line, inner)} {color}│{RESET}" for line in wrapped]
@@ -127,13 +147,104 @@ def _strip_ansi(text: str) -> str:
 def _visible_len(text: str) -> int:
     """Return the printable width of one ANSI-colored string."""
 
-    return len(_strip_ansi(text))
+    return sum(_char_width(ch) for ch in _strip_ansi(text))
 
 
 def _pad_visible(text: str, width: int) -> str:
     """Pad one ANSI-colored string to a target visible width."""
 
     return f"{text}{' ' * max(0, width - _visible_len(text))}"
+
+
+def _char_width(ch: str) -> int:
+    """Approximate terminal cell width for one Unicode character."""
+
+    if not ch:
+        return 0
+    if unicodedata.combining(ch):
+        return 0
+    if unicodedata.east_asian_width(ch) in {"W", "F"}:
+        return 2
+    return 1
+
+
+def _hard_wrap(text: str, width: int) -> list[str]:
+    """Wrap text by display cells, preserving ANSI escapes."""
+
+    if not text:
+        return [""]
+
+    lines: list[str] = []
+    current = ""
+    current_width = 0
+    active_codes: list[str] = []
+
+    for token in ANSI_TOKEN_RE.split(text):
+        if not token:
+            continue
+        if ANSI_RE.fullmatch(token):
+            current += token
+            if token == RESET:
+                active_codes = []
+            else:
+                active_codes.append(token)
+            continue
+
+        for ch in token:
+            ch_width = _char_width(ch)
+            if current_width > 0 and current_width + ch_width > width:
+                if active_codes and not current.endswith(RESET):
+                    current += RESET
+                lines.append(current)
+                current = "".join(active_codes) + ch
+                current_width = ch_width
+                continue
+            current += ch
+            current_width += ch_width
+
+    if current:
+        if active_codes and not current.endswith(RESET):
+            current += RESET
+        lines.append(current)
+    return lines or [""]
+
+
+def _truncate_visible(text: str, width: int, suffix: str = "…") -> str:
+    """Trim one ANSI-colored string to a target visible width."""
+
+    if width <= 0:
+        return ""
+    if _visible_len(text) <= width:
+        return text
+
+    suffix_width = _visible_len(suffix)
+    budget = max(0, width - suffix_width)
+    current = ""
+    current_width = 0
+    active_codes: list[str] = []
+
+    for token in ANSI_TOKEN_RE.split(text):
+        if not token:
+            continue
+        if ANSI_RE.fullmatch(token):
+            current += token
+            if token == RESET:
+                active_codes = []
+            else:
+                active_codes.append(token)
+            continue
+
+        for ch in token:
+            ch_width = _char_width(ch)
+            if current_width + ch_width > budget:
+                trimmed = current + suffix
+                if active_codes and not trimmed.endswith(RESET):
+                    trimmed += RESET
+                return trimmed
+            current += ch
+            current_width += ch_width
+
+    return current
 
 
 def pause(message: str = "Press Enter to continue...") -> None:
@@ -168,7 +279,7 @@ def render_run_intro(campaign: dict[str, Any]) -> None:
     width = min(_screen_width(), 96)
     print(
         _box(
-            "Black Archive",
+            "Loombound",
             [f"{BOLD}{campaign['title']}{RESET}", "", campaign["intro"]],
             width=width,
             color=FG_MAGENTA,

@@ -1,0 +1,9 @@
+{
+  "node_id": "digital_rift:floor_04",
+  "node_type": "threshold",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "公寓的天花板裂开一道缝，缝隙里流淌着RGB色光。她握着你的手说：'不要害怕，这只是次元壁变薄了而已。'"
+  },
+  "arbitrations": 2
+}

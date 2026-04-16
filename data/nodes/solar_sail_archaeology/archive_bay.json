@@ -1,0 +1,9 @@
+{
+  "node_id": "archive_bay:floor_02",
+  "node_type": "archive",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "数以千计的数据晶体在琥珀色灯光中漂浮旋转，像一群被困在琥珀中的萤火虫。大部分已经损毁，但有几枚仍在微弱地闪烁，似乎在等待有人来读取它们最后的记忆。"
+  },
+  "arbitrations": 3
+}

@@ -1,0 +1,9 @@
+{
+  "node_id": "professors_sealed_room:floor_01",
+  "node_type": "investigation",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "数学系地下三层的密室，墙壁上覆满了导师最后的手稿。空气中弥漫着粉笔灰与铁锈般的气味，某些公式似乎在你注视时悄然变化。"
+  },
+  "arbitrations": 2
+}

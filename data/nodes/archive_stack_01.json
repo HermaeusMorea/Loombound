@@ -3,14 +3,7 @@
   "node_type": "archive_stack",
   "floor": 4,
   "metadata": {
-    "scene_summary": "A library node with two linked arbitrations: first the whispering ledger, then the offered artifacts."
+    "scene_summary": "A leaning municipal archive where locked ledgers have begun whispering through their bindings."
   },
-  "arbitrations": [
-    {
-      "file": "data/arbitrations/whisper_offer/whisper_offer_01.json"
-    },
-    {
-      "file": "data/arbitrations/artifact_offer/artifact_offer_01.json"
-    }
-  ]
+  "arbitrations": 2
 }

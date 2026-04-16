@@ -1,0 +1,72 @@
+{
+  "campaign_id": "singapore_shadow_net",
+  "title": "狮城暗网：监控之下",
+  "intro": "新加坡的霓虹天际线之下，一座由光纤与谎言编织的地下城正在呼吸。你是一名刚被\"烧掉\"身份的黑客，唯一的线索指向一个名为\"深潮\"的神秘组织——他们声称掌握了能摧毁整座城市企业监控网络的密钥。在这座每一根电缆都可能是陷阱的城市里，你必须在黎明前做出选择：是成为自由的火种，还是沉入数据的深渊。",
+  "tone": "赛博朋克黑色电影风格，潮湿闷热的热带夜晚与冰冷的数字空间交织。基调是偏执、压抑与微弱的反抗希望并存。视觉意象应反复出现：滨海湾金沙大厦顶端闪烁的企业监控红灯、牛车水后巷里藏在排档摊后的服务器机房、地铁隧道中缠绕的非法光纤、以及无处不在的面部识别摄像头上被人用喷漆涂抹的反叛符号。语言风格应融合新加坡式英语（Singlish）碎片与冷硬的技术术语，营造独特的本地赛博朋克氛围。",
+  "initial_core_state": {
+    "health": 8,
+    "max_health": 10,
+    "money": 50,
+    "sanity": 7,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "burned_safe_house",
+  "nodes": {
+    "burned_safe_house": {
+      "label": "烧毁的安全屋",
+      "map_blurb": "芽笼区一间破旧组屋的角落，空气中弥漫着烧焦电路板的味道。你的旧身份已死，但硬盘里残留的数据碎片或许能指引下一步。",
+      "node_file": "data/nodes/singapore_shadow_net/burned_safe_house.json",
+      "next_nodes": [
+        "hawker_black_market",
+        "mrt_dead_drop"
+      ]
+    },
+    "hawker_black_market": {
+      "label": "排档暗市",
+      "map_blurb": "牛车水深处一间挂着\"海南鸡饭\"招牌的摊位，掀开后厨的油布帘，里面是东南亚最大的地下硬件交易所。各路掮客在辣椒蟹的蒸汽中低声报价。",
+      "node_file": "data/nodes/singapore_shadow_net/hawker_black_market.json",
+      "next_nodes": [
+        "deep_tide_node"
+      ]
+    },
+    "mrt_dead_drop": {
+      "label": "地铁死信箱",
+      "map_blurb": "环线地铁隧道维护通道的第七个接线盒里，有人用旧SIM卡拼成了一段坐标。列车轰鸣声掩盖了身后逐渐逼近的脚步。",
+      "node_file": "data/nodes/singapore_shadow_net/mrt_dead_drop.json",
+      "next_nodes": [
+        "deep_tide_node"
+      ]
+    },
+    "deep_tide_node": {
+      "label": "\"深潮\"据点",
+      "map_blurb": "滨海湾地下排水系统中一处被改造成数据教堂的空间，服务器的散热风扇发出低沉的嗡鸣，像某种电子诵经。\"深潮\"的核心成员在此等候。",
+      "node_file": "data/nodes/singapore_shadow_net/deep_tide_node.json",
+      "next_nodes": [
+        "rooftop_rest",
+        "corporate_tower_breach"
+      ]
+    },
+    "rooftop_rest": {
+      "label": "天台喘息",
+      "map_blurb": "达士岭组屋五十层天台，城市的灯火在脚下铺展如同一块巨大的电路板。短暂的宁静，在最后一战之前。",
+      "node_file": "data/nodes/singapore_shadow_net/rooftop_rest.json",
+      "next_nodes": [
+        "corporate_tower_breach"
+      ]
+    },
+    "corporate_tower_breach": {
+      "label": "企业塔攻破",
+      "map_blurb": "金沙大厦第五十七层，\"天眼\"监控系统的核心机房。所有的路都通向这里——要么亲手拔掉这座城市的电子枷锁，要么在防火墙的反噬中永远消失。",
+      "node_file": "data/nodes/singapore_shadow_net/corporate_tower_breach.json",
+      "next_nodes": []
+    }
+  }
+}

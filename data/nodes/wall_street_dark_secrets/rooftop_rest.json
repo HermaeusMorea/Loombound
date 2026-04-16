@@ -1,0 +1,9 @@
+{
+  "node_id": "rooftop_rest:floor_04",
+  "node_type": "rest",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "曼哈顿某栋摩天大楼的天台，凌晨的风刺骨而清醒。你靠在栏杆上，俯瞰灯火通明的城市，短暂地感到自己还是一个人类。"
+  },
+  "arbitrations": 1
+}

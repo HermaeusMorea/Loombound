@@ -1,0 +1,9 @@
+{
+  "node_id": "informant_bar:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "金融区边缘一间没有招牌的地下酒吧，据说这里的调酒师曾是雷曼兄弟最后一任风控总监。他知道一些不该知道的事。"
+  },
+  "arbitrations": 2
+}

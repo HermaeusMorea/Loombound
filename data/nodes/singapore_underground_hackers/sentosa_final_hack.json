@@ -1,0 +1,9 @@
+{
+  "node_id": "sentosa_final_hack:floor_05",
+  "node_type": "ritual",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "鱼尾狮雕像内部的隐秘控制室。一切线索汇聚于此——你必须在黎明前完成最后的入侵，否则整个东南亚的网络将陷入永夜。"
+  },
+  "arbitrations": 3
+}

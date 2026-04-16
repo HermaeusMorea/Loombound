@@ -1,0 +1,9 @@
+{
+  "node_id": "yongzhou_docking:floor_03",
+  "node_type": "threshold",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "永昼号的轮廓从黑暗中浮现——巨大的太阳帆仍半展着，如一只垂死的飞蛾凝固在最后一次振翅的姿态中。气闸开启时，三百年的寂静扑面而来。"
+  },
+  "arbitrations": 3
+}

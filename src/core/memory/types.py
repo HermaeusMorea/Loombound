@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .m1_store import M1Store
+from .m2_store import M2Store
+
 
 @dataclass(slots=True)
 class NodeEvent:
@@ -86,3 +89,6 @@ class RunMemory:
     narrator_mood: NarratorMood = field(default_factory=NarratorMood)
     persona_summary: str = ""
     persona: JudgePersonaState = field(default_factory=JudgePersonaState)
+    # IRIS layers
+    m1: M1Store = field(default_factory=M1Store)
+    m2: M2Store = field(default_factory=M2Store)

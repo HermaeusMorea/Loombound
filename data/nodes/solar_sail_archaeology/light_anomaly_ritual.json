@@ -1,0 +1,9 @@
+{
+  "node_id": "light_anomaly_ritual:floor_05",
+  "node_type": "ritual",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "在永昼号的帆面中心，某种不可能的光源仍在微弱地燃烧——三百年不曾熄灭。你终于明白船员们最后看到了什么，而现在，那道光也在等你做出选择。"
+  },
+  "arbitrations": 3
+}

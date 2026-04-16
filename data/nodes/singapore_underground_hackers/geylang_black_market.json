@@ -1,0 +1,9 @@
+{
+  "node_id": "geylang_black_market:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "芽笼的红灯与霓虹之间，地下黑客们在此交换零日漏洞和伪造身份。带够钱，别带武器。"
+  },
+  "arbitrations": 2
+}

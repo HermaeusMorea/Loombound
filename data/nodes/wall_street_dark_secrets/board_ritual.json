@@ -1,0 +1,9 @@
+{
+  "node_id": "board_ritual:floor_05",
+  "node_type": "ritual",
+  "floor": 5,
+  "metadata": {
+    "scene_summary": "第108层的董事会议室，十三把椅子围成环形，中央的红木长桌上刻满了比这座城市更古老的符号。今夜的议程只有一项——新的百年契约需要一个签署者，而你已经被选中。"
+  },
+  "arbitrations": 3
+}

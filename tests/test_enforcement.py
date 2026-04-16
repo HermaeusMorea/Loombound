@@ -33,10 +33,9 @@ def test_enforcement_marks_greedy_choice_as_destabilizing() -> None:
         }
     )
 
-    results, sanity_delta = enforce_rule(arbitration, rule)
+    results = enforce_rule(arbitration, rule)
     by_id = {item.option_id: item for item in results}
 
     assert by_id["safe"].verdict == "stable"
     assert by_id["greed"].verdict == "destabilizing"
     assert by_id["greed"].sanity_cost == 2
-    assert sanity_delta == 2

@@ -249,8 +249,6 @@ class Run:
     """Long-lived container for one full playthrough."""
 
     run_id: str
-    act: int
-    floor: int
     core_state: CoreStateView
     meta_state: MetaStateView
     memory: RunMemory | None = None
@@ -275,8 +273,8 @@ class Run:
             owner_kind="run",
             owner_id=self.run_id,
             scene_type="run",
-            floor=self.floor,
-            act=self.act,
+            floor=self.core_state.floor,
+            act=self.core_state.act,
             core_state_view=replace(self.core_state),
             meta_state_view=replace(self.meta_state),
         )

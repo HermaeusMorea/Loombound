@@ -1,0 +1,9 @@
+{
+  "node_id": "mrt_ghost_network:floor_04",
+  "node_type": "encounter",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "废弃的武吉知马地铁站深处，一条从未启用的隧道里铺设着独立光纤。有人在这里建造了一个平行互联网。"
+  },
+  "arbitrations": 2
+}

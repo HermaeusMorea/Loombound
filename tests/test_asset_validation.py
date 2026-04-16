@@ -1,0 +1,39 @@
+from pathlib import Path
+
+import pytest
+
+from src.core.runtime.campaign import choose_index
+from src.core.state_adapter import AssetValidationError, validate_arbitration_asset, validate_node_asset
+
+
+def test_validate_node_asset_requires_arbitration_file() -> None:
+    with pytest.raises(AssetValidationError, match="non-empty 'file'"):
+        validate_node_asset(
+            {
+                "node_id": "node_01",
+                "node_type": "crossroads",
+                "floor": 1,
+                "arbitrations": [{}],
+            },
+            source=Path("data/nodes/bad.json"),
+        )
+
+
+def test_validate_arbitration_asset_rejects_empty_options() -> None:
+    with pytest.raises(AssetValidationError, match="non-empty 'options' list"):
+        validate_arbitration_asset(
+            {
+                "context": {
+                    "context_id": "crossroads_01",
+                    "scene_type": "crossroads",
+                    "floor": 2,
+                },
+                "options": [],
+            },
+            source=Path("data/arbitrations/bad.json"),
+        )
+
+
+def test_choose_index_rejects_empty_choices() -> None:
+    with pytest.raises(ValueError, match="empty option list"):
+        choose_index("> ", 0)

@@ -1,0 +1,9 @@
+{
+  "node_id": "the_proof_altar:floor_04",
+  "node_type": "ritual",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "所有线索指向数学系钟楼顶端一间从外部看不见的房间。地面刻满了同心圆状的公式，中央是一块空白的黑板。完成最后的证明，或永远将它封印——代价远超你的想象。"
+  },
+  "arbitrations": 3
+}

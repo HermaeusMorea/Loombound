@@ -1,0 +1,9 @@
+{
+  "node_id": "drift_field_approach:floor_01",
+  "node_type": "encounter",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "白鹭号穿入太阳帆残骸漂流带。无数银色帆片在真空中缓慢旋转，像一群失去方向的候鸟，将星光折射成忧伤的棱彩。"
+  },
+  "arbitrations": 2
+}

@@ -1,0 +1,380 @@
+"""Fast Core — local gemma3:4b expansion via ollama.
+
+Takes an ArbitrationSeed (Slow Core output) and expands it into a complete
+arbitration JSON dict that passes validate_arbitration_asset.
+
+Expansion targets per arbitration:
+  context.metadata.scene_summary   — 3-5 atmospheric sentences
+  context.metadata.sanity_question — 1 sentence evoking the choice tension
+  options[].label                  — 5-10 word display label
+  options[].metadata.effects.add_events — 1-2 sentences, causally tied to effects
+
+All other fields (scene_type, floor, tags, numeric effects, add_conditions)
+are filled deterministically from the seed — no LLM needed for those.
+
+Ollama is called via its native /api/chat endpoint with JSON mode for reliable
+structured output. One HTTP call per arbitration keeps prompts short and failures
+isolated.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import uuid
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
+from .types import ArbitrationOptionSeed, ArbitrationSeed
+from src.core.deterministic_kernel.models import CoreStateView
+
+log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+@dataclass
+class FastCoreConfig:
+    model: str = "gemma3:4b"
+    base_url: str = "http://localhost:11434"
+    # Per-arbitration generation timeout (seconds)
+    timeout: float = 60.0
+    # Max retries on malformed JSON
+    max_retries: int = 2
+    # Output language: "en" or "zh"
+    lang: str = "en"
+    # Campaign tone/setting guidance for local expansion.
+    tone: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# System prompt
+# ---------------------------------------------------------------------------
+
+_SYSTEM_PROMPT_EN = """\
+You are a text writer for a text adventure game.
+
+You receive a scene seed and must expand it into display text. Respond ONLY with valid JSON.
+No prose outside the JSON. No markdown fences. The JSON must match the schema exactly.
+
+Tone guidelines:
+- Match the campaign tone exactly when one is provided.
+- If no campaign tone is provided, infer it from the scene seed instead of inventing a default genre.
+- Do not inject Cthulhu, dark fantasy, cyberpunk, or any other stock aesthetic unless the seed or campaign tone implies it.
+- Concrete sensory detail beats generic filler.
+- option labels are short action phrases (5-10 words), not descriptions.
+- add_events must causally explain what happened as a result of the effects listed.
+"""
+
+_SYSTEM_PROMPT_ZH = """\
+你是一个文字冒险游戏的文本写手。
+
+你将收到一个场景种子，必须将其展开为显示文本。只输出合法的JSON，不要在JSON外面写任何内容，不要写Markdown代码块。JSON必须严格符合要求的结构。
+
+文字风格要求：
+- 如果提供了 campaign tone，必须严格贴合它的类型、氛围、意象和叙述语气。
+- 如果没有提供 campaign tone，就从 scene seed 自己推断，不要默认套用固定题材。
+- 不要擅自加入克苏鲁、黑暗奇幻、赛博朋克等模板化风格，除非 seed 或 campaign tone 明确要求。
+- 多用具体感官细节，少用空泛套话。
+- 选项标签是简短的行动短语（10-20个汉字），不是描述。
+- add_events必须从因果上解释所列效果发生的原因。用中文写。
+"""
+
+
+def _system_prompt(cfg: FastCoreConfig) -> str:
+    """Build the system prompt for the configured language and campaign tone."""
+
+    prompt = _SYSTEM_PROMPT_ZH if cfg.lang == "zh" else _SYSTEM_PROMPT_EN
+    if cfg.tone:
+        prompt += f"\n\nCampaign tone: {cfg.tone}"
+    return prompt
+
+# ---------------------------------------------------------------------------
+# Prompt builder
+# ---------------------------------------------------------------------------
+
+def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
+    option_lines: list[str] = []
+    for opt in seed.options:
+        eff = opt.effects
+        parts = []
+        if eff.get("health_delta"):
+            parts.append(f"health {eff['health_delta']:+d}")
+        if eff.get("money_delta"):
+            parts.append(f"money {eff['money_delta']:+d}")
+        if eff.get("sanity_delta"):
+            parts.append(f"sanity {eff['sanity_delta']:+d}")
+        if eff.get("add_conditions"):
+            parts.append(f"gains: {', '.join(eff['add_conditions'])}")
+        eff_str = ", ".join(parts) if parts else "no numeric effect"
+
+        option_lines.append(
+            f'  option_id: "{opt.option_id}"\n'
+            f'  intent: "{opt.intent}"\n'
+            f'  tags: {opt.tags}\n'
+            f'  effects: {eff_str}'
+        )
+
+    options_block = "\n\n".join(option_lines)
+
+    # Build the expected JSON schema as a concrete example
+    options_schema = json.dumps(
+        [
+            {
+                "option_id": opt.option_id,
+                "label": "<5-10 word label>",
+                "add_events": ["<1-2 sentences explaining: " + _effects_hint(opt) + ">"],
+            }
+            for opt in seed.options
+        ],
+        indent=2,
+    )
+
+    return (
+        f"Scene concept: {seed.scene_concept}\n"
+        f"Sanity axis: {seed.sanity_axis}\n"
+        f"Floor: {core_state.floor}, Act: {core_state.act}\n\n"
+        f"Options:\n{options_block}\n\n"
+        f"Return this JSON structure exactly:\n"
+        f"{{\n"
+        f'  "scene_summary": "<3-5 atmospheric sentences describing the situation>",\n'
+        f'  "sanity_question": "<1 sentence posing the psychological tension>",\n'
+        f'  "options": {options_schema}\n'
+        f"}}"
+    )
+
+
+def _effects_hint(opt: ArbitrationOptionSeed) -> str:
+    """Build a causal constraint hint for the add_events prompt."""
+    eff = opt.effects
+    parts = []
+    if eff.get("health_delta", 0) < 0:
+        parts.append("explain why health decreased")
+    if eff.get("health_delta", 0) > 0:
+        parts.append("explain why health recovered")
+    if eff.get("money_delta", 0) < 0:
+        parts.append("explain cost or loss")
+    if eff.get("money_delta", 0) > 0:
+        parts.append("explain gain")
+    if eff.get("sanity_delta", 0) < 0:
+        parts.append("explain psychological harm")
+    if eff.get("add_conditions"):
+        conds = ", ".join(eff["add_conditions"])
+        parts.append(f"explain why condition '{conds}' was acquired")
+    return "; ".join(parts) if parts else "describe what happened"
+
+
+# ---------------------------------------------------------------------------
+# HTTP client
+# ---------------------------------------------------------------------------
+
+async def _call_ollama(
+    prompt: str,
+    cfg: FastCoreConfig,
+) -> tuple[dict[str, Any], dict[str, int]]:
+    """Call ollama's native /api/chat endpoint with JSON mode.
+
+    Returns (parsed_json, usage) where usage has keys prompt_tokens / eval_tokens.
+    """
+    system_prompt = _system_prompt(cfg)
+    url = f"{cfg.base_url}/api/chat"
+    body = {
+        "model": cfg.model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0.7,
+            "num_predict": 1200,
+        },
+    }
+
+    async with httpx.AsyncClient(timeout=cfg.timeout) as client:
+        resp = await client.post(url, json=body)
+        resp.raise_for_status()
+
+    data = resp.json()
+    usage: dict[str, int] = {
+        "prompt_tokens": data.get("prompt_eval_count", 0),
+        "eval_tokens": data.get("eval_count", 0),
+    }
+    raw_content = data["message"]["content"]
+    log.debug("FastCore raw content length=%d", len(raw_content))
+
+    # Strip any reasoning prose before the first '{' (thinking model artifact)
+    json_start = raw_content.find("{")
+    if json_start < 0:
+        raise ValueError(f"No JSON object found in response (len={len(raw_content)})")
+    if json_start > 0:
+        log.debug("FastCore: stripping %d chars of reasoning prefix", json_start)
+    # Also trim after the last '}' to avoid trailing garbage
+    json_end = raw_content.rfind("}") + 1
+    content = raw_content[json_start:json_end]
+    return json.loads(content), usage
+
+
+# ---------------------------------------------------------------------------
+# Assembler — seed + LLM text → full arbitration dict
+# ---------------------------------------------------------------------------
+
+def _assemble(
+    seed: ArbitrationSeed,
+    expanded: dict[str, Any],
+    core_state: CoreStateView,
+    arbitration_id: str,
+) -> dict[str, Any]:
+    """Merge deterministic seed fields with LLM-generated text."""
+    option_text: dict[str, dict] = {
+        o["option_id"]: o
+        for o in expanded.get("options", [])
+        if isinstance(o, dict) and "option_id" in o
+    }
+
+    options: list[dict[str, Any]] = []
+    for opt_seed in seed.options:
+        text = option_text.get(opt_seed.option_id, {})
+        label = text.get("label") or opt_seed.intent  # fallback to intent
+        add_events = text.get("add_events") or []
+        if isinstance(add_events, str):
+            add_events = [add_events]
+
+        # Build effects dict from seed — LLM only contributes add_events text
+        effects: dict[str, Any] = {}
+        for key in ("health_delta", "money_delta", "sanity_delta"):
+            val = opt_seed.effects.get(key)
+            if val is not None and val != 0:
+                effects[key] = val
+        if opt_seed.effects.get("add_conditions"):
+            effects["add_conditions"] = list(opt_seed.effects["add_conditions"])
+        if add_events:
+            effects["add_events"] = add_events
+
+        options.append({
+            "option_id": opt_seed.option_id,
+            "label": label,
+            "tags": list(opt_seed.tags),
+            "metadata": {"effects": effects},
+        })
+
+    return {
+        "arbitration_id": arbitration_id,
+        "context": {
+            "context_id": arbitration_id,
+            "scene_type": seed.scene_type,
+            "floor": core_state.floor,
+            "act": core_state.act,
+            "resources": {
+                "health": core_state.health,
+                "max_health": core_state.max_health,
+                "money": core_state.money,
+                "sanity": core_state.sanity,
+            },
+            "tags": [],  # scene-level tags could be added later
+            "metadata": {
+                "scene_summary": expanded.get("scene_summary", seed.scene_concept),
+                "sanity_question": expanded.get("sanity_question", seed.sanity_axis),
+                "generated": True,
+            },
+        },
+        "options": options,
+        "metadata": {"source": "llm_generated"},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+class FastCoreExpander:
+    """Expands ArbitrationSeeds into full arbitration JSON dicts via ollama.
+
+    Usage:
+        expander = FastCoreExpander()
+        payload = await expander.expand(seed, core_state, arbitration_id="gen_01")
+        # payload passes validate_arbitration_asset
+    """
+
+    def __init__(self, config: FastCoreConfig | None = None) -> None:
+        self._cfg = config or FastCoreConfig()
+
+    async def expand(
+        self,
+        seed: ArbitrationSeed,
+        core_state: CoreStateView,
+        arbitration_id: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, int]]:
+        """Expand one ArbitrationSeed into a complete arbitration JSON dict.
+
+        Returns (payload, usage) where usage has keys prompt_tokens / eval_tokens.
+        Falls back to a deterministic template if ollama fails after retries.
+        """
+        arb_id = arbitration_id or f"gen_{uuid.uuid4().hex[:8]}"
+        prompt = _build_prompt(seed, core_state)
+
+        expanded: dict[str, Any] = {}
+        usage: dict[str, int] = {"prompt_tokens": 0, "eval_tokens": 0}
+        last_error: Exception | None = None
+
+        for attempt in range(self._cfg.max_retries + 1):
+            try:
+                expanded, usage = await _call_ollama(prompt, self._cfg)
+                log.info(
+                    "FastCore: attempt %d succeeded for %s (prompt=%d eval=%d)",
+                    attempt + 1, arb_id, usage["prompt_tokens"], usage["eval_tokens"],
+                )
+                break
+            except (httpx.HTTPError, json.JSONDecodeError, KeyError, ValueError) as exc:
+                last_error = exc
+                log.warning(
+                    "FastCore expand attempt %d/%d failed: %s",
+                    attempt + 1, self._cfg.max_retries + 1, exc,
+                )
+
+        if not expanded:
+            log.error("FastCore: all retries exhausted, using template fallback. error=%s", last_error)
+            expanded = _template_fallback(seed)
+
+        return _assemble(seed, expanded, core_state, arb_id), usage
+
+    async def warmup(self) -> None:
+        """Send a minimal request to load the model into VRAM."""
+        url = f"{self._cfg.base_url}/api/chat"
+        body = {
+            "model": self._cfg.model,
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": False,
+            "options": {"num_predict": 1},
+        }
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                await client.post(url, json=body)
+            log.info("FastCore: warmup complete, model '%s' loaded.", self._cfg.model)
+        except Exception as exc:
+            log.warning("FastCore: warmup failed (ollama may not be running): %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Template fallback (no LLM)
+# ---------------------------------------------------------------------------
+
+def _template_fallback(seed: ArbitrationSeed) -> dict[str, Any]:
+    """Minimal deterministic expansion used when ollama is unavailable."""
+    return {
+        "scene_summary": seed.scene_concept,
+        "sanity_question": seed.sanity_axis,
+        "options": [
+            {
+                "option_id": opt.option_id,
+                "label": opt.intent,
+                "add_events": [],
+            }
+            for opt in seed.options
+        ],
+    }

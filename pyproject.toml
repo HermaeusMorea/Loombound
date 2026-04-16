@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "black-archive"
+name = "loombound"
 version = "0.1.0"
 description = "Deterministic-first CLI narrative prototype with sanity pressure, run memory, and arbitration."
 readme = "README.md"

@@ -31,9 +31,6 @@ def update_after_node(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemo
 
     run_memory.recent_rules = run_memory.recent_rules[-5:]
 
-    for flag in node_memory.important_flags:
-        run_memory.behavior_counters[flag] = run_memory.behavior_counters.get(flag, 0) + 1
-
     if node_memory.shocks_in_node:
         run_memory.recent_shocks.extend(node_memory.shocks_in_node)
         run_memory.recent_shocks = run_memory.recent_shocks[-5:]

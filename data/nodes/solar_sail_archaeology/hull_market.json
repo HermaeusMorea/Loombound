@@ -1,0 +1,9 @@
+{
+  "node_id": "hull_market:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "一座由帆片与旧舱段拼凑而成的漂泊集市。拾荒者们在此交易太阳帆时代的遗物——有人出售被光灼蚀的航海仪，有人兜售据说能播放亡者遗言的晶体。"
+  },
+  "arbitrations": 1
+}

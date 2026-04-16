@@ -6,27 +6,23 @@ from src.core.deterministic_kernel import OptionResult, RuleTemplate
 from src.core.runtime import Arbitration
 
 
-def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[list[OptionResult], int]:
+def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> list[OptionResult]:
     # Turn one selected rule into per-option verdicts.
     # This layer does not block actions; it only labels them and computes the
     # soft sanity consequence of taking them.
     if rule is None:
-        return (
-            [
-                OptionResult(
-                    option_id=option["option_id"],
-                    label=option["label"],
-                    verdict="stable",
-                    reasons=["no_rule_selected"],
-                    sanity_cost=0,
-                )
-                for option in arbitration.options
-            ],
-            0,
-        )
+        return [
+            OptionResult(
+                option_id=option["option_id"],
+                label=option["label"],
+                verdict="stable",
+                reasons=["no_rule_selected"],
+                sanity_cost=0,
+            )
+            for option in arbitration.options
+        ]
 
     results: list[OptionResult] = []
-    sanity_delta = 0
     preferred_tags = set(rule.preferred_option_tags)
     forbidden_tags = set(rule.forbidden_option_tags)
 
@@ -52,9 +48,6 @@ def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[l
         else:
             reasons.append("rule_allows_option")
 
-        # Snapshot output currently reports the highest penalty available in
-        # this scene, not a full post-choice memory update.
-        sanity_delta = max(sanity_delta, option_penalty)
         results.append(
             OptionResult(
                 option_id=option["option_id"],
@@ -65,7 +58,7 @@ def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> tuple[l
             )
         )
 
-    return results, sanity_delta
+    return results
 
 
 # TODO: Split "soft warning" and "future hard lock" into separate enforcement stages.

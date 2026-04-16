@@ -1,0 +1,9 @@
+{
+  "node_id": "midnight_seminar:floor_02",
+  "node_type": "encounter",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "一封匿名邀请函将你引至凌晨三点的阶梯教室。黑板上已写满公式，座位上坐着几位你确信已经去世多年的数学家。"
+  },
+  "arbitrations": 2
+}

@@ -1,0 +1,9 @@
+{
+  "node_id": "vault_of_ledgers:floor_03",
+  "node_type": "archive",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "联邦储备银行地下七层，官方图纸上不存在的密室。架子上陈列的不是金条，而是一排排用人皮装帧的账本，记录着每一次经济危机背后真正被献祭的东西。"
+  },
+  "arbitrations": 3
+}

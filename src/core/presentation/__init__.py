@@ -1,4 +1,4 @@
-"""CLI presentation helpers for the Black Archive runtime."""
+"""CLI presentation helpers for the Loombound runtime."""
 
 from .cli import (
     pause,

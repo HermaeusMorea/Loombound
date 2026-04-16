@@ -1,6 +1,6 @@
-# black-archive
+# loombound
 
-`black-archive` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。
+`loombound` 是一个运行在 CLI 中的文字冒险 / 跑团风格原型游戏。
 
 它当前的目标是先验证一套稳定的游戏结构：
 

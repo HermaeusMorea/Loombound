@@ -1,0 +1,9 @@
+{
+  "node_id": "navigation_sanctum:floor_04",
+  "node_type": "rest",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "永昼号的核心导航室被船员们改造成了某种祭坛。星图被重新绘制，所有航线都指向同一个不存在于任何星表的坐标——船员们称之为'光的尽头'。"
+  },
+  "arbitrations": 1
+}

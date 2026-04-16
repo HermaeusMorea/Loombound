@@ -1,0 +1,9 @@
+{
+  "node_id": "cardboard_box_encounter:floor_01",
+  "node_type": "encounter",
+  "floor": 1,
+  "metadata": {
+    "scene_summary": "便利店旁的纸箱里传来微弱的呼吸声。你掀开盖子，一个银发猫耳少女正蜷缩在里面，怀里抱着一本发光的漫画书。"
+  },
+  "arbitrations": 2
+}

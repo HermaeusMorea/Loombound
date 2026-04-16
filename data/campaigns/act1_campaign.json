@@ -1,6 +1,6 @@
 {
   "campaign_id": "act1_campaign",
-  "title": "Black Archive: Act I",
+  "title": "Loombound: Act I",
   "intro": "You begin on the outskirts of a drowned district, carrying too little money, too many questions, and a mind already under strain.",
   "initial_core_state": {
     "health": 6,

@@ -1,13 +1,20 @@
-"""Interactive CLI loop for playing a small Black Archive campaign."""
+"""Interactive CLI loop for playing a small Loombound campaign."""
 
 from __future__ import annotations
 
 import argparse
+import logging
+import os
+import sys
 from pathlib import Path
 
 from src.core.authoring import load_rules, load_templates
 from src.core.deterministic_kernel import ArbitrationResult
 from src.core.enforcement import apply_option_effects, enforce_rule
+from src.core.llm_interface import M2Classifier, M2ClassifierConfig, PrefetchCache
+from src.core.llm_interface.collector import build_m1_entry
+from src.core.llm_interface.fast_core import FastCoreConfig
+from src.core.llm_interface.slow_core import SlowCoreConfig, api_key_env_for, default_model_for
 from src.core.memory import append_node_event, record_choice, update_after_node
 from src.core.narration import render_narration
 from src.core.presentation import (
@@ -30,12 +37,90 @@ from src.core.runtime.campaign import (
     sync_arbitration_resources,
 )
 from src.core.signal_interpretation import build_signals, score_themes
-from src.core.state_adapter import load_json_asset
+from src.core.state_adapter import (
+    AssetValidationError,
+    load_json_asset,
+    validate_arbitration_asset,
+    validate_node_asset,
+)
 
 
 DEFAULT_CAMPAIGN = REPO_ROOT / "data" / "campaigns" / "act1_campaign.json"
 RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
 TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
+TABLE_A_PATH = REPO_ROOT / "data" / "m2_table_a.json"
+
+
+# ---------------------------------------------------------------------------
+# .env loader (no external dependency needed)
+# ---------------------------------------------------------------------------
+
+def _load_dotenv() -> None:
+    """Load KEY=VALUE pairs from .env at repo root into os.environ.
+
+    Uses os.environ.setdefault so existing shell exports are never overwritten.
+    """
+    env_path = REPO_ROOT / ".env"
+    if not env_path.exists():
+        return
+    with env_path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            os.environ.setdefault(key, val)
+
+
+# ---------------------------------------------------------------------------
+# Slow Core config builder
+# ---------------------------------------------------------------------------
+
+def _make_slow_cfg(args: argparse.Namespace) -> SlowCoreConfig:
+    """Build SlowCoreConfig from CLI args and environment variables.
+
+    Resolution order (highest priority first):
+      1. --slow-model / --slow-provider CLI args
+      2. SLOW_CORE_MODEL / SLOW_CORE_PROVIDER env vars
+      3. Provider registry defaults
+    """
+    provider = (
+        args.slow_provider
+        or os.environ.get("SLOW_CORE_PROVIDER", "anthropic")
+    )
+    model = (
+        args.slow_model
+        or os.environ.get("SLOW_CORE_MODEL")
+        or default_model_for(provider)
+    )
+    # API key: SLOW_CORE_API_KEY overrides provider-specific key
+    api_key = (
+        os.environ.get("SLOW_CORE_API_KEY")
+        or os.environ.get(api_key_env_for(provider))
+    )
+    base_url = os.environ.get("SLOW_CORE_BASE_URL") or None
+
+    return SlowCoreConfig(
+        provider=provider,
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+    )
+
+
+def _parse_arbitrations(node_spec: dict) -> tuple[int, list[dict]]:
+    """Return (llm_count, authored_specs) from a node spec's 'arbitrations' field.
+
+    Two formats are supported:
+      int   → LLM-generated mode; llm_count = that integer, authored_specs = []
+      list  → Authored mode;      llm_count = 0, authored_specs = the list
+    """
+    field = node_spec.get("arbitrations", [])
+    if isinstance(field, int):
+        return field, []
+    return 0, field
 
 
 def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str, list[str]], rules) -> None:
@@ -68,7 +153,7 @@ def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str
         matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
     )
 
-    option_results, sanity_delta = enforce_rule(arbitration, selected.rule if selected else None)
+    option_results = enforce_rule(arbitration, selected.rule if selected else None)
     narration = render_narration(
         arbitration=arbitration,
         rule=selected.rule if selected else None,
@@ -107,7 +192,7 @@ def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str
             selected_rule_id=selected.rule.id if selected else None,
             matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
             option_results=option_results,
-            sanity_delta=sanity_delta,
+            sanity_delta=chosen_result.sanity_cost,
             theme_scores=theme_scores,
             narration=narration,
         )
@@ -126,9 +211,16 @@ def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str
     pause()
 
 
-def _play_node(run, campaign_node: dict[str, object], rules, templates: dict[str, list[str]]) -> None:
-    node_spec = load_json_asset(resolve_asset_path(campaign_node["node_file"]))
-    run.floor = node_spec["floor"]
+def _play_node(
+    run,
+    campaign_node: dict[str, object],
+    rules,
+    templates: dict[str, list[str]],
+    prefetch: PrefetchCache | None = None,
+    campaign_node_id: str | None = None,
+) -> None:
+    node_path = resolve_asset_path(campaign_node["node_file"])
+    node_spec = validate_node_asset(load_json_asset(node_path), source=node_path)
     run.core_state.floor = node_spec["floor"]
     run.core_state.scene_type = node_spec["node_type"]
 
@@ -137,8 +229,38 @@ def _play_node(run, campaign_node: dict[str, object], rules, templates: dict[str
 
     render_node_header(run, campaign_node)
 
-    for arbitration_spec in node_spec.get("arbitrations", []):
-        payload = load_json_asset(resolve_asset_path(arbitration_spec["file"]))
+    llm_count, authored_specs = _parse_arbitrations(node_spec)
+    total_arbs = llm_count or len(authored_specs)
+
+    # Prefetch cache is keyed by campaign node ID (e.g. "night_market"), NOT by
+    # node_spec["node_id"] (e.g. "night_market:floor_05") — use campaign_node_id.
+    cache_key = campaign_node_id or node_spec["node_id"]
+    if prefetch:
+        prefetch.wait_for(cache_key)
+    prefetched = prefetch.consume(cache_key) if prefetch else None
+
+    if prefetched and len(prefetched) == total_arbs:
+        print(f"\033[2m[LLM] using generated content for {cache_key}\033[0m",
+              file=sys.stderr)
+        payloads = prefetched
+    elif llm_count > 0:
+        # LLM-generated node with no usable prefetch result — skip arbitrations.
+        print(f"\033[2m[LLM] no generated content for {cache_key}, skipping {llm_count} arbitration(s)\033[0m",
+              file=sys.stderr)
+        payloads = []
+    else:
+        if prefetch and authored_specs:
+            print(f"\033[2m[LLM] fallback to authored content for {cache_key}\033[0m",
+                  file=sys.stderr)
+        payloads = [
+            validate_arbitration_asset(
+                load_json_asset(resolve_asset_path(spec["file"])),
+                source=resolve_asset_path(spec["file"]),
+            )
+            for spec in authored_specs
+        ]
+
+    for payload in payloads:
         _play_arbitration(run, node, payload, templates, rules)
 
     node.memory.node_summary = f"{node.node_type}:{len(node.memory.choices_made)}_arbitrations:sanity={node.memory.sanity_lost_in_node}"
@@ -150,13 +272,43 @@ def _play_node(run, campaign_node: dict[str, object], rules, templates: dict[str
         sanity_lost=node.memory.sanity_lost_in_node,
     )
     update_after_node(run.memory, node.memory)
+    run.memory.m1.push(build_m1_entry(run.core_state, run.memory, node.memory))
     summary = node.build_summary(sanity_delta=node.memory.sanity_lost_in_node)
     run.close_current_node(summary=summary)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Play a small Black Archive CLI campaign.")
+    _load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Play a small Loombound CLI campaign.")
     parser.add_argument("--campaign", type=Path, default=DEFAULT_CAMPAIGN, help="Path to a campaign JSON file.")
+    parser.add_argument("--llm", action="store_true", help="Enable LLM prefetch (requires API key and ollama).")
+    parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
+    parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
+    parser.add_argument(
+        "--slow-provider",
+        dest="slow_provider",
+        default=None,
+        metavar="PROVIDER",
+        help="Slow Core provider: anthropic (default), openai, qwen, deepseek. "
+             "Can also be set via SLOW_CORE_PROVIDER env var.",
+    )
+    parser.add_argument(
+        "--slow-model",
+        dest="slow_model",
+        default=None,
+        metavar="MODEL",
+        help="Override Slow Core model name (e.g. gpt-4o, qwen-plus, claude-opus-4-6). "
+             "Can also be set via SLOW_CORE_MODEL env var.",
+    )
+    parser.add_argument(
+        "--fast",
+        dest="fast_model",
+        default=None,
+        metavar="MODEL",
+        help="Fast Core ollama model for text expansion (default: gemma3:4b). "
+             "Can also be set via FAST_CORE_MODEL env var.",
+    )
     args = parser.parse_args()
 
     campaign = load_json_asset(args.campaign)
@@ -165,17 +317,98 @@ def main() -> None:
     run = make_run(campaign)
     run.rule_system.set_templates(rules)
 
+    prefetch: PrefetchCache | None = None
+    if args.llm:
+        logging.basicConfig(
+            stream=sys.stderr,
+            level=logging.INFO,
+            format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
+        )
+        slow_cfg = _make_slow_cfg(args)
+        slow_cfg.lang = args.lang
+        slow_cfg.tone = campaign.get("tone") or None
+
+        fast_model = (
+            args.fast_model
+            or os.environ.get("FAST_CORE_MODEL", "gemma3:4b")
+        )
+        fast_cfg = FastCoreConfig(
+            model=fast_model,
+            lang=args.lang,
+            tone=campaign.get("tone") or None,
+        )
+
+        # Load M2 tables if available
+        campaign_dir = REPO_ROOT / "data" / "nodes" / campaign.get("campaign_id", "")
+        table_b_path = campaign_dir / "table_b.json"
+
+        if TABLE_A_PATH.exists():
+            run.memory.m2.load_table_a(TABLE_A_PATH)
+        if table_b_path.exists():
+            run.memory.m2.load_table_b(table_b_path)
+
+        # Build M2Classifier if Table A is loaded (provides the cached prefix)
+        m2_classifier: M2Classifier | None = None
+        if run.memory.m2.table_a:
+            anthropic_key = (
+                os.environ.get("SLOW_CORE_API_KEY")
+                or os.environ.get("ANTHROPIC_API_KEY")
+            )
+            m2_cfg = M2ClassifierConfig(api_key=anthropic_key)
+            m2_classifier = M2Classifier(
+                config=m2_cfg,
+                table_a_json=run.memory.m2.table_a_prompt_json(),
+            )
+
+        prefetch = PrefetchCache(slow_cfg=slow_cfg, fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
+        prefetch.warmup()
+
     render_run_intro(campaign)
     pause("Press Enter to step onto the road...")
 
     current_node_id = campaign["start_node_id"]
+    nodes_played = 0
     try:
         while current_node_id:
             campaign_node = campaign["nodes"][current_node_id]
-            _play_node(run, campaign_node, rules, templates)
 
+            # Apply any pending M2 classification result from the previous node's prefetch
+            if prefetch:
+                m2_id = prefetch.pop_m2_id(current_node_id)
+                if m2_id is not None:
+                    run.memory.m2.update(current_node_id, m2_id)
+
+            # Determine next nodes now so we can trigger prefetch for all of them
             next_nodes = campaign_node.get("next_nodes", [])
+
+            # Trigger background generation for each candidate next node
+            if prefetch and next_nodes:
+                for next_id in next_nodes:
+                    next_campaign_node = campaign["nodes"].get(next_id, {})
+                    next_node_path = resolve_asset_path(next_campaign_node.get("node_file", ""))
+                    try:
+                        next_spec = validate_node_asset(
+                            load_json_asset(next_node_path), source=next_node_path
+                        )
+                        llm_c, authored = _parse_arbitrations(next_spec)
+                        arb_count = llm_c or len(authored)
+                        if arb_count:
+                            prefetch.trigger(
+                                target_node_id=next_id,
+                                core_state=run.core_state,
+                                run_memory=run.memory,
+                                node_history=list(run.node_history),
+                                arbitration_count=arb_count,
+                            )
+                    except (AssetValidationError, ValueError):
+                        pass  # next node spec unreadable — skip prefetch for it
+
+            _play_node(run, campaign_node, rules, templates, prefetch=prefetch, campaign_node_id=current_node_id)
+            nodes_played += 1
+
             if not next_nodes:
+                break
+            if args.nodes is not None and nodes_played >= args.nodes:
                 break
 
             render_map_hud(run, campaign, next_nodes)
@@ -185,6 +418,9 @@ def main() -> None:
 
     except KeyboardInterrupt:
         print("\n\nRun interrupted.")
+        return
+    except (AssetValidationError, ValueError) as exc:
+        print(f"\n\nAsset error: {exc}")
         return
 
     render_run_complete(run)

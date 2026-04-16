@@ -1,0 +1,9 @@
+{
+  "node_id": "midnight_trading_floor:floor_02",
+  "node_type": "encounter",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "凌晨三点的交易大厅本该空无一人，但屏幕上的数字仍在疯狂跳动。那些数字组成的图案，不像是股票走势——更像是某种召唤仪式的符文。"
+  },
+  "arbitrations": 3
+}

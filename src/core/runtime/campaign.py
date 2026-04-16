@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,13 @@ from src.core.deterministic_kernel import CoreStateView, MetaStateView
 from src.core.runtime.session import Run
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = (
+    Path(os.environ["LOOMBOUND_ROOT"]).resolve()
+    if os.environ.get("LOOMBOUND_ROOT")
+    else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
+    if os.environ.get("BLACK_ARCHIVE_ROOT")
+    else Path(__file__).resolve().parents[3]
+)
 
 
 def resolve_asset_path(raw_path: str) -> Path:
@@ -30,8 +37,6 @@ def make_run(campaign: dict[str, Any]) -> Run:
     meta_metadata = initial_meta.get("metadata", {})
     return Run(
         run_id=campaign["campaign_id"],
-        act=initial_core.get("act", 1),
-        floor=initial_core.get("floor", 1),
         core_state=CoreStateView(
             floor=initial_core.get("floor", 1),
             act=initial_core.get("act", 1),
@@ -56,6 +61,9 @@ def make_run(campaign: dict[str, Any]) -> Run:
 
 def choose_index(prompt: str, count: int) -> int:
     """Read a numbered choice from the CLI."""
+
+    if count <= 0:
+        raise ValueError("Cannot choose from an empty option list.")
 
     while True:
         raw = input(prompt).strip().lower()
