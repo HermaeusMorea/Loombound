@@ -12,7 +12,7 @@ from src.core.authoring import load_rules, load_templates
 from src.core.deterministic_kernel import ArbitrationResult
 from src.core.enforcement import apply_option_effects, enforce_rule
 from src.core.llm_interface import M2Classifier, M2ClassifierConfig, PrefetchCache
-from src.core.llm_interface.collector import build_m1_entry
+from src.core.llm_interface.collector import build_classifier_input, build_m1_entry
 from src.core.llm_interface.fast_core import FastCoreConfig
 from src.core.memory import append_node_event, record_choice, update_after_node
 from src.core.narration import render_narration
@@ -88,7 +88,37 @@ def _parse_arbitrations(node_spec: dict) -> tuple[int, list[dict]]:
     return 0, field
 
 
-def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str, list[str]], rules) -> None:
+def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
+    """Patch Opus-assigned numeric effect values into a payload's option metadata in-place.
+
+    Only the three stat keys are touched; add_events / add_conditions written by
+    gemma3 are preserved. The payload dict is mutated directly.
+    """
+    for opt in payload.get("options", []):
+        opt_id = opt.get("option_id", "")
+        if opt_id in opus_effects:
+            eff = opt.setdefault("metadata", {}).setdefault("effects", {})
+            for key in ("health_delta", "money_delta", "sanity_delta"):
+                eff[key] = opus_effects[opt_id].get(key, 0)
+
+
+def _play_arbitration(
+    run,
+    node,
+    payload: dict[str, object],
+    templates: dict[str, list[str]],
+    rules,
+    prefetch: PrefetchCache | None,
+    arb_idx: int,
+    campaign_node_id: str,
+    total_arbs: int,
+) -> None:
+    # Overlay Opus-assigned effects before loading (may be empty dict on cache miss)
+    if prefetch is not None:
+        opus_effects = prefetch.consume_arb_effects(campaign_node_id, arb_idx)
+        if opus_effects:
+            _overlay_effects(payload, opus_effects)
+
     arbitration = node.load_current_arbitration(payload)
     sync_arbitration_resources(run, arbitration)
     append_node_event(
@@ -150,6 +180,20 @@ def _play_arbitration(run, node, payload: dict[str, object], templates: dict[str
         verdict=chosen_result.verdict,
         sanity_delta=chosen_result.sanity_cost,
     )
+
+    # Fire-and-forget Opus call: updates arc entry_id + assigns effects for next arb.
+    # Within a node: next_node_id = campaign_node_id, next_arb_idx = arb_idx + 1.
+    # Last arb of a node: pass None/None — only entry_id is updated; the main loop
+    # triggers the Opus call for the first arb of the chosen next node.
+    if prefetch is not None:
+        _is_last = arb_idx >= total_arbs - 1
+        _next_node = campaign_node_id if not _is_last else None
+        _next_idx  = arb_idx + 1       if not _is_last else None
+        quasi = build_classifier_input(
+            run.core_state, run.memory, list(run.node_history),
+            current_node_memory=node.memory,
+        )
+        prefetch.update_arc_state(quasi, _next_node, _next_idx)
 
     applied_notes = apply_option_effects(run, selected_option, chosen_result)
     arbitration.set_result(
@@ -219,8 +263,11 @@ def _play_node(
             for spec in authored_specs
         ]
 
-    for payload in payloads:
-        _play_arbitration(run, node, payload, templates, rules)
+    for idx, payload in enumerate(payloads):
+        _play_arbitration(
+            run, node, payload, templates, rules,
+            prefetch, idx, campaign_node_id or node_id, len(payloads),
+        )
 
     node.memory.node_summary = f"{node.node_type}:{len(node.memory.choices_made)}_arbitrations:sanity={node.memory.sanity_lost_in_node}"
     append_node_event(
@@ -379,11 +426,6 @@ def main() -> None:
         while current_node_id:
             campaign_node = campaign["nodes"][current_node_id]
 
-            # Apply any pending M2 classification result from the previous node's prefetch
-            m2_id = prefetch.pop_m2_id(current_node_id)
-            if m2_id is not None:
-                run.memory.m2.update(current_node_id, m2_id)
-
             # Determine next nodes now so we can trigger prefetch for all of them
             next_nodes = campaign_node.get("next_nodes", [])
 
@@ -426,6 +468,11 @@ def main() -> None:
             render_input_panel("Choose your next destination")
             next_index = choose_index("> ", len(next_nodes))
             current_node_id = next_nodes[next_index]
+
+            # Trigger Opus for arb 0 of the chosen next node.
+            # Runs in background while the player reads the node header + waits for gemma3.
+            quasi = build_classifier_input(run.core_state, run.memory, list(run.node_history))
+            prefetch.update_arc_state(quasi, current_node_id, 0)
 
     except KeyboardInterrupt:
         print("\n\nRun interrupted.")

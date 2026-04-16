@@ -1,18 +1,20 @@
-"""M2 arc-state classifier — runtime Claude call.
+"""M2 arc-state classifier — runtime Claude call (per-choice).
 
-Receives Table A (global cached prefix) + Table C (per-campaign cached prefix)
-+ current M1+M0 quasi state + next node id.
+Called after each player choice to:
+  1. Classify the current arc state → best-fit Table A entry_id
+  2. Assign per-option effect values for the NEXT arbitration in the current node
 
-Returns:
-  entry_id   — best-fit Table A row (-1 = no match)
-  effects    — per-option {h, m, s} values for every option in the next node
-  usage      — token counts
+Cache structure (Anthropic prompt-cache prefix):
+  system    — arc classification guide       ~3,000 tokens  (global, cached)
+  tool      — select_arc_and_effects schema  ~1,000 tokens  (global, cached)
+  user[0]   — Table A                        ~1,500 tokens  (session, cached)
+  user[1]   — Table C (option structure)     ~2,000 tokens  (per-campaign, cached)
+  user[2]   — quasi state + target arb hint  ~200-400 tokens (dynamic, uncached)
 
 Token budget per call (after cache warm):
-  Input  (global cached):      system + tool + Table A  ~3,000 tokens @ 0.1× rate
-  Input  (per-campaign cached): Table C                 ~2,000 tokens @ 0.1× rate
-  Input  (dynamic):             quasi state + node id   ~200-400 tokens @ 1× rate
-  Output:                       entry_id + effects       ~150 tokens @ output rate
+  Input  (cached):   system + tool + Table A + Table C  ~5,000 tokens @ 0.1× rate
+  Input  (dynamic):  quasi state + arb hint              ~300 tokens @ 1× rate
+  Output:            entry_id + per-option effects        ~80-120 tokens
 """
 
 from __future__ import annotations
@@ -149,8 +151,9 @@ Step 6. Scan Table A for the row whose four fields most closely match your asses
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 JOB 2 — EFFECT ASSIGNMENT
-Receive Table C (node structure for this campaign) and the next node id.
-Assign h/m/s integer values for every option in every arbitration of that node.
+You will be told which specific arbitration comes next: node_id + arb_index.
+Look up that arbitration in Table C (per-campaign option structure).
+Assign h/m/s integer values for every option in THAT ONE arbitration only.
 
 Effect fields:
   h  health_delta   — typically -10 to +5.  Negative = injury, illness, exhaustion.
@@ -159,11 +162,10 @@ Effect fields:
 
 Calibration rules:
 - Scale magnitude to current world_pressure: low → small values, critical → large negatives.
-- Every arbitration must have at least one option with meaningfully different risk than the others.
+- Every arbitration must have at least one option with meaningfully different risk than others.
 - 0 is valid (no effect on that stat).
 - Positive values should feel earned — recovery, reward, relief.
-- Output effects for EVERY option in the named next node. If Table C has no entry for
-  that node_id, output an empty effects list.
+- If no next arbitration is specified, output an empty effects list.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -175,12 +177,16 @@ _NO_MATCH_ID = -1
 class M2ClassifierConfig:
     api_key: str | None = None
     model: str = "claude-opus-4-6"
-    max_tokens: int = 300   # entry_id + per-option effects
+    max_tokens: int = 150   # entry_id + one arb's per-option effects
     timeout: float = 30.0
 
 
 class M2Classifier:
-    """Classifies current game arc state and assigns per-option effects for the next node."""
+    """Classifies current game arc state and assigns per-option effects for the next arbitration.
+
+    Called once per player choice (after each arbitration completes). The call is
+    fire-and-forget — results are consumed before the next arbitration is displayed.
+    """
 
     def __init__(
         self,
@@ -197,7 +203,7 @@ class M2Classifier:
             "name": "select_arc_and_effects",
             "description": (
                 "Select the best-matching Table A arc state and assign per-option "
-                "gameplay effect values for the next node."
+                "gameplay effect values for the specified next arbitration."
             ),
             "input_schema": {
                 "type": "object",
@@ -212,17 +218,12 @@ class M2Classifier:
                     "effects": {
                         "type": "array",
                         "description": (
-                            "Per-option effect values for every option in every "
-                            "arbitration of the next node. Include ALL options from "
-                            "Table C for that node_id."
+                            "Per-option effect values for every option in the specified "
+                            "next arbitration. Empty array if no next arbitration was given."
                         ),
                         "items": {
                             "type": "object",
                             "properties": {
-                                "arb": {
-                                    "type": "integer",
-                                    "description": "Arbitration index (0-based) from Table C.",
-                                },
                                 "id": {
                                     "type": "string",
                                     "description": "option_id from Table C.",
@@ -231,7 +232,7 @@ class M2Classifier:
                                 "m": {"type": "integer", "description": "money_delta"},
                                 "s": {"type": "integer", "description": "sanity_delta"},
                             },
-                            "required": ["arb", "id", "h", "m", "s"],
+                            "required": ["id", "h", "m", "s"],
                             "additionalProperties": False,
                         },
                     },
@@ -247,11 +248,21 @@ class M2Classifier:
         self,
         quasi_state: str,
         next_node_id: str | None = None,
-    ) -> tuple[int, dict[int, dict[str, dict]], dict[str, int]]:
-        """Return (entry_id, effects_by_arb, usage).
+        next_arb_idx: int | None = None,
+    ) -> tuple[int, dict[str, dict], dict[str, int]]:
+        """Classify arc state and assign effects for the next arbitration.
 
-        effects_by_arb: {arb_idx: {option_id: {"h": int, "m": int, "s": int}}}
-        Empty dict if Table C not loaded or next_node_id not provided.
+        Args:
+            quasi_state:   Current game state description (from build_classifier_input).
+            next_node_id:  Campaign node_id the next arbitration belongs to.
+            next_arb_idx:  0-based index of the next arbitration within that node.
+                           Pass None (or omit) when there is no next arbitration
+                           (last arb of a node → only entry_id is needed).
+
+        Returns:
+            (entry_id, effects_map, usage)
+            effects_map: {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}
+            Empty dict when next_node_id / next_arb_idx are not provided.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
@@ -270,18 +281,21 @@ class M2Classifier:
             if self._table_c_json:
                 user_blocks.append({
                     "type": "text",
-                    "text": f"Table C (node option structure for this campaign):\n{self._table_c_json}",
+                    "text": f"Table C (node option structure for this campaign, no effect values):\n{self._table_c_json}",
                     "cache_control": {"type": "ephemeral"},
                 })
 
             # Block 3: dynamic per-call content
-            node_hint = (
-                f"\n\nNext node to assign effects for: {next_node_id}"
-                if next_node_id else ""
-            )
+            if next_node_id is not None and next_arb_idx is not None:
+                arb_hint = (
+                    f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
+                )
+            else:
+                arb_hint = "\n\nNo next arbitration — output empty effects list."
+
             user_blocks.append({
                 "type": "text",
-                "text": quasi_state + node_hint,
+                "text": quasi_state + arb_hint,
             })
 
             response = await self._client.messages.create(
@@ -320,22 +334,22 @@ class M2Classifier:
                         raw = json.loads(raw)
                     entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
 
-                    # Parse effects into {arb_idx: {option_id: {h, m, s}}}
-                    effects_by_arb: dict[int, dict[str, dict]] = {}
+                    # Parse flat effects list → {option_id: {health_delta, money_delta, sanity_delta}}
+                    effects_map: dict[str, dict] = {}
                     for item in raw.get("effects", []):
-                        arb_idx = int(item.get("arb", 0))
                         opt_id = str(item.get("id", ""))
-                        effects_by_arb.setdefault(arb_idx, {})[opt_id] = {
-                            "health_delta":  int(item.get("h", 0)),
-                            "money_delta":   int(item.get("m", 0)),
-                            "sanity_delta":  int(item.get("s", 0)),
-                        }
+                        if opt_id:
+                            effects_map[opt_id] = {
+                                "health_delta":  int(item.get("h", 0)),
+                                "money_delta":   int(item.get("m", 0)),
+                                "sanity_delta":  int(item.get("s", 0)),
+                            }
 
                     log.info(
-                        "M2Classifier: classified → entry_id=%d, effects for %d arb(s)",
-                        entry_id, len(effects_by_arb),
+                        "M2Classifier: entry_id=%d effects for %d option(s)",
+                        entry_id, len(effects_map),
                     )
-                    return entry_id, effects_by_arb, usage
+                    return entry_id, effects_map, usage
 
             log.warning("M2Classifier: no tool_use block in response")
             return _NO_MATCH_ID, {}, usage
