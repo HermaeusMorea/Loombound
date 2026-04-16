@@ -575,7 +575,11 @@ def _build_table_b_user_msg(
 
 
 def _validate_table_b_response(raw: dict, expected: dict[str, int]) -> list[str]:
-    """Return a list of validation error strings (empty = valid)."""
+    """Return a list of validation error strings (empty = valid).
+
+    Checks both structure (node presence, arbitration count) and content
+    (non-empty scene_concept, sanity_axis, and option intents/ids).
+    """
     result_nodes = raw.get("nodes", [])
     result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
     errors: list[str] = []
@@ -584,9 +588,26 @@ def _validate_table_b_response(raw: dict, expected: dict[str, int]) -> list[str]
         if got_node is None:
             errors.append(f"missing node_id={nid}")
             continue
-        got = len(got_node.get("arbitrations", []))
+        arbs = got_node.get("arbitrations", [])
+        got = len(arbs)
         if got != want:
             errors.append(f"{nid}: expected {want} arbitrations, got {got}")
+            continue
+        # Content validation — catch empty fields that would silently break Fast Core
+        for arb_idx, arb in enumerate(arbs):
+            prefix = f"{nid}[{arb_idx}]"
+            if not str(arb.get("scene_concept", "")).strip():
+                errors.append(f"{prefix}: scene_concept is empty")
+            if not str(arb.get("sanity_axis", "")).strip():
+                errors.append(f"{prefix}: sanity_axis is empty")
+            options = arb.get("options", [])
+            if not options:
+                errors.append(f"{prefix}: options list is empty")
+            for opt_idx, opt in enumerate(options):
+                if not str(opt.get("option_id", "")).strip():
+                    errors.append(f"{prefix} opt[{opt_idx}]: option_id is empty")
+                if not str(opt.get("intent", "")).strip():
+                    errors.append(f"{prefix} opt[{opt_idx}]: intent is empty")
     return errors
 
 

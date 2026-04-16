@@ -190,6 +190,7 @@ def _effects_hint(opt: ArbitrationOptionSeed) -> str:
 async def _call_ollama(
     prompt: str,
     cfg: FastCoreConfig,
+    num_predict: int = 1600,
 ) -> tuple[dict[str, Any], dict[str, int]]:
     """Call ollama's native /api/chat endpoint with JSON mode.
 
@@ -207,7 +208,7 @@ async def _call_ollama(
         "format": "json",
         "options": {
             "temperature": 0.7,
-            "num_predict": 1200,
+            "num_predict": num_predict,
         },
     }
 
@@ -337,9 +338,12 @@ class FastCoreExpander:
         usage: dict[str, int] = {"prompt_tokens": 0, "eval_tokens": 0}
         last_error: Exception | None = None
 
+        # Budget: base 600 + 300 per option to avoid mid-JSON truncation
+        num_predict = 600 + len(seed.options) * 300
+
         for attempt in range(self._cfg.max_retries + 1):
             try:
-                expanded, usage = await _call_ollama(prompt, self._cfg)
+                expanded, usage = await _call_ollama(prompt, self._cfg, num_predict)
                 log.info(
                     "FastCore: attempt %d succeeded for %s (prompt=%d eval=%d)",
                     attempt + 1, arb_id, usage["prompt_tokens"], usage["eval_tokens"],
