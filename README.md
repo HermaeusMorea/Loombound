@@ -111,3 +111,7 @@ LLM 调用记录在 `logs/llm.md`（含每次调用的 token 数、成本、cach
 .venv/bin/python scripts/build_demo.py
 .venv/bin/python scripts/build_demo.py --name loombound-demo-v1
 ```
+
+---
+
+游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 PRISM 项目。
