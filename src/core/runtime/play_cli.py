@@ -41,9 +41,10 @@ from src.core.state_adapter import (
     AssetValidationError,
     load_json_asset,
     validate_arbitration_asset,
-    validate_node_asset,
 )
 
+
+log = logging.getLogger(__name__)
 
 DEFAULT_CAMPAIGN = REPO_ROOT / "data" / "campaigns" / "act1_campaign.json"
 RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
@@ -220,22 +221,23 @@ def _play_node(
     prefetch: PrefetchCache | None = None,
     campaign_node_id: str | None = None,
 ) -> object | None:
-    node_path = resolve_asset_path(campaign_node["node_file"])
-    node_spec = validate_node_asset(load_json_asset(node_path), source=node_path)
-    run.core_state.floor = node_spec["floor"]
-    run.core_state.scene_type = node_spec["node_type"]
+    floor: int = campaign_node["floor"]
+    node_type: str = campaign_node["node_type"]
+    node_id = f"{campaign_node_id}:floor_{floor:02d}"
 
-    node = run.start_node(node_id=node_spec["node_id"], node_type=node_spec["node_type"], floor=node_spec["floor"])
+    run.core_state.floor = floor
+    run.core_state.scene_type = node_type
+
+    node = run.start_node(node_id=node_id, node_type=node_type, floor=floor)
     append_node_event(node.memory, "node_entered", node_id=node.node_id, node_type=node.node_type, floor=node.floor)
 
     render_node_header(run, campaign_node)
 
-    llm_count, authored_specs = _parse_arbitrations(node_spec)
+    llm_count, authored_specs = _parse_arbitrations(campaign_node)
     total_arbs = llm_count or len(authored_specs)
 
-    # Prefetch cache is keyed by campaign node ID (e.g. "night_market"), NOT by
-    # node_spec["node_id"] (e.g. "night_market:floor_05") — use campaign_node_id.
-    cache_key = campaign_node_id or node_spec["node_id"]
+    # Prefetch cache is keyed by campaign node ID (e.g. "night_market").
+    cache_key = campaign_node_id or node_id
     if prefetch:
         prefetch.wait_for(cache_key)
     prefetched = prefetch.consume(cache_key) if prefetch else None
@@ -290,12 +292,8 @@ def _prefetch_targets(
             continue
         seen.add(target_id)
         next_campaign_node = campaign["nodes"].get(target_id, {})
-        next_node_path = resolve_asset_path(next_campaign_node.get("node_file", ""))
         try:
-            next_spec = validate_node_asset(
-                load_json_asset(next_node_path), source=next_node_path
-            )
-            llm_c, authored = _parse_arbitrations(next_spec)
+            llm_c, authored = _parse_arbitrations(next_campaign_node)
             arb_count = llm_c or len(authored)
             if arb_count:
                 prefetch.trigger(
@@ -306,8 +304,8 @@ def _prefetch_targets(
                     arbitration_count=arb_count,
                     current_node_memory=current_node_memory,
                 )
-        except (AssetValidationError, ValueError):
-            pass
+        except (AssetValidationError, ValueError) as exc:
+            log.warning("Prefetch: skipping '%s' — node spec invalid: %s", target_id, exc)
 
 
 def _collect_lookahead_targets(campaign: dict[str, object], next_nodes: list[str]) -> list[str]:

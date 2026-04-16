@@ -48,7 +48,7 @@ class SlowCoreError(Exception):
 # Known OpenAI-compatible providers: (default_model, base_url, api_key_env_var)
 _PROVIDERS: dict[str, tuple[str, str, str]] = {
     "openai":   ("gpt-4o",        "https://api.openai.com/v1",                             "OPENAI_API_KEY"),
-    "qwen":     ("qwen-plus",     "https://dashscope.aliyuncs.com/compatible-mode/v1",     "QWEN_API_KEY"),
+    "qwen":     ("qwen-plus",     "https://dashscope.aliyuncs.com/compatible-mode/v1",     "DASHSCOPE_API_KEY"),
     "deepseek": ("deepseek-chat", "https://api.deepseek.com/v1",                            "DEEPSEEK_API_KEY"),
 }
 
@@ -445,7 +445,12 @@ class SlowCoreClient:
             if block.type == "tool_use" and block.name == "plan_node_content":
                 raw = block.input
                 if isinstance(raw, str):
-                    raw = _json.loads(raw)
+                    try:
+                        raw = _json.loads(raw)
+                    except _json.JSONDecodeError as exc:
+                        raise SlowCoreError(
+                            f"Failed to parse tool input JSON: {exc}"
+                        ) from exc
                 pack = _pack_from_raw(raw, target_node_id)
                 pack.usage = usage
                 return pack

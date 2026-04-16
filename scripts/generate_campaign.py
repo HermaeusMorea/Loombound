@@ -290,7 +290,7 @@ _SKELETON_ITEM = {
         },
         "sanity_axis": {
             "type": "string",
-            "description": "Base psychological tension. Runtime arc tendency intensifies this later.",
+            "description": "One short phrase naming the tension (e.g. 'obedience vs conscience'). No analysis.",
         },
         "options": {
             "type": "array",
@@ -619,7 +619,7 @@ Rules:
 - Call generate_table_b exactly once with ALL the nodes given to you in this message.
 - Each node must have EXACTLY the number of arbitrations specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
-- sanity_axis: the psychological tension at stake — not the result.
+- sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
 - Do not hardcode a single dramatic tendency; runtime arc state will modulate these later.
 """
 
@@ -793,30 +793,18 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
     campaigns_dir = REPO_ROOT / "data" / "campaigns"
     nodes_dir = REPO_ROOT / "data" / "nodes" / campaign_id
     campaigns_dir.mkdir(parents=True, exist_ok=True)
-    nodes_dir.mkdir(parents=True, exist_ok=True)
+    nodes_dir.mkdir(parents=True, exist_ok=True)  # for table_b.json
 
     campaign_nodes: dict = {}
     for node in nodes_raw:
         nid = node["node_id"]
-        node_file_rel = f"data/nodes/{campaign_id}/{nid}.json"
-        node_file_abs = REPO_ROOT / node_file_rel
-
-        node_spec = {
-            "node_id": f"{nid}:floor_{node['floor']:02d}",
-            "node_type": node["node_type"],
-            "floor": node["floor"],
-            "metadata": {"scene_summary": node["map_blurb"]},
-            "arbitrations": node["arbitration_count"],
-        }
-        node_file_abs.write_text(
-            json.dumps(node_spec, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-
         campaign_nodes[nid] = {
-            "label":      node["label"],
-            "map_blurb":  node["map_blurb"],
-            "node_file":  node_file_rel,
-            "next_nodes": node["next_nodes"],
+            "label":        node["label"],
+            "map_blurb":    node["map_blurb"],
+            "node_type":    node["node_type"],
+            "floor":        node["floor"],
+            "arbitrations": node["arbitration_count"],
+            "next_nodes":   node["next_nodes"],
         }
 
     campaign_json = {
@@ -1086,8 +1074,7 @@ def main() -> None:
     }
     out_path, node_count = write_campaign(data, out_name, generation_context=generation_context)
 
-    print(f"\n  Written: {out_path}")
-    print(f"  Written: data/nodes/{data['campaign_id']}/ ({node_count} node files)")
+    print(f"\n  Written: {out_path} ({node_count} nodes inlined)")
 
     # ── Step 2: generate Table B (Haiku, batched 3 nodes per call) ────────
 

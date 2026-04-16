@@ -15,5 +15,4 @@ data/campaigns/*
 !data/campaigns/act1_campaign.json
 !data/campaigns/heritage_liquidation_bureau.json
 data/nodes/*
-!data/nodes/act1
 !data/nodes/heritage_liquidation_bureau

@@ -23,19 +23,33 @@
     "flooded_gate": {
       "label": "Flooded Gate",
       "map_blurb": "The old district gate stands knee-deep in standing water. Three paths open past it, only one of them dry.",
-      "node_file": "data/nodes/act1/flooded_gate.json",
+      "node_type": "crossroads",
+      "floor": 1,
+      "arbitrations": [
+        { "file": "data/arbitrations/crossroads/crossroads_01.json" }
+      ],
       "next_nodes": ["canal_market"]
     },
     "canal_market": {
       "label": "Canal Market",
       "map_blurb": "A night market still trading on the upper walkways above the flood line. The ferryman's lantern bobs at the far end.",
-      "node_file": "data/nodes/act1/canal_market.json",
+      "node_type": "market",
+      "floor": 2,
+      "arbitrations": [
+        { "file": "data/arbitrations/market_offer/market_01.json" },
+        { "file": "data/arbitrations/omens_choice/omens_01.json" }
+      ],
       "next_nodes": ["archive_vault"]
     },
     "archive_vault": {
       "label": "Archive Vault",
       "map_blurb": "The lower vault is partially flooded, but the sealed ledger section is still dry — and still humming.",
-      "node_file": "data/nodes/act1/archive_vault.json",
+      "node_type": "archive",
+      "floor": 3,
+      "arbitrations": [
+        { "file": "data/arbitrations/whisper_offer/whisper_offer_01.json" },
+        { "file": "data/arbitrations/artifact_offer/artifact_offer_01.json" }
+      ],
       "next_nodes": []
     }
   }

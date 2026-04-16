@@ -221,7 +221,13 @@ async def _call_ollama(
         "prompt_tokens": data.get("prompt_eval_count", 0),
         "eval_tokens": data.get("eval_count", 0),
     }
-    raw_content = data["message"]["content"]
+    msg = data.get("message")
+    if not isinstance(msg, dict) or "content" not in msg:
+        raise ValueError(
+            f"Unexpected ollama response structure — keys={list(data.keys())} "
+            f"(model not loaded or OOM?)"
+        )
+    raw_content = msg["content"]
     log.debug("FastCore raw content length=%d", len(raw_content))
 
     # Strip any reasoning prose before the first '{' (thinking model artifact)

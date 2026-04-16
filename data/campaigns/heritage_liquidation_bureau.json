@@ -23,7 +23,9 @@
     "arrival_checkpoint": {
       "label": "第十七废墟区检查站",
       "map_blurb": "一座用生锈钢筋和旧公文柜搭成的岗亭横在废墟入口。值班员要求你出示三份不同颜色的通行证——其中两份的颜色已经在核战中绝迹了。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/arrival_checkpoint.json",
+      "node_type": "threshold",
+      "floor": 1,
+      "arbitrations": 2,
       "next_nodes": [
         "records_vault",
         "survivor_settlement"
@@ -32,7 +34,9 @@
     "records_vault": {
       "label": "地下档案穹库",
       "map_blurb": "检查站地下三层，数万份战前房产证和税务记录被整齐地堆叠在防辐射铅柜中。有人在档案间搭了一张行军床，旁边放着半杯已经结晶的茶。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/records_vault.json",
+      "node_type": "archive",
+      "floor": 2,
+      "arbitrations": 2,
       "next_nodes": [
         "faction_crossroads"
       ]
@@ -40,7 +44,9 @@
     "survivor_settlement": {
       "label": "幸存者定居点·旧商场",
       "map_blurb": "一座坍塌了三分之二的商场里住着四十七名幸存者。他们用购物车搭建房屋，用旧收银台做饭桌。你到达时，一个孩子正用你局里的空白税单折纸飞机。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/survivor_settlement.json",
+      "node_type": "investigation",
+      "floor": 2,
+      "arbitrations": 3,
       "next_nodes": [
         "faction_crossroads"
       ]
@@ -48,7 +54,9 @@
     "faction_crossroads": {
       "label": "局内密电·两条路线",
       "map_blurb": "你的短波收音机同时收到两份密电：改良派副局长命你'酌情减免、维系秩序'；清算派督察则要求你'严格执行、不留余地'。静电噪音中，你听见自己的心跳。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/faction_crossroads.json",
+      "node_type": "crossroads",
+      "floor": 3,
+      "arbitrations": 1,
       "next_nodes": [
         "black_market_annex",
         "final_audit"
@@ -57,7 +65,9 @@
     "black_market_annex": {
       "label": "废墟黑市·旧邮局",
       "map_blurb": "旧邮局的分拣大厅里，有人用战前邮票当货币，用过期罐头做抵押品。一个自称'前局员'的商人能帮你伪造审计报告——代价是你公文包里最后一份空白税单。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/black_market_annex.json",
+      "node_type": "market",
+      "floor": 4,
+      "arbitrations": 2,
       "next_nodes": [
         "final_audit"
       ]
@@ -65,7 +75,9 @@
     "final_audit": {
       "label": "最终审计·废墟中央广场",
       "map_blurb": "广场中央，一张从瓦砾中刨出来的橡木办公桌被擦得一尘不染。幸存者们围坐四周，等待你宣读审计结果。风吹起地上的灰尘和碎纸片，像某种古老的、无人记得的仪式。",
-      "node_file": "data/nodes/heritage_liquidation_bureau/final_audit.json",
+      "node_type": "ritual",
+      "floor": 5,
+      "arbitrations": 3,
       "next_nodes": []
     }
   },

@@ -1,9 +1,0 @@
-{
-  "node_id": "arrival_checkpoint:floor_01",
-  "node_type": "threshold",
-  "floor": 1,
-  "metadata": {
-    "scene_summary": "一座用生锈钢筋和旧公文柜搭成的岗亭横在废墟入口。值班员要求你出示三份不同颜色的通行证——其中两份的颜色已经在核战中绝迹了。"
-  },
-  "arbitrations": 2
-}

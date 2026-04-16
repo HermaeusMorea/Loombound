@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -342,7 +343,8 @@ def load_campaign_metadata(
         try:
             with path.open(encoding="utf-8") as fh:
                 data = json.load(fh)
-        except Exception:
+        except Exception as exc:
+            print(f"warning: skipping {path.name} — {exc}", file=sys.stderr)
             continue
         campaign_id = data.get("campaign_id", path.stem)
         titles[campaign_id] = data.get("title", campaign_id)

@@ -205,11 +205,11 @@ class PrefetchCache:
         log.info("Prefetch: triggering background generation for '%s' (%d arbitration(s)).",
                  target_node_id, arbitration_count)
 
-        # Snapshot state so background thread doesn't race with main loop
-        state_snapshot = core_state
-        memory_snapshot = run_memory
-        history_snapshot = [copy.copy(item) for item in node_history]
-        current_node_snapshot = current_node_memory
+        # Deep-copy state so background thread doesn't race with main loop
+        state_snapshot = copy.deepcopy(core_state)
+        memory_snapshot = copy.deepcopy(run_memory)
+        history_snapshot = copy.deepcopy(node_history)
+        current_node_snapshot = copy.deepcopy(current_node_memory)
 
         def _run() -> None:
             asyncio.run(
@@ -232,7 +232,8 @@ class PrefetchCache:
 
     def pop_m2_id(self, node_id: str) -> int | None:
         """Return and remove the M2 classification result for node_id, if any."""
-        return self._m2_result.pop(node_id, None)
+        with self._lock:
+            return self._m2_result.pop(node_id, None)
 
     def wait_for(self, node_id: str, timeout: float = 120.0) -> None:
         """Block until prefetch for node_id is no longer pending.
@@ -268,34 +269,43 @@ class PrefetchCache:
         Returns:
             list of arbitration JSON dicts (in order) if ready,
             None if pending, failed, stale, or not triggered.
+
+        Read, status-check, and deletion are all performed inside a single
+        lock acquisition to avoid TOCTOU between background thread status
+        updates and the main thread's consumption.
         """
         with self._lock:
             entry = self._cache.get(node_id)
+            if entry is None:
+                log.debug("Prefetch: no entry for '%s' — authored fallback.", node_id)
+                return None
 
-        if entry is None:
-            log.debug("Prefetch: no entry for '%s' — authored fallback.", node_id)
-            return None
+            status = entry.status
+            error = entry.error
+            if status == "ready":
+                resolved = list(entry.resolved)
+                arb_count = len(resolved)
+                del self._cache[node_id]
+                self._m2_result.pop(node_id, None)
+            else:
+                resolved = None
+                arb_count = 0
 
-        if entry.status == "pending":
+        if status == "pending":
             log.info("Prefetch: '%s' still generating — authored fallback.", node_id)
             return None
-
-        if entry.status == "failed":
+        if status == "failed":
             log.warning("Prefetch: '%s' generation failed (%s) — authored fallback.",
-                        node_id, entry.error)
+                        node_id, error)
             return None
-
-        if entry.status == "stale":
+        if status == "stale":
             log.info("Prefetch: '%s' is stale — authored fallback.", node_id)
             return None
 
         # status == "ready"
         log.info("Prefetch: '%s' ready — using %d LLM-generated arbitration(s).",
-                 node_id, len(entry.resolved))
-        with self._lock:
-            del self._cache[node_id]
-            self._m2_result.pop(node_id, None)
-        return entry.resolved
+                 node_id, arb_count)
+        return resolved
 
     def invalidate(self, node_id: str) -> None:
         """Mark a cached entry as stale (e.g. after a major state change)."""
@@ -392,7 +402,8 @@ class PrefetchCache:
             f"cost: ${_cost:.4f}  cache_savings: ${_saved:.4f}",
         ])
 
-        self._m2_result[target_node_id] = m2_id
+        with self._lock:
+            self._m2_result[target_node_id] = m2_id
 
         def _fail(reason: str) -> None:
             with self._lock:
