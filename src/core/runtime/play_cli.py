@@ -354,6 +354,7 @@ def main() -> None:
         m2_classifier = M2Classifier(
             config=m2_cfg,
             table_a_json=run.memory.m2.table_a_prompt_json(),
+            table_c_json=run.memory.m2.table_c_prompt_json() if run.memory.m2.table_b else "",
         )
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)

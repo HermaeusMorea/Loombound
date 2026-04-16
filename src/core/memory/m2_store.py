@@ -143,3 +143,25 @@ class M2Store:
 
         rows = [e.to_dict() for e in sorted(self.table_a.values(), key=lambda e: e.entry_id)]
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+
+    def table_c_prompt_json(self) -> str:
+        """Serialize Table B structure (without effects) for the per-campaign cached prefix.
+
+        Table C = Table B stripped to option_id + intent only — Claude uses this to assign
+        per-option effect values at runtime without seeing Haiku's placeholder values.
+        """
+        rows = []
+        for node_id, entry in sorted(self.table_b.items()):
+            arbs = []
+            for idx, arb in enumerate(entry.arbitrations):
+                options = [
+                    {"id": o.get("option_id", f"opt_{i}"), "intent": o.get("intent", "")}
+                    for i, o in enumerate(arb.options)
+                ]
+                arbs.append({
+                    "arb": idx,
+                    "scene_type": arb.scene_type,
+                    "options": options,
+                })
+            rows.append({"node_id": node_id, "arbitrations": arbs})
+        return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))

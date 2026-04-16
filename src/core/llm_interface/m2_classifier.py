@@ -1,42 +1,43 @@
 """M2 arc-state classifier — runtime Claude call.
 
-Receives Table A (cached in prompt) + current M1+M0 quasi state.
-Returns a single integer entry_id matching the best-fit row in Table A,
-or -1 if no row is a reasonable match (no-match fallback).
+Receives Table A (global cached prefix) + Table C (per-campaign cached prefix)
++ current M1+M0 quasi state + next node id.
+
+Returns:
+  entry_id   — best-fit Table A row (-1 = no match)
+  effects    — per-option {h, m, s} values for every option in the next node
+  usage      — token counts
 
 Token budget per call (after cache warm):
-  Input  (cached):  system + tool + Table A  ~3,000 tokens @ 0.1× rate
-  Input  (dynamic): quasi state description  ~200-400 tokens @ 1× rate
-  Output:           {"entry_id": N}          ~10 tokens @ output rate
+  Input  (global cached):      system + tool + Table A  ~3,000 tokens @ 0.1× rate
+  Input  (per-campaign cached): Table C                 ~2,000 tokens @ 0.1× rate
+  Input  (dynamic):             quasi state + node id   ~200-400 tokens @ 1× rate
+  Output:                       entry_id + effects       ~150 tokens @ output rate
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import anthropic
 
 log = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
-You are an arc-state classifier for a narrative game engine.
+You are the runtime intelligence layer for a narrative game engine.
+You have two jobs — both handled in a single tool call:
 
-You receive:
-1. A table of arc states (Table A) — each row has an entry_id and four categorical fields.
-2. The current game state described in quasi-precise language (M1+M0 summary).
-
-Your sole job is to call select_arc_state exactly once, passing the entry_id of the Table A row
-that best matches the current game state.
+JOB 1 — ARC STATE CLASSIFICATION
+Receive Table A (arc state catalogue) and the current game state.
+Select the Table A entry_id that best matches the current arc state.
 
 Selection rules:
 - Match arc_trajectory first (rising/plateau/climax/resolution/pivot).
 - Then world_pressure (low/moderate/high/critical).
 - Then narrative_pacing and pending_intent as tiebreakers.
 - If no row is a reasonable match, pass entry_id = -1.
-
-Do not produce any output outside the tool call.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ARC STATE CLASSIFICATION GUIDE
@@ -144,7 +145,25 @@ Step 5. Identify the pending_intent from what the protagonist is positioned to d
 Step 6. Scan Table A for the row whose four fields most closely match your assessment.
         Prefer exact matches on trajectory and pressure; use pacing and intent as
         tiebreakers. If no row is within two dimensions of a match, return -1.
-Step 7. Call select_arc_state with the chosen entry_id (or -1 for no match).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+JOB 2 — EFFECT ASSIGNMENT
+Receive Table C (node structure for this campaign) and the next node id.
+Assign h/m/s integer values for every option in every arbitration of that node.
+
+Effect fields:
+  h  health_delta   — typically -10 to +5.  Negative = injury, illness, exhaustion.
+  m  money_delta    — typically -8 to +10.  Negative = cost, theft, loss.
+  s  sanity_delta   — typically -8 to +3.   Negative = dread, trauma, revelation.
+
+Calibration rules:
+- Scale magnitude to current world_pressure: low → small values, critical → large negatives.
+- Every arbitration must have at least one option with meaningfully different risk than the others.
+- 0 is valid (no effect on that stat).
+- Positive values should feel earned — recovery, reward, relief.
+- Output effects for EVERY option in the named next node. If Table C has no entry for
+  that node_id, output an empty effects list.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -156,21 +175,30 @@ _NO_MATCH_ID = -1
 class M2ClassifierConfig:
     api_key: str | None = None
     model: str = "claude-opus-4-6"
-    max_tokens: int = 64   # entry_id output is tiny
+    max_tokens: int = 300   # entry_id + per-option effects
     timeout: float = 30.0
 
 
 class M2Classifier:
-    """Classifies current game arc state against Table A and returns entry_id."""
+    """Classifies current game arc state and assigns per-option effects for the next node."""
 
-    def __init__(self, config: M2ClassifierConfig | None = None, table_a_json: str = "[]") -> None:
+    def __init__(
+        self,
+        config: M2ClassifierConfig | None = None,
+        table_a_json: str = "[]",
+        table_c_json: str = "",
+    ) -> None:
         self._cfg = config or M2ClassifierConfig()
         self._table_a_json = table_a_json
+        self._table_c_json = table_c_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
-            "name": "select_arc_state",
-            "description": "Select the Table A entry_id that best matches the current arc state.",
+            "name": "select_arc_and_effects",
+            "description": (
+                "Select the best-matching Table A arc state and assign per-option "
+                "gameplay effect values for the next node."
+            ),
             "input_schema": {
                 "type": "object",
                 "properties": {
@@ -180,25 +208,82 @@ class M2Classifier:
                             "The entry_id of the best-matching Table A row, "
                             "or -1 if no row is a reasonable match."
                         ),
-                    }
+                    },
+                    "effects": {
+                        "type": "array",
+                        "description": (
+                            "Per-option effect values for every option in every "
+                            "arbitration of the next node. Include ALL options from "
+                            "Table C for that node_id."
+                        ),
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "arb": {
+                                    "type": "integer",
+                                    "description": "Arbitration index (0-based) from Table C.",
+                                },
+                                "id": {
+                                    "type": "string",
+                                    "description": "option_id from Table C.",
+                                },
+                                "h": {"type": "integer", "description": "health_delta"},
+                                "m": {"type": "integer", "description": "money_delta"},
+                                "s": {"type": "integer", "description": "sanity_delta"},
+                            },
+                            "required": ["arb", "id", "h", "m", "s"],
+                            "additionalProperties": False,
+                        },
+                    },
                 },
-                "required": ["entry_id"],
+                "required": ["entry_id", "effects"],
                 "additionalProperties": False,
             },
             # Cache the tool schema alongside Table A for maximum prefix reuse
             "cache_control": {"type": "ephemeral"},
         }
 
-    async def classify(self, quasi_state: str) -> tuple[int, dict[str, int]]:
-        """Return (entry_id, usage) for the given quasi state.
+    async def classify(
+        self,
+        quasi_state: str,
+        next_node_id: str | None = None,
+    ) -> tuple[int, dict[int, dict[str, dict]], dict[str, int]]:
+        """Return (entry_id, effects_by_arb, usage).
 
-        entry_id: best-matching Table A row, or -1 on no-match/error.
-        usage: dict with keys input, output, cache_created, cache_read.
+        effects_by_arb: {arb_idx: {option_id: {"h": int, "m": int, "s": int}}}
+        Empty dict if Table C not loaded or next_node_id not provided.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
         }
         try:
+            user_blocks: list[dict] = [
+                # Block 1: Table A — stable for entire session, global cache
+                {
+                    "type": "text",
+                    "text": f"Table A (arc state catalogue):\n{self._table_a_json}",
+                    "cache_control": {"type": "ephemeral"},
+                },
+            ]
+
+            # Block 2: Table C — per-campaign cache (only if loaded)
+            if self._table_c_json:
+                user_blocks.append({
+                    "type": "text",
+                    "text": f"Table C (node option structure for this campaign):\n{self._table_c_json}",
+                    "cache_control": {"type": "ephemeral"},
+                })
+
+            # Block 3: dynamic per-call content
+            node_hint = (
+                f"\n\nNext node to assign effects for: {next_node_id}"
+                if next_node_id else ""
+            )
+            user_blocks.append({
+                "type": "text",
+                "text": quasi_state + node_hint,
+            })
+
             response = await self._client.messages.create(
                 model=self._cfg.model,
                 max_tokens=self._cfg.max_tokens,
@@ -209,27 +294,9 @@ class M2Classifier:
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            # Block 1: Table A — stable for entire session, cached
-                            # Combined with system + tool: ~3,000 tokens > 2,048 Opus minimum
-                            {
-                                "type": "text",
-                                "text": f"Table A (arc state catalogue):\n{self._table_a_json}",
-                                "cache_control": {"type": "ephemeral"},
-                            },
-                            # Block 2: current M1+M0 quasi state — dynamic per node
-                            {
-                                "type": "text",
-                                "text": quasi_state,
-                            },
-                        ],
-                    }
-                ],
+                messages=[{"role": "user", "content": user_blocks}],
                 tools=[self._tool],
-                tool_choice={"type": "tool", "name": "select_arc_state"},
+                tool_choice={"type": "tool", "name": "select_arc_and_effects"},
             )
 
             u = response.usage
@@ -247,21 +314,40 @@ class M2Classifier:
             )
 
             for block in response.content:
-                if block.type == "tool_use" and block.name == "select_arc_state":
+                if block.type == "tool_use" and block.name == "select_arc_and_effects":
                     raw = block.input
                     if isinstance(raw, str):
                         raw = json.loads(raw)
                     entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
-                    log.info("M2Classifier: classified → entry_id=%d", entry_id)
-                    return entry_id, usage
+
+                    # Parse effects into {arb_idx: {option_id: {h, m, s}}}
+                    effects_by_arb: dict[int, dict[str, dict]] = {}
+                    for item in raw.get("effects", []):
+                        arb_idx = int(item.get("arb", 0))
+                        opt_id = str(item.get("id", ""))
+                        effects_by_arb.setdefault(arb_idx, {})[opt_id] = {
+                            "health_delta":  int(item.get("h", 0)),
+                            "money_delta":   int(item.get("m", 0)),
+                            "sanity_delta":  int(item.get("s", 0)),
+                        }
+
+                    log.info(
+                        "M2Classifier: classified → entry_id=%d, effects for %d arb(s)",
+                        entry_id, len(effects_by_arb),
+                    )
+                    return entry_id, effects_by_arb, usage
 
             log.warning("M2Classifier: no tool_use block in response")
-            return _NO_MATCH_ID, usage
+            return _NO_MATCH_ID, {}, usage
 
         except Exception as exc:
             log.error("M2Classifier: classification failed: %s", exc)
-            return _NO_MATCH_ID, _empty_usage
+            return _NO_MATCH_ID, {}, _empty_usage
 
     def update_table_a(self, table_a_json: str) -> None:
         """Replace the cached Table A JSON (e.g. after offline regeneration)."""
         self._table_a_json = table_a_json
+
+    def update_table_c(self, table_c_json: str) -> None:
+        """Replace the cached Table C JSON (e.g. after campaign switch)."""
+        self._table_c_json = table_c_json

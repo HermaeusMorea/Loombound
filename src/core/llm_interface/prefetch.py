@@ -84,16 +84,26 @@ def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
     }
 
 
-def _merge_preloaded_seed(skeleton: Any, arc_row: Any) -> ArbitrationSeed:
-    """Blend a node skeleton from Table B with the runtime Table A tendency."""
+def _merge_preloaded_seed(
+    skeleton: Any,
+    arc_row: Any,
+    arb_idx: int = 0,
+    effects_by_arb: dict[int, dict[str, dict]] | None = None,
+) -> ArbitrationSeed:
+    """Blend a node skeleton from Table B with the runtime Table A tendency.
 
+    effects_by_arb: {arb_idx: {option_id: {health_delta, money_delta, sanity_delta}}}
+    When provided, these Opus-assigned values override Haiku's placeholder effects.
+    """
     raw_options = skeleton.options or []
+    arb_effects = (effects_by_arb or {}).get(arb_idx, {})
     arb_options = [
         ArbitrationOptionSeed(
             option_id=o.get("option_id", f"opt_{i}"),
             intent=o.get("intent", ""),
             tags=o.get("tags", []),
-            effects=o.get("effects", {}),
+            # Opus-assigned effects take priority; fall back to Haiku placeholder
+            effects=arb_effects.get(o.get("option_id", f"opt_{i}"), o.get("effects", {})),
         )
         for i, o in enumerate(raw_options)
     ]
@@ -364,7 +374,7 @@ class PrefetchCache:
         target_node_id: str,
         quasi: str,
         run_memory: RunMemory,
-    ) -> tuple[int, Any, Any] | None:
+    ) -> tuple[int, dict[int, dict[str, dict]], Any, Any] | None:
         """Run M2 Classifier and resolve Table A + Table B entries.
 
         Stores the m2_id in self._m2_result and marks the cache entry as failed
@@ -378,7 +388,7 @@ class PrefetchCache:
             "```",
         ])
 
-        m2_id, m2_usage = await self._m2_classifier.classify(quasi)  # type: ignore[union-attr]
+        m2_id, effects_by_arb, m2_usage = await self._m2_classifier.classify(quasi, target_node_id)  # type: ignore[union-attr]
         _inp = m2_usage.get('input', 0)
         _out = m2_usage.get('output', 0)
         _cr  = m2_usage.get('cache_read', 0)
@@ -429,6 +439,7 @@ class PrefetchCache:
             f"label: {node_entry.label}",
             f"map_blurb: {node_entry.map_blurb}",
             f"arbitrations: {len(node_entry.arbitrations)}",
+            f"effects assigned by opus: {sum(len(v) for v in effects_by_arb.values())} option(s)",
         ])
         _md_log([
             f"## [{_ts()}] RUNTIME ARC TENDENCY — node `{target_node_id}` entry_id={m2_id}",
@@ -438,7 +449,7 @@ class PrefetchCache:
             f"pending_intent: {arc_row.pending_intent}",
         ])
 
-        return m2_id, arc_row, node_entry
+        return m2_id, effects_by_arb, arc_row, node_entry
 
     async def _expand_arbitrations(
         self,
@@ -499,13 +510,13 @@ class PrefetchCache:
         result = await self._classify_node(target_node_id, quasi, run_memory)
         if result is None:
             return
-        m2_id, arc_row, node_entry = result
+        m2_id, effects_by_arb, arc_row, node_entry = result
 
-        # Step 2: merge Table B skeletons with arc tendency
+        # Step 2: merge Table B skeletons with arc tendency and Opus-assigned effects
         merged_seeds: list[ArbitrationSeed] = []
         for idx in range(arbitration_count):
             skeleton = node_entry.arbitrations[min(idx, len(node_entry.arbitrations) - 1)]
-            arb_seed = _merge_preloaded_seed(skeleton, arc_row)
+            arb_seed = _merge_preloaded_seed(skeleton, arc_row, arb_idx=idx, effects_by_arb=effects_by_arb)
             merged_seeds.append(arb_seed)
             arb_id = f"{target_node_id}_tb_{idx:02d}"
             _md_log([
