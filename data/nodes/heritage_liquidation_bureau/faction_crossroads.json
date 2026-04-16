@@ -1,0 +1,9 @@
+{
+  "node_id": "faction_crossroads:floor_03",
+  "node_type": "crossroads",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "你的短波收音机同时收到两份密电：改良派副局长命你'酌情减免、维系秩序'；清算派督察则要求你'严格执行、不留余地'。静电噪音中，你听见自己的心跳。"
+  },
+  "arbitrations": 1
+}

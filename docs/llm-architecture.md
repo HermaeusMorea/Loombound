@@ -187,14 +187,72 @@ M2 返回 `{"entry_id": N}` 或 `{"entry_id": -1}`（无匹配时降级到 autho
 ./loombound run --slow anthropic --lang zh
 ```
 
-### 成本参考（6 节点 campaign）
+### 成本分析
 
-| 步骤 | 模型 | 成本参考 |
+#### 实测数据：campaign "核战后遗址的审计员"（5 节点，11 次 arbitration）
+
+> 完整 LLM 日志与 `./loombound report` 输出见 [logs/heritage_liquidation_bureau_playthrough.md](../logs/heritage_liquidation_bureau_playthrough.md)。
+
+**离线阶段（一次性，所有玩家共享）**
+
+| 步骤 | 模型 | 实测花费 |
 |---|---|---|
-| Campaign 图 | Opus | ~$0.04 |
-| Table B | Haiku | ~$0.02 |
-| M2 分类 ×N 节点（cache 命中） | Opus | ~$0.002/节点 |
-| 场景文本展开 | gemma3 本地 | $0 |
+| Campaign 图生成 | Claude Opus | $0.0454 |
+| Table B 场景骨架生成 | Claude Haiku | $0.0166 |
+| **离线小计** | | **$0.0620** |
+
+**运行时（每次游玩）**
+
+| 步骤 | 模型 | 实测花费 | 详情 |
+|---|---|---|---|
+| M2 分类 × 5 节点（前 3 次并行，首次建立 cache） | Claude Opus | $0.0045 | input≈106–168 tokens, cache_created=4145 |
+| M2 分类 × 2 节点（后续预载，命中 cache） | Claude Opus | $0.0090 | input≈304 tokens, cache_read=4145, $0.0045/次 |
+| Fast Core 展开 × 11 arbitration | gemma3（本地） | **$0** | prompt=13,210 + eval=6,783 = 19,993 tokens |
+| **运行时小计** | | **$0.0135** | |
+
+**首次游玩总花费：$0.0754**
+
+M2 prompt cache 节省：~$0.0373（8,290 cache_read tokens，Table A 在并行调用后保持缓存热态）
+
+---
+
+#### 随游玩次数增加，均摊成本趋近于运行时极限
+
+离线成本一次性支出，随玩家增多被摊薄：
+
+| 游玩次数 | 总 API 花费 | 每次均摊 |
+|---|---|---|
+| 1 次 | $0.0754 | $0.0754 |
+| 10 次 | $0.197 | $0.0197 |
+| 100 次 | $1.42 | $0.0142 |
+| ∞ | — | **$0.0135** |
+
+**单局运行时极限成本：$0.0135**（仅 M2 分类，Fast Core 始终免费）
+
+---
+
+#### 假如用全 Opus 方案替换 Fast Core？
+
+这 11 次 arbitration 展开，Fast Core 平均每次生成 617 个 eval token，输入约 300 tokens。换成 Opus 的等效成本：
+
+```
+每次 arbitration：300 input + 617 output
+= 300 × $5/M + 617 × $25/M ≈ $0.017/次
+11 次合计 ≈ $0.187/局
+加上 M2：$0.0135
+全 Opus 单局运行时：≈ $0.20
+```
+
+| 游玩次数 | 当前架构 | 全 Opus 方案 | 倍率 |
+|---|---|---|---|
+| 1 次 | $0.075 | $0.24 | 3.2× |
+| 10 次 | $0.20 | $2.5 | 12.5× |
+| 100 次 | $1.42 | $20.5 | 14.4× |
+| 1000 次 | $13.6 | $200 | **14.7×** |
+
+随游玩规模扩大，三层架构的成本优势趋近于**稳定的 15 倍**——这是运行时成本比（$0.0135 vs $0.20）的直接体现。
+
+> **注意**：以上计算使用代码内置定价 $5/$25（对应 Claude 3 Opus）。实际 `claude-opus-4-6` 价格为 $15/$75，差距将扩大至约 **44×**。
 
 ---
 

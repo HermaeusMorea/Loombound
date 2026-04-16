@@ -1,0 +1,710 @@
+[
+  {
+    "node_id": "arrival_checkpoint",
+    "node_type": "threshold",
+    "label": "第十七废墟区检查站",
+    "map_blurb": "一座用生锈钢筋和旧公文柜搭成的岗亭横在废墟入口。值班员要求你出示三份不同颜色的通行证——其中两份的颜色已经在核战中绝迹了。",
+    "arbitrations": [
+      {
+        "scene_type": "threshold",
+        "scene_concept": "你在检查站前停下。值班员是个穿着褪色制服的中年人，他的身体一半陷在用旧公文柜和生锈钢筋搭成的岗亭里。他要求出示三份不同颜色的通行证，其中两份的颜色已经在核战中绝迹了。你的公文包里什么都有，就是没有这个。",
+        "sanity_axis": "规则的荒谬性与权力的压制——这些证件根本不存在，但它们的要求却绝对真实。你是在维护秩序，还是在参与一场无法停止的仪式？",
+        "options": [
+          {
+            "option_id": "opt_forge_documents",
+            "intent": "用破损的报纸和局里的红色印章伪造失踪的通行证。这违反了至少四十三条条例，但也许值班员根本不会看。",
+            "tags": [
+              "欺骗",
+              "规则违背",
+              "冒险"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": -15,
+              "add_conditions": [
+                "持证通过"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_appeal_to_protocol",
+            "intent": "引用《废墟估价手册（修订第三版）》第七章第三节，声称审计员的身份本身就是最高级别的通行权。用干燥的语气和值班员讨论条文的歧义。",
+            "tags": [
+              "官僚",
+              "权威",
+              "知识"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": -8,
+              "add_conditions": [
+                "持证通过"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "threshold",
+        "scene_concept": "值班员的反应取决于你的选择。无论哪种方式，他都会让开。但在你经过岗亭时，他会轻声说出一句话——可能是警告，可能是同情，你无法确定。他的眼神在褪色的制服下显得很深很冷。",
+        "sanity_axis": "权力的相似性——你和这个值班员其实没有区别，都在某个死去的系统里重复着无意义的动作。他的沉默比审查更令人不安。",
+        "options": [
+          {
+            "option_id": "opt_ignore_and_proceed",
+            "intent": "不理会他的话，直接进入废墟。你的时间有限，局里的电报还在公文包里压着。保持专业的冷漠。",
+            "tags": [
+              "冷漠",
+              "专业",
+              "压抑"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 0,
+              "add_conditions": [
+                "进入第十七废墟区"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_ask_for_meaning",
+            "intent": "停下来，转身看着他，问他刚才那句话的意思。这个举动会打破你作为审计员的距离感，但也许会换来某种真实的联系。",
+            "tags": [
+              "同情",
+              "人性",
+              "冒险"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 10,
+              "add_conditions": [
+                "进入第十七废墟区",
+                "值班员的信任"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "records_vault",
+    "node_type": "archive",
+    "label": "地下档案穹库",
+    "map_blurb": "检查站地下三层，数万份战前房产证和税务记录被整齐地堆叠在防辐射铅柜中。有人在档案间搭了一张行军床，旁边放着半杯已经结晶的茶。",
+    "arbitrations": [
+      {
+        "scene_type": "archive",
+        "scene_concept": "防辐射铅柜在苍白的荧光灯下排成整齐的网格。每一个柜子都被编号、标记、并用褪色的标签记录着年份和区域。档案间的空气干燥得像去了所有水分。在深处，你发现了那张行军床和那半杯已经结晶的茶——它的形状保留着某个人停止饮用的那一刻。",
+        "sanity_axis": "秩序与遗弃——这些档案是历史的尸体防腐剂。它们被保存得如此完美，却用来追债死去的人和活着的幸存者。你在扮演档案馆员还是掘墓人？",
+        "options": [
+          {
+            "option_id": "opt_systematic_audit",
+            "intent": "按照《废墟估价手册》的流程，逐个打开铅柜，核对房产证和税务记录。你会找到完整的审计线索——每一份文件都指向一个已经死亡或失踪的纳税人。用机械的程序填满空白税单。",
+            "tags": [
+              "专业",
+              "官僚",
+              "冷酷"
+            ],
+            "effects": {
+              "money_delta": 30,
+              "health_delta": 0,
+              "sanity_delta": -20,
+              "add_conditions": [
+                "获得审计数据"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_find_the_guardian",
+            "intent": "顺着行军床和茶杯的线索寻找这个藏在档案间的人。他可能有关于幸存者和他们的财产状况的信息。这会违反审计流程，但也许能获得更准确的数据。",
+            "tags": [
+              "调查",
+              "人性",
+              "冒险"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 5,
+              "add_conditions": [
+                "遇见档案守护者",
+                "获得审计数据"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "archive",
+        "scene_concept": "深入档案穹库的最深处，你发现了一个房间。房间的墙壁被用铅笔标记满了——密密麻麻的笔迹覆盖了整面墙。有些笔迹是工整的表格，有些是疯狂的涂鸦，有些是人名和日期——全是被审计的死者的名字。",
+        "sanity_axis": "疯狂与理性的界线——这些痕迹是某个人试图记住死者而留下的，还是试图忘记而反复确认的？你开始怀疑自己的目的：你在审计遗产，还是在参与某种集体的遗忘？",
+        "options": [
+          {
+            "option_id": "opt_document_the_wall",
+            "intent": "用你的断了尖的铅笔，将这些名字和数字抄到你的空白税单上。这些信息比档案文件更准确——这是活生生的记忆，而不是死的数据。",
+            "tags": [
+              "同情",
+              "调查",
+              "启蒙"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 15,
+              "add_conditions": [
+                "获得完整名单",
+                "心理负担"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_erase_the_wall",
+            "intent": "用你的手掌和袖子擦掉这些笔迹。这不是你的工作，这些死者已经无法对抗审计。清除证据，完成任务，离开。",
+            "tags": [
+              "冷漠",
+              "效率",
+              "压抑"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": -25,
+              "add_conditions": [
+                "隐瞒证据"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "survivor_settlement",
+    "node_type": "investigation",
+    "label": "幸存者定居点·旧商场",
+    "map_blurb": "一座坍塌了三分之二的商场里住着四十七名幸存者。他们用购物车搭建房屋，用旧收银台做饭桌。你到达时，一个孩子正用你局里的空白税单折纸飞机。",
+    "arbitrations": [
+      {
+        "scene_type": "investigation",
+        "scene_concept": "坍塌的商场内部。阳光从破裂的天花板泄下来，照亮了用购物车搭建的房屋。四十七名幸存者在这里生活——他们的生活很小，很紧凑。一个孩子正坐在地上，用你的空白税单折纸飞机。他的手很小，很脏，但很灵巧。他看着你，眼神里既有好奇，也有警惕。",
+        "sanity_axis": "无辜性与责任的冲突——这个孩子不知道税单的意义。对他来说，它只是一张白纸，一个折纸飞机的材料。但你知道它的真实用途。审计一个无法支付的幸存者定居点意味着什么？",
+        "options": [
+          {
+            "option_id": "opt_gentle_assessment",
+            "intent": "蹲下来，看着孩子的纸飞机。用温和的语气询问定居点的房产状况、人口统计和食物来源。你表现出的人性会让幸存者更愿意配合，同时也会让你的审计数据更完整。",
+            "tags": [
+              "同情",
+              "温和",
+              "有效"
+            ],
+            "effects": {
+              "money_delta": 15,
+              "health_delta": 0,
+              "sanity_delta": 10,
+              "add_conditions": [
+                "获得定居点信息",
+                "幸存者好感"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_formal_interrogation",
+            "intent": "直接走到定居点的中心，拿出你的空白税单和断了尖的铅笔，要求见领导者。用官僚的语言解释你的目的：财产评估、欠税计算、征收程序。这会更快地获得信息，但也会激起恐惧和抵触。",
+            "tags": [
+              "官僚",
+              "权威",
+              "冷酷"
+            ],
+            "effects": {
+              "money_delta": 20,
+              "health_delta": 0,
+              "sanity_delta": -15,
+              "add_conditions": [
+                "获得定居点信息",
+                "定居点警觉"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_ignore_and_observe",
+            "intent": "不主动接触任何人，而是在定居点里游走，观察他们的生活。你坐在一个角落，静静地看着他们如何处理资源、如何分配食物、如何组织社区。这样你会得到最真实的图景，但也会被视为陌生和可疑。",
+            "tags": [
+              "观察",
+              "距离",
+              "真实"
+            ],
+            "effects": {
+              "money_delta": 10,
+              "health_delta": 0,
+              "sanity_delta": 0,
+              "add_conditions": [
+                "获得真实观察",
+                "保持距离"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "investigation",
+        "scene_concept": "在定居点深处，你找到了他们的「房产证」——一个用旧购物清单、医疗记录和手写笔记组成的杂乱档案。没有一份是官方文件。他们用手工记录来声称对这个地方的所有权。这些记录显示，这个定居点已经稳定存在了十三年。",
+        "sanity_axis": "所有权的合法性——什么构成真正的房产所有权？一份战前的契约，还是十三年的实际占有和生存？你的《手册》无法回答这个问题，因为手册本身就是战前的。",
+        "options": [
+          {
+            "option_id": "opt_recognize_ownership",
+            "intent": "承认他们对这个定居点的实际所有权。在空白税单上，用你断了尖的铅笔写下：「基于占有时间和实际使用权，认可所有权申请」。这违反了官僚程序，但也许是唯一公平的选择。",
+            "tags": [
+              "同情",
+              "规则破坏",
+              "人性"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 20,
+              "add_conditions": [
+                "所有权认可",
+                "局里的不满"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_declare_property_unclaimed",
+            "intent": "根据官僚逻辑，这个地方没有正式的房产证，所以它在法律上是「无主的」。你可以宣布它为遗产清算局的公共财产，从而免除幸存者的任何税务责任——他们不是业主，而是「临时使用者」。这在技术上是合法的，但会改变他们的地位。",
+            "tags": [
+              "官僚",
+              "技巧",
+              "虚伪"
+            ],
+            "effects": {
+              "money_delta": 5,
+              "health_delta": 0,
+              "sanity_delta": -10,
+              "add_conditions": [
+                "地位改变"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_calculate_heavy_tax",
+            "intent": "将定居点估价为高价值不动产，计算十三年的欠税。这是合理的官僚行为。幸存者无法支付，但至少数字是正确的。这会迫使他们放弃这个地方，或者欠下一笔永久的债务。",
+            "tags": [
+              "官僚",
+              "冷漠",
+              "规则"
+            ],
+            "effects": {
+              "money_delta": 40,
+              "health_delta": 0,
+              "sanity_delta": -30,
+              "add_conditions": [
+                "高额税单",
+                "定居点危机"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "investigation",
+        "scene_concept": "当你准备离开定居点时，那个折纸飞机的孩子跑了过来。他把纸飞机交给你，说他在上面写了一个问题。你打开纸飞机，看到了用歪歪斜斜的字迹写的三个字：「你是谁？」不是「你叫什么」，而是「你是谁」。这个问题刺穿了你所有的官僚防御。",
+        "sanity_axis": "身份的碎裂——在这个时刻，你开始质疑自己。你是丙-4091号审计员，还是一个在废墟中执行不可执行任务的人？规则和怜悯之间的界线在消融。",
+        "options": [
+          {
+            "option_id": "opt_answer_truthfully",
+            "intent": "蹲下来，看着孩子的眼睛。用你干燥的、经过训练的声音说出真话：「我不知道。」然后将空白税单递给他，说他可以继续用它折纸飞机。这是对自己的认可，也是对官僚体制的放弃。",
+            "tags": [
+              "诚实",
+              "人性",
+              "觉醒"
+            ],
+            "effects": {
+              "money_delta": -10,
+              "health_delta": 0,
+              "sanity_delta": 25,
+              "add_conditions": [
+                "身份认知",
+                "局里的不满"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_answer_officially",
+            "intent": "站直身体，恢复你的官僚姿态。用公式化的语言回答：「我是遗产清算局派驻第十七废墟区的审计员，编号丙-4091。」将纸飞机还给他，然后转身离开。这是对规则的重新拥抱。",
+            "tags": [
+              "冷漠",
+              "规则",
+              "防御"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": -20,
+              "add_conditions": [
+                "官僚防御完整"
+              ]
+            }
+          },
+          {
+            "option_id": "opt_no_answer",
+            "intent": "不回答。只是拿过纸飞机，看着它，然后轻轻地放在地上，让它随着定居点的微风飘走。有些问题不应该被回答，有些时刻只需要沉默。",
+            "tags": [
+              "沉默",
+              "模糊",
+              "禅意"
+            ],
+            "effects": {
+              "money_delta": 0,
+              "health_delta": 0,
+              "sanity_delta": 15,
+              "add_conditions": [
+                "沉默的答案"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "faction_crossroads",
+    "node_type": "crossroads",
+    "label": "局内密电·两条路线",
+    "map_blurb": "你的短波收音机同时收到两份密电：改良派副局长命你'酌情减免、维系秩序'；清算派督察则要求你'严格执行、不留余地'。静电噪音中，你听见自己的心跳。",
+    "arbitrations": [
+      {
+        "scene_type": "crossroads",
+        "scene_concept": "短波收音机中传来两份互相矛盾的密电，副局长的嗡鸣音和督察的尖锐声频频干扰。你握着已经过期的手册，面对扭曲的选择——是维系虚伪的秩序，还是执行无情的清算。",
+        "sanity_axis": "权力的合法性在崩坏中失去意义，你成为了这种失效制度的化身。究竟是遵循哪一份密电，本质上都是对人性的背叛——这种道德困境正在侵蚀你对'正确'的最后认知。",
+        "options": [
+          {
+            "option_id": "改良派密电",
+            "intent": "采纳副局长指示，在审计中酌情减免，换取幸存者的信任与秩序的虚假稳定",
+            "tags": [
+              "compromise",
+              "mercy",
+              "bureaucratic_defiance"
+            ],
+            "effects": {
+              "sanity_delta": -8,
+              "money_delta": -200,
+              "health_delta": 0,
+              "add_conditions": [
+                "favor_reformist",
+                "falsified_records_pending"
+              ]
+            }
+          },
+          {
+            "option_id": "清算派密电",
+            "intent": "遵从督察命令，严格执行清算，即使知道这会摧毁幸存者最后的生存希望",
+            "tags": [
+              "authoritarian",
+              "ruthless",
+              "duty_bound"
+            ],
+            "effects": {
+              "sanity_delta": -15,
+              "money_delta": 500,
+              "health_delta": 0,
+              "add_conditions": [
+                "favor_liquidationist",
+                "audit_authority_maxed"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "black_market_annex",
+    "node_type": "market",
+    "label": "废墟黑市·旧邮局",
+    "map_blurb": "旧邮局的分拣大厅里，有人用战前邮票当货币，用过期罐头做抵押品。一个自称'前局员'的商人能帮你伪造审计报告——代价是你公文包里最后一份空白税单。",
+    "arbitrations": [
+      {
+        "scene_type": "market",
+        "scene_concept": "旧邮局的分拣大厅里，商人用战前邮票和过期罐头堆砌出一个诡异的交易场景。他提议伪造你的审计报告，条件是你献出最后一份空白税单——这份文件本应是你的保险与权力象征。",
+        "sanity_axis": "腐败的诱惑与制度性绝望的交汇点。如果连你这个'秩序的执行者'都开始造假，那么整个清算局体系的虚伪性就彻底暴露了。这种认知可能会加剧你对自我身份的怀疑。",
+        "options": [
+          {
+            "option_id": "接受伪造交易",
+            "intent": "用最后一份税单换取虚假的完美审计记录，向局里隐瞒真相，为自己换取苟活的机会",
+            "tags": [
+              "corruption",
+              "survival",
+              "documentation_fraud"
+            ],
+            "effects": {
+              "sanity_delta": -12,
+              "money_delta": 300,
+              "health_delta": 0,
+              "add_conditions": [
+                "falsified_audit_report",
+                "black_market_debt"
+              ]
+            }
+          },
+          {
+            "option_id": "拒绝交易，正面对峙",
+            "intent": "拒绝腐败的商人，宣称你仍然代表秩序与律法，即使这只是自欺欺人",
+            "tags": [
+              "integrity",
+              "bureaucratic_defiance",
+              "isolation"
+            ],
+            "effects": {
+              "sanity_delta": -6,
+              "money_delta": 0,
+              "health_delta": 0,
+              "add_conditions": [
+                "market_hostility",
+                "last_blank_form_retained"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "market",
+        "scene_concept": "在堆积的废墟纸张中，你发现了一份残缺的旧档案——这是三百年前清算局对某个死去城市的审计记录。字迹褪色，数字如同墓志铭。商人注视着你，等待你做出选择。",
+        "sanity_axis": "历史的循环与个人责任的虚无。你意识到你所做的一切，可能只是在重复某个已被遗忘的悲剧——这种时间感的崩坏会让你质疑当下行动的意义。",
+        "options": [
+          {
+            "option_id": "研究古档案",
+            "intent": "花费时间研究这份三百年前的审计记录，试图从历史中寻求某种救赎或警示",
+            "tags": [
+              "historical_awareness",
+              "introspection",
+              "knowledge_burden"
+            ],
+            "effects": {
+              "sanity_delta": -10,
+              "money_delta": 0,
+              "health_delta": -5,
+              "add_conditions": [
+                "historical_trauma",
+                "cycle_awareness"
+              ]
+            }
+          },
+          {
+            "option_id": "焚毁档案，遗忘过去",
+            "intent": "用商人递上的火焰烧毁这份记录，拒绝承受历史的重量，选择当下的行动而非过去的教训",
+            "tags": [
+              "denial",
+              "action_over_reflection",
+              "destructive"
+            ],
+            "effects": {
+              "sanity_delta": -9,
+              "money_delta": 0,
+              "health_delta": 0,
+              "add_conditions": [
+                "past_destroyed",
+                "action_locked"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "node_id": "final_audit",
+    "node_type": "ritual",
+    "label": "最终审计·废墟中央广场",
+    "map_blurb": "广场中央，一张从瓦砾中刨出来的橡木办公桌被擦得一尘不染。幸存者们围坐四周，等待你宣读审计结果。风吹起地上的灰尘和碎纸片，像某种古老的、无人记得的仪式。",
+    "arbitrations": [
+      {
+        "scene_type": "ritual",
+        "scene_concept": "清晨的广场上，那张从瓦砾中清理出来的橡木办公桌被擦得无尘。幸存者们坐成半圆形，他们的眼神混合着希望与恐惧。你坐在桌后，手中的三份（或更少）税单就像某种判决书。风吹起地上的灰尘，形成旋涡。",
+        "sanity_axis": "权力与责任的最终对峙。你被迫以'秩序执行者'的身份，在众人面前宣读一份本质上是绝望的判决。这种被迫的权力行使，与你对受害者的同情之间的冲突，会在这一刻达到极限。",
+        "options": [
+          {
+            "option_id": "严厉征税",
+            "intent": "按照清算派的标准，对幸存者进行最大程度的征税，即使知道这会摧毁他们最后的生存资源",
+            "tags": [
+              "authoritarian_execution",
+              "system_loyalty",
+              "cruelty"
+            ],
+            "effects": {
+              "sanity_delta": -20,
+              "money_delta": 800,
+              "health_delta": 0,
+              "add_conditions": [
+                "audit_completed_ruthless",
+                "survivor_hostility"
+              ]
+            }
+          },
+          {
+            "option_id": "适度减免",
+            "intent": "在改良派的框架内，进行符合人性的减免，维持幸存者与制度间的最后一丝信任",
+            "tags": [
+              "compassion",
+              "system_within_bounds",
+              "sustainable"
+            ],
+            "effects": {
+              "sanity_delta": -10,
+              "money_delta": 300,
+              "health_delta": 0,
+              "add_conditions": [
+                "audit_completed_merciful",
+                "survivor_gratitude"
+              ]
+            }
+          },
+          {
+            "option_id": "撕毁所有税单，宣布制度崩坏",
+            "intent": "在最后一刻，放弃你的身份与职责，当众撕毁税单，宣称整个清算局体系已经无效，拒绝再充当这个机器的齿轮",
+            "tags": [
+              "system_rejection",
+              "moral_breaking_point",
+              "rebellion"
+            ],
+            "effects": {
+              "sanity_delta": -18,
+              "money_delta": -500,
+              "health_delta": 0,
+              "add_conditions": [
+                "audit_rejected",
+                "fugitive_status",
+                "conscience_cleared"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "ritual",
+        "scene_concept": "一个年迈的幸存者向前走来，他曾是局里的档案员。他指着你手中的过期手册，用颤抖的声音问：'这本书里，有什么能拯救我们吗？'他的问题不是在问税收，而是在问救赎是否存在。",
+        "sanity_axis": "个体良知与体制暴力的直接碰撞。这个老人代表了制度本身的另一个被损坏的齿轮，他的提问激发了你对自己行为道德性的深层怀疑——也许根本不存在'正确的秩序'。",
+        "options": [
+          {
+            "option_id": "诚实回答：手册已过期",
+            "intent": "告诉老人真实的情况——这本手册已经过期两百年，其中没有任何能拯救任何人的东西，包括秩序本身",
+            "tags": [
+              "honesty",
+              "nihilism",
+              "shared_despair"
+            ],
+            "effects": {
+              "sanity_delta": -14,
+              "money_delta": 0,
+              "health_delta": 0,
+              "add_conditions": [
+                "truth_spoken",
+                "elder_solidarity"
+              ]
+            }
+          },
+          {
+            "option_id": "给予虚假的希望",
+            "intent": "为了减轻老人的痛苦，告诉他手册里有救赎的办法，即使你知道这是谎言",
+            "tags": [
+              "compassionate_deception",
+              "mercy_through_lies",
+              "complicity"
+            ],
+            "effects": {
+              "sanity_delta": -11,
+              "money_delta": 0,
+              "health_delta": 0,
+              "add_conditions": [
+                "comforting_lie_spoken",
+                "elder_peace"
+              ]
+            }
+          },
+          {
+            "option_id": "沉默，将手册递给老人",
+            "intent": "不说话，只是把那本过期的手册递给老人，让他自己去寻找答案——这种沉默可能比任何话语都更深刻",
+            "tags": [
+              "silence",
+              "abdication",
+              "open_interpretation"
+            ],
+            "effects": {
+              "sanity_delta": -16,
+              "money_delta": 0,
+              "health_delta": 0,
+              "add_conditions": [
+                "silence_maintained",
+                "manual_passed_on"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "ritual",
+        "scene_concept": "当你准备签署最后的审计认可书时，你的手开始颤抖。纸张、笔、印章——这些符号本应代表秩序，现在却像某种诅咒的仪式。幸存者们的目光落在你的手上，等待你完成这个动作。",
+        "sanity_axis": "行为与自我认知的最终分裂。签署这份文件意味着你正式确认了自己是这个体系的执行者，这个动作会让你无法否认自己的同谋地位。你正在目睹自己成为历史记录中的某个冷漠的名字。",
+        "options": [
+          {
+            "option_id": "签署认可书，完成职责",
+            "intent": "尽管内心充满怀疑，你仍然签署了认可书，完成了作为审计员的最后职责，向制度低头",
+            "tags": [
+              "duty_completion",
+              "resignation",
+              "compromise_finalized"
+            ],
+            "effects": {
+              "sanity_delta": -17,
+              "money_delta": 200,
+              "health_delta": 0,
+              "add_conditions": [
+                "audit_finalized",
+                "complicity_formalized"
+              ]
+            }
+          },
+          {
+            "option_id": "拒绝签署，将笔折断",
+            "intent": "在最后关头，你拒绝签署，将笔折断在桌上，宣称你不再是这个体系的一部分",
+            "tags": [
+              "rebellion",
+              "final_break",
+              "uncertainty"
+            ],
+            "effects": {
+              "sanity_delta": -19,
+              "money_delta": -300,
+              "health_delta": 0,
+              "add_conditions": [
+                "audit_unsigned",
+                "breakaway_initiated"
+              ]
+            }
+          },
+          {
+            "option_id": "在签署前，摘下你的工作证",
+            "intent": "你先摘下象征身份的工作证，放在桌上，然后用颤抖的手签署——这个动作既完成了职责，又宣示了某种道德上的弃权",
+            "tags": [
+              "identity_renunciation",
+              "complicity_with_reservation",
+              "ambiguity"
+            ],
+            "effects": {
+              "sanity_delta": -15,
+              "money_delta": 200,
+              "health_delta": 0,
+              "add_conditions": [
+                "identity_surrendered",
+                "moral_distance_created"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

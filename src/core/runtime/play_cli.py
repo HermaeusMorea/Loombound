@@ -329,9 +329,8 @@ def _collect_lookahead_targets(campaign: dict[str, object], next_nodes: list[str
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Play a small Loombound CLI campaign.")
+    parser = argparse.ArgumentParser(description="Play a Loombound campaign. Requires ANTHROPIC_API_KEY and ollama (gemma3:4b).")
     parser.add_argument("--campaign", type=Path, default=DEFAULT_CAMPAIGN, help="Path to a campaign JSON file.")
-    parser.add_argument("--llm", action="store_true", help="Enable LLM prefetch (requires API key and ollama).")
     parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
     parser.add_argument(
@@ -360,57 +359,68 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # --- Startup checks ---
+    provider = args.slow_provider or os.environ.get("SLOW_CORE_PROVIDER", "anthropic")
+    api_key = (
+        os.environ.get("SLOW_CORE_API_KEY")
+        or os.environ.get(api_key_env_for(provider))
+    )
+    if not api_key:
+        env_var = api_key_env_for(provider)
+        print(
+            f"Error: {env_var} is not set.\n"
+            f"Loombound requires a Claude API key to run.\n"
+            f"Set it in .env: {env_var}=sk-ant-...",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=logging.WARNING,
+        format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
+    )
+
     campaign = load_json_asset(args.campaign)
     rules = load_rules(RULES_PATH)
     templates = load_templates(TEXT_PATH)
     run = make_run(campaign)
     run.rule_system.set_templates(rules)
 
-    prefetch: PrefetchCache | None = None
-    if args.llm:
-        logging.basicConfig(
-            stream=sys.stderr,
-            level=logging.WARNING,
-            format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
+    slow_cfg = _make_slow_cfg(args)
+    slow_cfg.lang = args.lang
+    slow_cfg.tone = campaign.get("tone") or None
+
+    fast_model = (
+        args.fast_model
+        or os.environ.get("FAST_CORE_MODEL", "gemma3:4b")
+    )
+    fast_cfg = FastCoreConfig(
+        model=fast_model,
+        lang=args.lang,
+        tone=campaign.get("tone") or None,
+    )
+
+    # Load M2 tables if available
+    campaign_dir = REPO_ROOT / "data" / "nodes" / campaign.get("campaign_id", "")
+    table_b_path = campaign_dir / "table_b.json"
+
+    if TABLE_A_PATH.exists():
+        run.memory.m2.load_table_a(TABLE_A_PATH)
+    if table_b_path.exists():
+        run.memory.m2.load_table_b(table_b_path)
+
+    # Build M2Classifier if Table A is loaded (provides the cached prefix)
+    m2_classifier: M2Classifier | None = None
+    if run.memory.m2.table_a:
+        m2_cfg = M2ClassifierConfig(api_key=api_key)
+        m2_classifier = M2Classifier(
+            config=m2_cfg,
+            table_a_json=run.memory.m2.table_a_prompt_json(),
         )
-        slow_cfg = _make_slow_cfg(args)
-        slow_cfg.lang = args.lang
-        slow_cfg.tone = campaign.get("tone") or None
 
-        fast_model = (
-            args.fast_model
-            or os.environ.get("FAST_CORE_MODEL", "gemma3:4b")
-        )
-        fast_cfg = FastCoreConfig(
-            model=fast_model,
-            lang=args.lang,
-            tone=campaign.get("tone") or None,
-        )
-
-        # Load M2 tables if available
-        campaign_dir = REPO_ROOT / "data" / "nodes" / campaign.get("campaign_id", "")
-        table_b_path = campaign_dir / "table_b.json"
-
-        if TABLE_A_PATH.exists():
-            run.memory.m2.load_table_a(TABLE_A_PATH)
-        if table_b_path.exists():
-            run.memory.m2.load_table_b(table_b_path)
-
-        # Build M2Classifier if Table A is loaded (provides the cached prefix)
-        m2_classifier: M2Classifier | None = None
-        if run.memory.m2.table_a:
-            anthropic_key = (
-                os.environ.get("SLOW_CORE_API_KEY")
-                or os.environ.get("ANTHROPIC_API_KEY")
-            )
-            m2_cfg = M2ClassifierConfig(api_key=anthropic_key)
-            m2_classifier = M2Classifier(
-                config=m2_cfg,
-                table_a_json=run.memory.m2.table_a_prompt_json(),
-            )
-
-        prefetch = PrefetchCache(slow_cfg=slow_cfg, fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
-        prefetch.warmup()
+    prefetch = PrefetchCache(slow_cfg=slow_cfg, fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
+    prefetch.warmup()
 
     render_run_intro(campaign)
     pause("Press Enter to step onto the road...")
@@ -422,16 +432,15 @@ def main() -> None:
             campaign_node = campaign["nodes"][current_node_id]
 
             # Apply any pending M2 classification result from the previous node's prefetch
-            if prefetch:
-                m2_id = prefetch.pop_m2_id(current_node_id)
-                if m2_id is not None:
-                    run.memory.m2.update(current_node_id, m2_id)
+            m2_id = prefetch.pop_m2_id(current_node_id)
+            if m2_id is not None:
+                run.memory.m2.update(current_node_id, m2_id)
 
             # Determine next nodes now so we can trigger prefetch for all of them
             next_nodes = campaign_node.get("next_nodes", [])
 
             # Trigger background generation for each candidate next node
-            if prefetch and next_nodes:
+            if next_nodes:
                 _prefetch_targets(
                     prefetch=prefetch,
                     campaign=campaign,
@@ -450,7 +459,7 @@ def main() -> None:
             )
             nodes_played += 1
 
-            if prefetch and next_nodes:
+            if next_nodes:
                 lookahead_targets = _collect_lookahead_targets(campaign, next_nodes)
                 _prefetch_targets(
                     prefetch=prefetch,

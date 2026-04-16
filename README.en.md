@@ -7,13 +7,8 @@ A roguelite narrative engine driven by a three-layer AI architecture.
 ## Quick Start
 
 ```bash
-# --- No API key needed ---
-# Play the built-in authored demo campaign (3 nodes, no LLM required)
-cp .env.example .env
-./loombound run
-
-# --- Full LLM experience ---
 # Prerequisites: ANTHROPIC_API_KEY in .env + ollama running: ollama pull gemma3:4b
+cp .env.example .env   # fill in ANTHROPIC_API_KEY
 
 # 1. One-time global setup — generate the arc-state palette (skip if data/m2_table_a.json already exists)
 ./loombound arc-palette
@@ -25,14 +20,14 @@ cp .env.example .env
 
 # 3. Play (preloaded path: Claude arc classification + gemma3 local text expansion)
 # --lang zh generates Chinese scene text; omit for English (default)
-./loombound run --slow anthropic             # English
-./loombound run --slow anthropic --lang zh   # Chinese
+./loombound run             # English
+./loombound run --lang zh   # Chinese
 
 # Specify a campaign
-./loombound run --campaign hunters_night_yharnam_last_lucid --slow anthropic --lang zh
+./loombound run --campaign hunters_night_yharnam_last_lucid --lang zh
 
 # Limit nodes for testing
-./loombound run --slow anthropic --nodes 2 --lang zh
+./loombound run --nodes 2 --lang zh
 ```
 
 ---
@@ -48,6 +43,21 @@ cp .env.example .env
 | **Runtime** | gemma3:4b (local) | Fast Core: Table B skeleton + arc state tendency → full scene text |
 
 Only `ANTHROPIC_API_KEY` + ollama (local gemma3) required.
+
+### Cost Efficiency
+
+The core benefit of the three-layer design is **moving high-frequency runtime scene expansion off the API and onto local compute**.
+
+| Approach | Runtime cost per play | 100-play total |
+|---|---|---|
+| Current (M2 + local Fast Core) | ~$0.013 | ~$1.4 |
+| Opus-only (replace Fast Core) | ~$0.20 | ~$20 |
+| **Gap** | | **~15×** |
+
+These numbers come from a real run: campaign "Heritage Liquidation Bureau" (5 nodes, 11 scene expansions), total spend $0.075, of which runtime was only $0.013. As player count grows, the one-time offline cost is amortized away and the gap stabilizes at **15–44×** (depending on Opus version pricing).
+
+→ Full log and per-node data: [logs/heritage_liquidation_bureau_playthrough.md](logs/heritage_liquidation_bureau_playthrough.md)  
+→ Full cost breakdown: [docs/llm-architecture.en.md](docs/llm-architecture.en.md#cost-analysis)
 
 ### Data Files
 
@@ -74,9 +84,9 @@ Only `ANTHROPIC_API_KEY` + ollama (local gemma3) required.
 ./loombound gen "theme" --worldview "..."  # Set worldview / setting
 ./loombound gen "theme" --model deepseek   # Use DeepSeek for campaign graph
 
-./loombound run --slow anthropic           # Recommended: preloaded path
-./loombound run --slow anthropic --lang zh # Chinese content
-./loombound run                            # Authored content only, no LLM
+./loombound run                            # Launch game (requires ANTHROPIC_API_KEY + ollama)
+./loombound run --lang zh                  # Chinese content
+./loombound run --slow deepseek            # Use a different Slow Core provider
 
 ./loombound report                         # Token usage / cost for latest run
 ./loombound report --campaign ID
@@ -94,9 +104,8 @@ Only `ANTHROPIC_API_KEY` + ollama (local gemma3) required.
 cp .env.example .env   # then fill in your API keys
 ```
 
-- `ANTHROPIC_API_KEY` in `.env` — required for LLM features (`gen`, `run --slow anthropic`)
-- ollama running (`ollama serve`) with `ollama pull gemma3:4b` — required for `run --slow anthropic`
-- No keys or local models needed for `./loombound run` (authored demo)
+- `ANTHROPIC_API_KEY` in `.env` — required for both `gen` and `run`
+- ollama running (`ollama serve`) with `ollama pull gemma3:4b` — required for `run` (Fast Core local expansion)
 
 ### Supported Campaign Graph Providers (`--model`)
 

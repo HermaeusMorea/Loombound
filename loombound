@@ -168,10 +168,8 @@ case "$subcmd" in
         done
 
         py_args=("${passthrough[@]+"${passthrough[@]}"}")
-        if [[ -n "$slow_provider" ]]; then
-            py_args+=(--llm --slow-provider "$slow_provider")
-            [[ -n "$slow_model" ]] && py_args+=(--slow-model "$slow_model")
-        fi
+        [[ -n "$slow_provider" ]] && py_args+=(--slow-provider "$slow_provider")
+        [[ -n "$slow_model" ]] && py_args+=(--slow-model "$slow_model")
         [[ -n "$fast_model" ]] && py_args+=(--fast "$fast_model")
 
         exec "$PYTHON" -m src.core.runtime.play_cli "${py_args[@]+"${py_args[@]}"}"

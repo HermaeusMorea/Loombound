@@ -1,0 +1,80 @@
+{
+  "campaign_id": "heritage_liquidation_bureau",
+  "title": "遗产清算局：第七次废墟审计",
+  "intro": "你是遗产清算局派驻第十七废墟区的审计员，编号丙-4091。你的公文包里装着三份空白税单、一支断了尖的铅笔、以及一本已经过期两百年的《废墟估价手册（修订第三版）》。局里的电报说得很清楚：完成审计，征收税款，否则你自己就会被列入清算名单。",
+  "tone": "卡夫卡式官僚荒诞与末世废土的融合。基调是灰尘、发黄纸张、盖满红色印章的表格、以及在瓦砾堆上一丝不苟执行已无意义规则的黑色幽默。意象应反复出现：锈蚀的档案柜、用废墟碎砖搭建的办公桌、幸存者对着税单困惑的眼神、以及审计员内心深处对\"秩序\"与\"暴政\"边界的动摇。语气克制、干燥、偶尔流露出压抑的悲悯，像一份写得过于详尽的验尸报告。",
+  "initial_core_state": {
+    "health": 80,
+    "max_health": 100,
+    "money": 15,
+    "sanity": 70,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "arrival_checkpoint",
+  "nodes": {
+    "arrival_checkpoint": {
+      "label": "第十七废墟区检查站",
+      "map_blurb": "一座用生锈钢筋和旧公文柜搭成的岗亭横在废墟入口。值班员要求你出示三份不同颜色的通行证——其中两份的颜色已经在核战中绝迹了。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/arrival_checkpoint.json",
+      "next_nodes": [
+        "records_vault",
+        "survivor_settlement"
+      ]
+    },
+    "records_vault": {
+      "label": "地下档案穹库",
+      "map_blurb": "检查站地下三层，数万份战前房产证和税务记录被整齐地堆叠在防辐射铅柜中。有人在档案间搭了一张行军床，旁边放着半杯已经结晶的茶。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/records_vault.json",
+      "next_nodes": [
+        "faction_crossroads"
+      ]
+    },
+    "survivor_settlement": {
+      "label": "幸存者定居点·旧商场",
+      "map_blurb": "一座坍塌了三分之二的商场里住着四十七名幸存者。他们用购物车搭建房屋，用旧收银台做饭桌。你到达时，一个孩子正用你局里的空白税单折纸飞机。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/survivor_settlement.json",
+      "next_nodes": [
+        "faction_crossroads"
+      ]
+    },
+    "faction_crossroads": {
+      "label": "局内密电·两条路线",
+      "map_blurb": "你的短波收音机同时收到两份密电：改良派副局长命你'酌情减免、维系秩序'；清算派督察则要求你'严格执行、不留余地'。静电噪音中，你听见自己的心跳。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/faction_crossroads.json",
+      "next_nodes": [
+        "black_market_annex",
+        "final_audit"
+      ]
+    },
+    "black_market_annex": {
+      "label": "废墟黑市·旧邮局",
+      "map_blurb": "旧邮局的分拣大厅里，有人用战前邮票当货币，用过期罐头做抵押品。一个自称'前局员'的商人能帮你伪造审计报告——代价是你公文包里最后一份空白税单。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/black_market_annex.json",
+      "next_nodes": [
+        "final_audit"
+      ]
+    },
+    "final_audit": {
+      "label": "最终审计·废墟中央广场",
+      "map_blurb": "广场中央，一张从瓦砾中刨出来的橡木办公桌被擦得一尘不染。幸存者们围坐四周，等待你宣读审计结果。风吹起地上的灰尘和碎纸片，像某种古老的、无人记得的仪式。",
+      "node_file": "data/nodes/heritage_liquidation_bureau/final_audit.json",
+      "next_nodes": []
+    }
+  },
+  "generation_context": {
+    "theme": "核战后遗址的审计员",
+    "language": "zh",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tone_hint": "卡夫卡式荒诞，纸张气息，旧世界的官僚体系在瓦砾上继续运转",
+    "worldview_hint": "文明崩塌200年后，唯一存活的政府机构是'遗产清算局'——专门评估废墟价值、向幸存者征收'生存税'。局内分两派：改良派认为规则保住了秩序，清算派认为规则本身就是暴政。"
+  }
+}

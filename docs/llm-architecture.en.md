@@ -187,14 +187,72 @@ M2 returns `{"entry_id": N}` or `{"entry_id": -1}` (falls back to authored conte
 ./loombound run --slow anthropic --lang zh
 ```
 
-### Cost Reference (6-node campaign)
+### Cost Analysis
 
-| Step | Model | Cost reference |
+#### Real data: campaign "Heritage Liquidation Bureau" (5 nodes, 11 arbitrations)
+
+> Full LLM log and `./loombound report` output: [logs/heritage_liquidation_bureau_playthrough.md](../logs/heritage_liquidation_bureau_playthrough.md)
+
+**Offline phase (one-time, amortized across all players)**
+
+| Step | Model | Actual cost |
 |---|---|---|
-| Campaign graph | Opus | ~$0.04 |
-| Table B | Haiku | ~$0.02 |
-| M2 classification ×N nodes (cache hit) | Opus | ~$0.002/node |
-| Scene text expansion | gemma3 local | $0 |
+| Campaign graph generation | Claude Opus | $0.0454 |
+| Table B scene skeleton generation | Claude Haiku | $0.0166 |
+| **Offline subtotal** | | **$0.0620** |
+
+**Runtime (per play)**
+
+| Step | Model | Actual cost | Details |
+|---|---|---|---|
+| M2 classification × 3 nodes (parallel, first-time cache_created) | Claude Opus | $0.0045 | input ≈ 106–168 tokens, cache_created=4145 |
+| M2 classification × 2 nodes (later preload, cache_read hit) | Claude Opus | $0.0090 | input ≈ 304 tokens, cache_read=4145, $0.0045/call |
+| Fast Core expansion × 11 arbitrations | gemma3 (local) | **$0** | prompt=13,210 + eval=6,783 = 19,993 tokens |
+| **Runtime subtotal** | | **$0.0135** | |
+
+**First play total: $0.0754**
+
+M2 prompt cache savings: ~$0.0373 (8,290 cache_read tokens — Table A stays warm after the initial parallel calls build it)
+
+---
+
+#### Cost per play approaches the runtime floor as player count grows
+
+The offline cost is one-time and amortizes across all players:
+
+| Plays | Total API spend | Per-play average |
+|---|---|---|
+| 1 | $0.0754 | $0.0754 |
+| 10 | $0.197 | $0.0197 |
+| 100 | $1.42 | $0.0142 |
+| ∞ | — | **$0.0135** |
+
+**Runtime floor: $0.0135 per play** (M2 classification only — Fast Core is always free)
+
+---
+
+#### What if Fast Core were replaced with Opus?
+
+These 11 arbitration expansions averaged 617 eval tokens each, with roughly 300 tokens of input. The Opus-equivalent cost:
+
+```
+Per arbitration: 300 input + 617 output
+= 300 × $5/M + 617 × $25/M ≈ $0.017
+11 arbitrations ≈ $0.187/play
++ M2: $0.0135
+Opus-only runtime per play: ≈ $0.20
+```
+
+| Plays | Current architecture | Opus-only | Ratio |
+|---|---|---|---|
+| 1 | $0.075 | $0.24 | 3.2× |
+| 10 | $0.20 | $2.5 | 12.5× |
+| 100 | $1.42 | $20.5 | 14.4× |
+| 1000 | $13.6 | $200 | **14.7×** |
+
+As player count scales, the cost advantage stabilizes at **~15×** — a direct consequence of the runtime cost ratio ($0.0135 vs $0.20).
+
+> **Note:** The calculations above use the pricing constants in the codebase ($5/$25, matching Claude 3 Opus). The actual `claude-opus-4-6` price is $15/$75; at real prices the gap is approximately **44×**.
 
 ---
 

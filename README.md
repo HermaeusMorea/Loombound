@@ -7,13 +7,8 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 ## 快速开始
 
 ```bash
-# --- 无需 API Key ---
-# 运行内置 authored demo campaign（3 节点，无需 LLM）
-cp .env.example .env
-./loombound run
-
-# --- 完整 LLM 体验 ---
 # 前置条件：.env 里有 ANTHROPIC_API_KEY，ollama 在跑：ollama pull gemma3:4b
+cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 
 # 1. 一次性全局设置（已有 data/m2_table_a.json 则跳过）
 ./loombound arc-palette
@@ -25,14 +20,14 @@ cp .env.example .env
 
 # 3. 启动游戏（预载路径：Claude arc 分类 + gemma3 本地展开）
 # --lang zh 生成中文场景文字；省略则默认英文
-./loombound run --slow anthropic --lang zh   # 中文
-./loombound run --slow anthropic             # English
+./loombound run --lang zh   # 中文
+./loombound run             # English
 
 # 指定 campaign
-./loombound run --campaign hunters_night_yharnam_last_lucid --slow anthropic --lang zh
+./loombound run --campaign hunters_night_yharnam_last_lucid --lang zh
 
 # 测试用：限制节点数
-./loombound run --slow anthropic --nodes 2 --lang zh
+./loombound run --nodes 2 --lang zh
 ```
 
 ---
@@ -48,6 +43,21 @@ cp .env.example .env
 | **运行时** | gemma3:4b（本地） | Fast Core：Table B 骨架 + arc state 倾向 → 展开完整场景文字 |
 
 全程只需要 `ANTHROPIC_API_KEY` + ollama（本地 gemma3）。
+
+### 成本效率
+
+三层架构的核心收益是**把高频的运行时场景展开从 API 调用变成本地计算**。
+
+| 方案 | 单局运行时成本 | 100 局总花费 |
+|---|---|---|
+| 当前架构（M2 + 本地 Fast Core） | ~$0.013 | ~$1.4 |
+| 全 Opus 方案（替换 Fast Core） | ~$0.20 | ~$20 |
+| **差距** | | **~15×** |
+
+数据来自实测：campaign "核战后遗址的审计员"（5 节点，11 次场景展开），总花费 $0.075，其中运行时仅 $0.013。随游玩规模扩大，离线成本被摊薄，差距稳定在 **15–44×**（取决于 Opus 版本定价）。
+
+→ 完整日志与逐节点数据：[logs/heritage_liquidation_bureau_playthrough.md](logs/heritage_liquidation_bureau_playthrough.md)  
+→ 详细推算过程：[docs/llm-architecture.md](docs/llm-architecture.md#成本分析)
 
 ### 数据文件
 
@@ -73,9 +83,9 @@ cp .env.example .env
 ./loombound gen "theme" --worldview "..."  # 指定世界观
 ./loombound gen "theme" --model deepseek   # 用 DeepSeek 生成 campaign 图
 
-./loombound run --slow anthropic           # 推荐：预载路径
-./loombound run --slow anthropic --lang zh # 中文内容
-./loombound run                            # 纯 authored 内容，不用 LLM
+./loombound run                            # 启动游戏（需要 ANTHROPIC_API_KEY + ollama）
+./loombound run --lang zh                  # 中文内容
+./loombound run --slow deepseek            # 切换 Slow Core provider
 
 ./loombound report                         # 最新一轮 token 用量 / 成本
 ./loombound report --campaign ID
@@ -93,9 +103,8 @@ cp .env.example .env
 cp .env.example .env   # 填入需要的 API key
 ```
 
-- `ANTHROPIC_API_KEY` — LLM 功能（`gen`、`run --slow anthropic`）需要
-- ollama 在跑（`ollama serve`），已下载 `ollama pull gemma3:4b` — `run --slow anthropic` 需要
-- `./loombound run`（authored demo）无需任何 key 或本地模型
+- `ANTHROPIC_API_KEY` — 必须，`gen` 和 `run` 都需要
+- ollama 在跑（`ollama serve`），已下载 `ollama pull gemma3:4b` — `run` 需要（Fast Core 本地展开）
 
 ### 支持的 Campaign 图 Provider（`--model`）
 

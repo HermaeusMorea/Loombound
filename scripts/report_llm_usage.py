@@ -57,7 +57,7 @@ RE_SLOW_RESPONSE = re.compile(
     r"\((?P<idx>\d+)/(?P<total>\d+)\)$"
 )
 RE_FAST_RESPONSE = re.compile(
-    r"^## \[(?P<ts>[^\]]+)\] FAST CORE RESPONSE(?: \(preloaded\))? — `(?P<arb>[^`]+)`$"
+    r"^## \[(?P<ts>[^\]]+)\] FAST CORE RESPONSE(?: \([^)]+\))? — `(?P<arb>[^`]+)`$"
 )
 RE_M2_REQUEST  = re.compile(r"^## \[(?P<ts>[^\]]+)\] M2 CLASSIFIER REQUEST — node `(?P<node>[^`]+)`$")
 RE_M2_RESPONSE = re.compile(

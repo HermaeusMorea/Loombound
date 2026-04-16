@@ -1,0 +1,9 @@
+{
+  "node_id": "black_market_annex:floor_04",
+  "node_type": "market",
+  "floor": 4,
+  "metadata": {
+    "scene_summary": "旧邮局的分拣大厅里，有人用战前邮票当货币，用过期罐头做抵押品。一个自称'前局员'的商人能帮你伪造审计报告——代价是你公文包里最后一份空白税单。"
+  },
+  "arbitrations": 2
+}
