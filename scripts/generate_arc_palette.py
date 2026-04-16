@@ -191,7 +191,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate global arc-state palette (M2 Table A).")
     parser.add_argument("--count", type=int, default=50, help="Target number of entries (default: 50).")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output JSON path.")
+    parser.add_argument("--force", action="store_true",
+                        help="Overwrite existing palette without prompting.")
     args = parser.parse_args()
+
+    if args.output.exists() and not args.force:
+        print(f"Arc palette already exists at {args.output}. Use --force to regenerate.")
+        import sys; sys.exit(0)
 
     entries = generate(count=args.count)
 

@@ -1,0 +1,12 @@
+{
+  "node_id": "archive_vault:floor_03",
+  "node_type": "archive",
+  "floor": 3,
+  "metadata": {
+    "scene_summary": "The lower archive vault. Half the shelves are under water, the paper long-ruined. The sealed ledger section is dry — and one ledger is murmuring from inside its wax seal. Behind it, a curator's tray holds objects that were clearly not there before the flood."
+  },
+  "arbitrations": [
+    { "file": "data/arbitrations/whisper_offer/whisper_offer_01.json" },
+    { "file": "data/arbitrations/artifact_offer/artifact_offer_01.json" }
+  ]
+}

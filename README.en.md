@@ -7,11 +7,15 @@ A roguelite narrative engine driven by a three-layer AI architecture.
 ## Quick Start
 
 ```bash
-# Prerequisites:
-# - ANTHROPIC_API_KEY set in .env
-# - ollama running: ollama pull gemma3:4b
+# --- No API key needed ---
+# Play the built-in authored demo campaign (3 nodes, no LLM required)
+cp .env.example .env
+./loombound run
 
-# 1. One-time global setup — generate the arc-state palette (~50 enum entries used by the runtime classifier)
+# --- Full LLM experience ---
+# Prerequisites: ANTHROPIC_API_KEY in .env + ollama running: ollama pull gemma3:4b
+
+# 1. One-time global setup — generate the arc-state palette (skip if data/m2_table_a.json already exists)
 ./loombound arc-palette
 
 # 2. Generate a campaign (Opus builds the graph, Haiku generates Table B skeletons automatically)
@@ -86,8 +90,13 @@ Only `ANTHROPIC_API_KEY` + ollama (local gemma3) required.
 
 ## Prerequisites
 
-- `ANTHROPIC_API_KEY` in `.env`
-- ollama running (`ollama serve`) with `ollama pull gemma3:4b`
+```bash
+cp .env.example .env   # then fill in your API keys
+```
+
+- `ANTHROPIC_API_KEY` in `.env` — required for LLM features (`gen`, `run --slow anthropic`)
+- ollama running (`ollama serve`) with `ollama pull gemma3:4b` — required for `run --slow anthropic`
+- No keys or local models needed for `./loombound run` (authored demo)
 
 ### Supported Campaign Graph Providers (`--model`)
 
@@ -118,4 +127,4 @@ All LLM calls are recorded in `logs/llm.md` with token counts, cost, and cache h
 
 ---
 
-The M0/M1/M2 three-layer memory model, prompt cache strategy, and Fast/Slow Core separation used in this project are inspired by the author's ongoing PRISM project.
+The M0/M1/M2 three-layer memory model, prompt cache strategy, and Fast/Slow Core separation used in this project are inspired by the author's ongoing [PRISM](https://github.com/HermaeusMorea/PRISM) project. PRISM is a separate private protocol specification and is not a dependency of Loombound — this repo runs fully standalone.

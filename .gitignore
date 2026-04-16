@@ -9,5 +9,8 @@ dist/
 build/
 *.egg-info/
 logs/
-data/campaigns/
-data/nodes/
+# LLM-generated campaign data — excluded (regenerate with ./loombound gen)
+data/campaigns/*
+!data/campaigns/act1_campaign.json
+data/nodes/*
+!data/nodes/act1

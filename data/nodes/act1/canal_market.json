@@ -1,0 +1,12 @@
+{
+  "node_id": "canal_market:floor_02",
+  "node_type": "market",
+  "floor": 2,
+  "metadata": {
+    "scene_summary": "The market still operates on the elevated walkways above the flood line. Stalls sell lamp oil, curios, and things with no clear use. At the far end, a ferryman waits beside a lantern — his route cuts across the flooded square and saves an hour if you're willing to pay, or follow the bells."
+  },
+  "arbitrations": [
+    { "file": "data/arbitrations/market_offer/market_01.json" },
+    { "file": "data/arbitrations/omens_choice/omens_01.json" }
+  ]
+}

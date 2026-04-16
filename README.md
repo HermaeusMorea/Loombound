@@ -7,11 +7,15 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 ## 快速开始
 
 ```bash
-# 前置条件
-# .env 里有 ANTHROPIC_API_KEY
-# ollama 在跑：ollama pull gemma3:4b
+# --- 无需 API Key ---
+# 运行内置 authored demo campaign（3 节点，无需 LLM）
+cp .env.example .env
+./loombound run
 
-# 1. 一次性全局设置（生成 arc-state 调色板，~50 行枚举，运行时 Claude 分类器使用）
+# --- 完整 LLM 体验 ---
+# 前置条件：.env 里有 ANTHROPIC_API_KEY，ollama 在跑：ollama pull gemma3:4b
+
+# 1. 一次性全局设置（已有 data/m2_table_a.json 则跳过）
 ./loombound arc-palette
 
 # 2. 生成 campaign（Opus 生成图，Haiku 自动生成 Table B，两步合一）
@@ -85,8 +89,13 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 
 ## 前置条件
 
-- `.env` 里有 `ANTHROPIC_API_KEY`
-- ollama 在跑（`ollama serve`），已下载：`ollama pull gemma3:4b`
+```bash
+cp .env.example .env   # 填入需要的 API key
+```
+
+- `ANTHROPIC_API_KEY` — LLM 功能（`gen`、`run --slow anthropic`）需要
+- ollama 在跑（`ollama serve`），已下载 `ollama pull gemma3:4b` — `run --slow anthropic` 需要
+- `./loombound run`（authored demo）无需任何 key 或本地模型
 
 ### 支持的 Campaign 图 Provider（`--model`）
 
@@ -117,4 +126,4 @@ LLM 调用记录在 `logs/llm.md`（含每次调用的 token 数、成本、cach
 
 ---
 
-游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 PRISM 项目。
+游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 [PRISM](https://github.com/HermaeusMorea/PRISM) 项目。PRISM 是一个独立的私有协议规范，不是 Loombound 的依赖项 — 本 repo 可完全独立运行。

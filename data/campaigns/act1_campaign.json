@@ -1,0 +1,42 @@
+{
+  "campaign_id": "act1",
+  "title": "The Drowned Passage",
+  "intro": "You came for the old archive on the far side of the canal district. The flood came first — three weeks ago, without warning. Half the quarter is still underwater. The archive is still there, they say. So is whatever moved into it.",
+  "tone": "Claustrophobic folk horror set in a half-submerged canal district. The aesthetic is waterlogged stone, lamplight on black water, and objects that should not still be humming. Dread is slow and ambient rather than sudden. Sanity erodes through small wrongnesses — a ledger that whispers, a ferry crossing at the wrong hour, an idol that warms before you touch it.",
+  "initial_core_state": {
+    "health": 8,
+    "max_health": 10,
+    "money": 5,
+    "sanity": 10,
+    "floor": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_conditions": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_node_id": "flooded_gate",
+  "nodes": {
+    "flooded_gate": {
+      "label": "Flooded Gate",
+      "map_blurb": "The old district gate stands knee-deep in standing water. Three paths open past it, only one of them dry.",
+      "node_file": "data/nodes/act1/flooded_gate.json",
+      "next_nodes": ["canal_market"]
+    },
+    "canal_market": {
+      "label": "Canal Market",
+      "map_blurb": "A night market still trading on the upper walkways above the flood line. The ferryman's lantern bobs at the far end.",
+      "node_file": "data/nodes/act1/canal_market.json",
+      "next_nodes": ["archive_vault"]
+    },
+    "archive_vault": {
+      "label": "Archive Vault",
+      "map_blurb": "The lower vault is partially flooded, but the sealed ledger section is still dry — and still humming.",
+      "node_file": "data/nodes/act1/archive_vault.json",
+      "next_nodes": []
+    }
+  }
+}
