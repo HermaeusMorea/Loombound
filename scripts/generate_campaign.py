@@ -103,6 +103,21 @@ _HAIKU_OUTPUT_COST = 4.0  / 1_000_000
 _OPUS_CACHE_READ_COST = 0.50 / 1_000_000  # 10% of input
 
 
+def _opus_cost(inp: int, out: int) -> float:
+    return inp * _OPUS_INPUT_COST + out * _OPUS_OUTPUT_COST
+
+
+def _haiku_cost(inp: int, out: int) -> float:
+    return inp * _HAIKU_INPUT_COST + out * _HAIKU_OUTPUT_COST
+
+
+def _coerce_json(raw: object) -> dict:
+    """Normalise tool call output to a plain dict (handles str and Pydantic models)."""
+    if isinstance(raw, str):
+        return json.loads(raw)
+    return json.loads(json.dumps(raw))
+
+
 def _log_campaign_core_usage(
     *,
     provider: str,
@@ -118,11 +133,7 @@ def _log_campaign_core_usage(
     usage_output: int,
 ) -> None:
     is_opus = "opus" in model.lower()
-    cost = (
-        usage_input * _OPUS_INPUT_COST + usage_output * _OPUS_OUTPUT_COST
-        if is_opus
-        else usage_input * _HAIKU_INPUT_COST + usage_output * _HAIKU_OUTPUT_COST
-    )
+    cost = _opus_cost(usage_input, usage_output) if is_opus else _haiku_cost(usage_input, usage_output)
     _md_log([
         f"## [{_ts()}] CAMPAIGN CORE RESPONSE — `{campaign_id}`",
         f"provider: {provider}",
@@ -368,18 +379,12 @@ async def _generate_anthropic(
     )
 
     u = response.usage
-    input_cost = u.input_tokens / 1e6 * 5
-    output_cost = u.output_tokens / 1e6 * 25
     print(f"  Usage: input={u.input_tokens}  output={u.output_tokens}  "
-          f"(~${input_cost + output_cost:.4f})")
+          f"(~${_opus_cost(u.input_tokens, u.output_tokens):.4f})")
 
     for block in response.content:
         if block.type == "tool_use" and block.name == "create_campaign":
-            raw = block.input
-            if isinstance(raw, str):
-                raw = json.loads(raw)
-            else:
-                raw = json.loads(json.dumps(raw))
+            raw = _coerce_json(block.input)
             _log_campaign_core_usage(
                 provider=provider, model=model, theme=theme,
                 node_count=node_count, lang=lang,
@@ -444,9 +449,7 @@ async def _generate_openai_compat(
     if msg.tool_calls:
         for tc in msg.tool_calls:
             if tc.function.name == "create_campaign":
-                raw = tc.function.arguments
-                if isinstance(raw, str):
-                    raw = json.loads(raw)
+                raw = _coerce_json(tc.function.arguments)
                 _log_campaign_core_usage(
                     provider=provider, model=model, theme=theme,
                     node_count=node_count, lang=lang,
@@ -530,6 +533,63 @@ def _build_user_msg(
 
 _TABLE_B_BATCH_SIZE = 3
 
+
+def _build_table_b_user_msg(
+    nodes_raw: list[dict],
+    title: str,
+    tone: str,
+    intro: str,
+    lang: str,
+) -> tuple[str, dict[str, int]]:
+    """Build the user message for a Table B batch call.
+
+    Returns (user_msg, expected) where expected maps node_id → arbitration count.
+    """
+    node_lines = []
+    expected: dict[str, int] = {}
+    for node in nodes_raw:
+        nid = node["node_id"]
+        arb_n = int(node.get("arbitration_count", 1))
+        expected[nid] = arb_n
+        node_lines.append(
+            f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
+            f"floor: {node.get('floor', 1)}  arbitrations_required: {arb_n}\n"
+            f"    label: {node.get('label', '')}\n"
+            f"    map_blurb: {node.get('map_blurb', '')}"
+        )
+
+    lang_note = (
+        "Write all narrative text (scene_concept, sanity_axis, intent) in Chinese (中文).\n"
+        if lang == "zh" else ""
+    )
+    user_msg = (
+        f"Campaign: {title}\n"
+        f"Tone: {tone}\n"
+        f"Premise: {intro}\n\n"
+        f"{lang_note}"
+        f"Generate Table B skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
+        f"Each node must have EXACTLY the specified number of arbitrations.\n\n"
+        + "\n".join(node_lines)
+    )
+    return user_msg, expected
+
+
+def _validate_table_b_response(raw: dict, expected: dict[str, int]) -> list[str]:
+    """Return a list of validation error strings (empty = valid)."""
+    result_nodes = raw.get("nodes", [])
+    result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
+    errors: list[str] = []
+    for nid, want in expected.items():
+        got_node = result_by_id.get(nid)
+        if got_node is None:
+            errors.append(f"missing node_id={nid}")
+            continue
+        got = len(got_node.get("arbitrations", []))
+        if got != want:
+            errors.append(f"{nid}: expected {want} arbitrations, got {got}")
+    return errors
+
+
 _TABLE_B_SYSTEM = """\
 You are a narrative scene designer for a roguelite game.
 Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
@@ -559,30 +619,7 @@ async def _generate_table_b(
     client = anthropic.AsyncAnthropic(api_key=api_key)
     model = "claude-haiku-4-5-20251001"
 
-    # Build per-node summary for the user message
-    node_lines = []
-    expected: dict[str, int] = {}
-    for node in nodes_raw:
-        nid = node["node_id"]
-        arb_n = int(node.get("arbitration_count", 1))
-        expected[nid] = arb_n
-        node_lines.append(
-            f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
-            f"floor: {node.get('floor', 1)}  arbitrations_required: {arb_n}\n"
-            f"    label: {node.get('label', '')}\n"
-            f"    map_blurb: {node.get('map_blurb', '')}"
-        )
-
-    lang_note = "Write all narrative text (scene_concept, sanity_axis, intent) in Chinese (中文).\n" if lang == "zh" else ""
-    user_msg = (
-        f"Campaign: {title}\n"
-        f"Tone: {tone}\n"
-        f"Premise: {intro}\n\n"
-        f"{lang_note}"
-        f"Generate Table B skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
-        f"Each node must have EXACTLY the specified number of arbitrations.\n\n"
-        + "\n".join(node_lines)
-    )
+    user_msg, expected = _build_table_b_user_msg(nodes_raw, title, tone, intro, lang)
 
     _md_log([
         f"## [{_ts()}] TABLE B REQUEST — `{campaign_id}` ({len(nodes_raw)} nodes)",
@@ -610,31 +647,15 @@ async def _generate_table_b(
         raw: dict | None = None
         for block in response.content:
             if block.type == "tool_use" and block.name == "generate_table_b":
-                r = block.input
-                if isinstance(r, str):
-                    r = json.loads(r)
-                else:
-                    r = json.loads(json.dumps(r))
-                raw = r
+                raw = _coerce_json(block.input)
                 break
 
         if raw is None:
             print(f"  [Table B attempt {attempt}] no tool call returned, retrying...")
             continue
 
+        errors = _validate_table_b_response(raw, expected)
         result_nodes = raw.get("nodes", [])
-        result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
-
-        # Validate per-node arbitration counts
-        errors: list[str] = []
-        for nid, want in expected.items():
-            got_node = result_by_id.get(nid)
-            if got_node is None:
-                errors.append(f"missing node_id={nid}")
-                continue
-            got = len(got_node.get("arbitrations", []))
-            if got != want:
-                errors.append(f"{nid}: expected {want} arbitrations, got {got}")
 
         if errors:
             print(f"  [Table B attempt {attempt}] validation errors: {errors}")
@@ -847,6 +868,101 @@ def print_graph(data: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Step helpers (called from main)
+# ---------------------------------------------------------------------------
+
+def _step1_generate_graph(
+    args: argparse.Namespace,
+    provider: str,
+    model: str,
+    api_key: str,
+    base_url: str | None,
+) -> dict:
+    """Generate and validate the campaign graph, retrying up to args.retries times.
+
+    Calls sys.exit(1) if all retries fail.
+    """
+    data: dict | None = None
+    for attempt in range(1, args.retries + 1):
+        if attempt > 1:
+            print(f"\nRetrying (attempt {attempt}/{args.retries})...")
+        try:
+            data = _normalise(asyncio.run(
+                _generate(
+                    args.theme, args.nodes, args.lang,
+                    provider, model, api_key, base_url,
+                    tone_hint=args.tone,
+                    worldview_hint=args.worldview,
+                )
+            ))
+        except Exception as exc:
+            print(f"Generation failed: {exc}", file=sys.stderr)
+            if attempt == args.retries:
+                sys.exit(1)
+            continue
+
+        errors = validate_graph(data["nodes"], data["start_node_id"], expected_node_count=args.nodes)
+        if errors:
+            print(f"\nGraph validation failed (attempt {attempt}):")
+            for e in errors:
+                print(f"  ✗ {e}")
+            if attempt == args.retries:
+                print("\nAll retries exhausted.", file=sys.stderr)
+                sys.exit(1)
+            data = None
+            continue
+
+        break
+
+    if data is None:
+        sys.exit(1)
+    return data
+
+
+def _step2_generate_table_b_step(
+    data: dict,
+    node_count: int,
+    lang: str,
+    anthropic_key: str,
+) -> None:
+    """Generate Table B skeletons for all nodes (batched) and write to disk."""
+    nodes_list = data["nodes"]
+    batch_size = _TABLE_B_BATCH_SIZE
+    batches = [nodes_list[i:i + batch_size] for i in range(0, len(nodes_list), batch_size)]
+    print(f"\nGenerating Table B via claude-haiku ({node_count} nodes, {len(batches)} batch(es) of ≤{batch_size})...")
+
+    async def _run_batches() -> tuple[list[dict], bool]:
+        results: list[dict] = []
+        failed = False
+        for b_idx, batch in enumerate(batches, start=1):
+            batch_ids = [n["node_id"] for n in batch]
+            print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
+            result = await _generate_table_b(
+                nodes_raw=batch,
+                campaign_id=data["campaign_id"],
+                tone=data.get("tone", ""),
+                title=data.get("title", ""),
+                intro=data.get("intro", ""),
+                lang=lang,
+                api_key=anthropic_key,
+            )
+            if result:
+                results.extend(result)
+            else:
+                failed = True
+                print(f"  Batch {b_idx} failed.", file=sys.stderr)
+        return results, failed
+
+    table_b_all, any_failed = asyncio.run(_run_batches())
+
+    if table_b_all:
+        tb_path = write_table_b(table_b_all, data["campaign_id"])
+        print(f"  Written: {tb_path} ({len(table_b_all)} nodes)")
+    if any_failed:
+        print("  Some batches failed — re-run gen to regenerate Table B.", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -934,41 +1050,7 @@ def main() -> None:
 
     # ── Step 1: generate campaign graph ────────────────────────────────────
 
-    data: dict | None = None
-    for attempt in range(1, args.retries + 1):
-        if attempt > 1:
-            print(f"\nRetrying (attempt {attempt}/{args.retries})...")
-
-        try:
-            data = _normalise(asyncio.run(
-                _generate(
-                    args.theme, args.nodes, args.lang,
-                    provider, model, api_key, base_url,
-                    tone_hint=args.tone,
-                    worldview_hint=args.worldview,
-                )
-            ))
-        except Exception as exc:
-            print(f"Generation failed: {exc}", file=sys.stderr)
-            if attempt == args.retries:
-                sys.exit(1)
-            continue
-
-        errors = validate_graph(data["nodes"], data["start_node_id"], expected_node_count=args.nodes)
-        if errors:
-            print(f"\nGraph validation failed (attempt {attempt}):")
-            for e in errors:
-                print(f"  ✗ {e}")
-            if attempt == args.retries:
-                print("\nAll retries exhausted.", file=sys.stderr)
-                sys.exit(1)
-            data = None
-            continue
-
-        break
-
-    if data is None:
-        sys.exit(1)
+    data = _step1_generate_graph(args, provider, model, api_key, base_url)
 
     print_graph(data)
 
@@ -989,41 +1071,7 @@ def main() -> None:
     # ── Step 2: generate Table B (Haiku, batched 3 nodes per call) ────────
 
     if not args.skip_table_b:
-        nodes_list = data["nodes"]
-        batch_size = _TABLE_B_BATCH_SIZE
-        batches = [nodes_list[i:i + batch_size] for i in range(0, len(nodes_list), batch_size)]
-        print(f"\nGenerating Table B via claude-haiku ({node_count} nodes, {len(batches)} batch(es) of ≤{batch_size})...")
-
-        async def _run_batches() -> tuple[list[dict], bool]:
-            results: list[dict] = []
-            failed = False
-            for b_idx, batch in enumerate(batches, start=1):
-                batch_ids = [n["node_id"] for n in batch]
-                print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
-                result = await _generate_table_b(
-                    nodes_raw=batch,
-                    campaign_id=data["campaign_id"],
-                    tone=data.get("tone", ""),
-                    title=data.get("title", ""),
-                    intro=data.get("intro", ""),
-                    lang=args.lang,
-                    api_key=anthropic_key,
-                )
-                if result:
-                    results.extend(result)
-                else:
-                    failed = True
-                    print(f"  Batch {b_idx} failed.", file=sys.stderr)
-            return results, failed
-
-        table_b_all, any_failed = asyncio.run(_run_batches())
-
-        if table_b_all:
-            tb_path = write_table_b(table_b_all, data["campaign_id"])
-            print(f"  Written: {tb_path} ({len(table_b_all)} nodes)")
-        if any_failed:
-            print("  Some batches failed — retry with:", file=sys.stderr)
-            print(f"    ./loombound preload --campaign {data['campaign_id']}", file=sys.stderr)
+        _step2_generate_table_b_step(data, node_count, args.lang, anthropic_key)
 
     print(f"\nCAMPAIGN_ID={data['campaign_id']}")
     print(f"CAMPAIGN_PATH={out_path}")

@@ -34,10 +34,6 @@ def haiku_cost(inp: int, out: int, cache_read: int = 0) -> float:
     return inp * HAIKU_INPUT + out * HAIKU_OUTPUT + cache_read * OPUS_CACHE_READ
 
 
-def haiku_cost(inp: int, out: int) -> float:
-    return inp * HAIKU_INPUT + out * HAIKU_OUTPUT
-
-
 def _is_opus(model: str) -> bool:
     return "opus" in model.lower()
 
@@ -75,6 +71,7 @@ RE_COMPLETE = re.compile(
 # Offline events
 RE_CAMPAIGN_CORE = re.compile(r"^## \[(?P<ts>[^\]]+)\] CAMPAIGN CORE RESPONSE — `(?P<campaign>[^`]+)`$")
 RE_TABLE_B       = re.compile(r"^## \[(?P<ts>[^\]]+)\] TABLE B RESPONSE — `(?P<campaign>[^`]+)`")
+RE_TABLE_B_NODE  = re.compile(r"^## \[(?P<ts>[^\]]+)\] TABLE B NODE RESPONSE — `(?P<node>[^`]+)`")
 RE_ARC_PALETTE   = re.compile(r"^## \[(?P<ts>[^\]]+)\] ARC PALETTE GENERATED$")
 
 # Token lines
@@ -138,6 +135,7 @@ class TableBEvent:
     line_no: int
     timestamp: datetime
     campaign_id: str
+    node_id: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
 
@@ -226,6 +224,7 @@ class RunReport:
     arc_palette: ArcPaletteEvent | None = None
     campaign_core: CampaignCoreEvent | None = None
     table_b: TableBEvent | None = None
+    table_b_node_events: list[TableBEvent] = field(default_factory=list)
     slow_calls: int = 0
     slow_input: int = 0
     slow_output: int = 0
@@ -240,6 +239,26 @@ class RunReport:
     node_usage: dict[str, NodeUsage] = field(default_factory=dict)
 
     # ── derived ──────────────────────────────────────────────────────────
+
+    @property
+    def table_b_calls(self) -> int:
+        return len(self.table_b_node_events)
+
+    @property
+    def table_b_nodes(self) -> int:
+        return len({e.node_id for e in self.table_b_node_events if e.node_id})
+
+    @property
+    def table_b_input(self) -> int:
+        if self.table_b_node_events:
+            return sum(e.input_tokens for e in self.table_b_node_events)
+        return self.table_b.input_tokens if self.table_b else 0
+
+    @property
+    def table_b_output(self) -> int:
+        if self.table_b_node_events:
+            return sum(e.output_tokens for e in self.table_b_node_events)
+        return self.table_b.output_tokens if self.table_b else 0
 
     @property
     def fast_total(self) -> int:
@@ -277,8 +296,10 @@ class RunReport:
 
     @property
     def haiku_total_cost(self) -> float:
-        tb_cost   = self.table_b.cost if self.table_b else 0.0
-        # haiku is also M2 if model is haiku — but currently M2 is opus
+        if self.table_b_node_events:
+            tb_cost = sum(e.cost for e in self.table_b_node_events)
+        else:
+            tb_cost = self.table_b.cost if self.table_b else 0.0
         core_cost = self.campaign_core.cost if self.campaign_core and not _is_opus(self.campaign_core.model or "") else 0.0
         return tb_cost + core_cost
 
@@ -288,6 +309,10 @@ class RunReport:
 
     @property
     def local_tokens(self) -> int:
+        return self.fast_total
+
+    @property
+    def saved_remote_tokens(self) -> int:
         return self.fast_total
 
     @property
@@ -382,8 +407,11 @@ def parse_campaign_core_events(lines: list[str]) -> list[CampaignCoreEvent]:
     return events
 
 
-def parse_table_b_events(lines: list[str]) -> list[TableBEvent]:
-    """Parse campaign-level TABLE B RESPONSE entries."""
+def parse_table_b_events(
+    lines: list[str],
+    node_index: dict[str, set[str]] | None = None,
+) -> list[TableBEvent]:
+    """Parse TABLE B RESPONSE (campaign-level) and TABLE B NODE RESPONSE (node-level) entries."""
     events: list[TableBEvent] = []
     pending: TableBEvent | None = None
     for idx, line in enumerate(lines, start=1):
@@ -393,6 +421,17 @@ def parse_table_b_events(lines: list[str]) -> list[TableBEvent]:
                 line_no=idx,
                 timestamp=parse_timestamp(m.group("ts")),
                 campaign_id=m.group("campaign"),
+            )
+            continue
+        mn = RE_TABLE_B_NODE.match(line)
+        if mn:
+            node = mn.group("node")
+            campaign = next(iter((node_index or {}).get(node, set())), "")
+            pending = TableBEvent(
+                line_no=idx,
+                timestamp=parse_timestamp(mn.group("ts")),
+                campaign_id=campaign,
+                node_id=node,
             )
             continue
         if pending is None:
@@ -484,6 +523,7 @@ def analyze_run(
     arc_palette_events: list[ArcPaletteEvent] | None = None,
     campaign_core_events: list[CampaignCoreEvent] | None = None,
     table_b_events: list[TableBEvent] | None = None,
+    campaign_nodes: dict[str, set[str]] | None = None,
 ) -> RunReport:
     # Determine start timestamp from first request line
     first_line = lines[run.start_line - 1]
@@ -499,7 +539,8 @@ def analyze_run(
             node_order.append(event.node_id)
 
     # State machine over log lines in this run's range
-    pending_slow_node: str | None = None
+    current_slow_node: str | None = None   # persists across multiple SLOW RESPONSE/token pairs
+    pending_slow_node: str | None = None   # set when a token line is expected for slow core
     pending_fast_node: str | None = None
     pending_m2_node:   str | None = None
     job_arb_count: dict[str, int] = {}  # node_id → expected arb count
@@ -513,17 +554,20 @@ def analyze_run(
         if slow_req:
             nid = slow_req.group("node")
             node_usage.setdefault(nid, NodeUsage())
+            current_slow_node = nid
             pending_slow_node = nid
             pending_fast_node = pending_m2_node = None
             continue
 
         arb_cnt = RE_ARB_COUNT.match(line)
-        if arb_cnt and pending_slow_node:
-            job_arb_count[pending_slow_node] = int(arb_cnt.group("count"))
+        if arb_cnt and current_slow_node:
+            job_arb_count[current_slow_node] = int(arb_cnt.group("count"))
             continue
 
         slow_resp = RE_SLOW_RESPONSE.match(line)
         if slow_resp:
+            # Re-activate pending_slow_node so the upcoming token line is attributed correctly
+            pending_slow_node = current_slow_node
             pending_fast_node = pending_m2_node = None
             continue
 
@@ -609,7 +653,11 @@ def analyze_run(
             if e.campaign_id == campaign_id and e.timestamp <= start_ts
         ]
         if eligible_tb:
-            report.table_b = eligible_tb[-1]
+            node_events = [e for e in eligible_tb if e.node_id]
+            if node_events:
+                report.table_b_node_events = node_events
+            else:
+                report.table_b = eligible_tb[-1]
 
     # Aggregate runtime totals
     for usage in node_usage.values():
@@ -638,6 +686,7 @@ def select_run(
     *,
     lines: list[str] | None = None,
     campaign_titles: dict[str, str] | None = None,
+    campaign_core_events: list[CampaignCoreEvent] | None = None,
 ) -> RunGroup:
     if not runs:
         raise SystemExit("No runtime generation requests found in the log.")
@@ -722,14 +771,32 @@ def render_report(report: RunReport) -> str:
     else:
         lines.append("  campaign graph     (not found in log before this run)")
 
-    if report.table_b:
+    if report.table_b_node_events:
+        tb_in  = report.table_b_input
+        tb_out = report.table_b_output
+        tb_cost = sum(e.cost for e in report.table_b_node_events)
+        lines.append("")
+        lines.append("  preloaded assets:")
+        lines.append(
+            f"    table b: nodes={report.table_b_nodes} input={tb_in} output={tb_out} total={tb_in + tb_out}"
+        )
+        offline_haiku_cost += tb_cost
+    elif report.table_b:
         tb = report.table_b
         lines.append(_row("table b", "claude-haiku-4-5", tb.input_tokens, tb.output_tokens, tb.cost))
         offline_haiku_cost += tb.cost
     else:
         lines.append("  table b            (not found in log before this run)")
 
+    offline_remote_tokens = (
+        (report.campaign_core.input_tokens + report.campaign_core.output_tokens if report.campaign_core else 0)
+        + report.table_b_input + report.table_b_output
+        + (report.arc_palette.input_tokens + report.arc_palette.output_tokens if report.arc_palette else 0)
+    )
+
     lines.append("")
+    if offline_remote_tokens:
+        lines.append(f"  offline remote:  {offline_remote_tokens}")
     if offline_opus_cost:
         lines.append(f"  offline opus total:   {_usd(offline_opus_cost)}")
     if offline_haiku_cost:
@@ -844,10 +911,10 @@ def main() -> None:
     with args.log.open(encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh]
 
-    node_index, campaign_titles, _ = load_campaign_metadata(args.campaign_dir)
+    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.campaign_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
     campaign_core_events = parse_campaign_core_events(lines)
-    table_b_events       = parse_table_b_events(lines)
+    table_b_events       = parse_table_b_events(lines, node_index)
     request_events       = parse_request_events(lines, node_index)
     runs = group_runs(request_events, len(lines))
 
@@ -856,6 +923,7 @@ def main() -> None:
         args.campaign,
         lines=lines,
         campaign_titles=campaign_titles,
+        campaign_core_events=campaign_core_events,
     )
     report = analyze_run(
         lines,
@@ -864,6 +932,7 @@ def main() -> None:
         arc_palette_events=arc_palette_events,
         campaign_core_events=campaign_core_events,
         table_b_events=table_b_events,
+        campaign_nodes=campaign_nodes,
     )
     print(render_report(report))
 
