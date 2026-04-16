@@ -63,7 +63,7 @@ LLM 是必需内容层，但不替代确定性 kernel。职责边界：
 
 **Table B（per-campaign 场景骨架，每次 gen 自动生成）**
 
-每个节点一组 scene skeleton，由 Claude Haiku 批量生成：
+每个节点一组 scene skeleton，由 Claude Haiku 批量生成（每批 3 个节点）：
 - `scene_concept`：场景核心方向（20-40 词）
 - `sanity_axis`：本节点的心智压力轴
 - `options`：选项意图、tags、effects
@@ -214,6 +214,5 @@ src/core/memory/
 
 scripts/
 ├── generate_arc_palette.py   ← 生成 Table A
-├── generate_campaign.py      ← 生成 campaign + Table B
-└── generate_table_b.py       ← 单独重生成 Table B
+└── generate_campaign.py      ← 生成 campaign + Table B
 ```

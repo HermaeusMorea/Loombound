@@ -241,18 +241,10 @@ def _play_node(
     prefetched = prefetch.consume(cache_key) if prefetch else None
 
     if prefetched and len(prefetched) == total_arbs:
-        print(f"\033[2m[LLM] using generated content for {cache_key}\033[0m",
-              file=sys.stderr)
         payloads = prefetched
     elif llm_count > 0:
-        # LLM-generated node with no usable prefetch result — skip arbitrations.
-        print(f"\033[2m[LLM] no generated content for {cache_key}, skipping {llm_count} arbitration(s)\033[0m",
-              file=sys.stderr)
         payloads = []
     else:
-        if prefetch and authored_specs:
-            print(f"\033[2m[LLM] fallback to authored content for {cache_key}\033[0m",
-                  file=sys.stderr)
         payloads = [
             validate_arbitration_asset(
                 load_json_asset(resolve_asset_path(spec["file"])),
@@ -378,7 +370,7 @@ def main() -> None:
     if args.llm:
         logging.basicConfig(
             stream=sys.stderr,
-            level=logging.INFO,
+            level=logging.WARNING,
             format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
         )
         slow_cfg = _make_slow_cfg(args)

@@ -12,9 +12,6 @@
 #               [--model PROVIDER[:MODEL]] [--skip-table-b]
 #       Generate a campaign graph (Opus) + Table B skeletons (Haiku).
 #
-#   preload [--campaign ID_OR_PATH]
-#       (Re)generate Table B for an existing campaign that lacks one.
-#
 #   run [--campaign ID_OR_PATH] [--slow PROVIDER[:MODEL]] [--fast MODEL]
 #       [--lang zh] [--nodes N]
 #       Launch the game.
@@ -27,6 +24,9 @@
 #       --campaign : remove only that campaign's files
 #       --all (or no flag) : remove ALL campaigns and node directories
 #
+#   clean-logs
+#       Truncate logs/llm.md to empty.
+#
 # EXAMPLES
 #   ./loombound arc-palette
 #   ./loombound gen "亚南猎人之夜" --nodes 4 --lang zh --tone "哥特克苏鲁"
@@ -35,6 +35,7 @@
 #   ./loombound report
 #   ./loombound clean --campaign wall_street_undercurrent_act1
 #   ./loombound clean --all
+#   ./loombound clean-logs
 
 set -euo pipefail
 
@@ -100,6 +101,17 @@ case "$subcmd" in
         fi
         ;;
 
+    # ── clean-logs ───────────────────────────────────────────────────────────
+    clean-logs)
+        log_file="$SCRIPT_DIR/logs/llm.md"
+        if [[ -f "$log_file" ]]; then
+            > "$log_file"
+            echo "Cleared $log_file"
+        else
+            echo "Nothing to clean — $log_file does not exist."
+        fi
+        ;;
+
     # ── gen ─────────────────────────────────────────────────────────────────
     gen)
         provider=""
@@ -125,11 +137,6 @@ case "$subcmd" in
         [[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
 
         exec "$PYTHON" scripts/generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"
-        ;;
-
-    # ── preload ──────────────────────────────────────────────────────────────
-    preload)
-        exec "$PYTHON" scripts/generate_table_b.py "$@"
         ;;
 
     # ── run ─────────────────────────────────────────────────────────────────

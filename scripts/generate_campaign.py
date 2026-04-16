@@ -525,15 +525,17 @@ def _build_user_msg(
 
 
 # ---------------------------------------------------------------------------
-# Table B generation — Claude Haiku (batch, all nodes in one call)
+# Table B generation — Claude Haiku (batched, 3 nodes per call)
 # ---------------------------------------------------------------------------
+
+_TABLE_B_BATCH_SIZE = 3
 
 _TABLE_B_SYSTEM = """\
 You are a narrative scene designer for a roguelite game.
-Your task: generate stable, tendency-flexible scene skeletons for every node in this campaign.
+Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
 
 Rules:
-- Call generate_table_b exactly once with ALL nodes.
+- Call generate_table_b exactly once with ALL the nodes given to you in this message.
 - Each node must have EXACTLY the number of arbitrations specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
 - sanity_axis: the psychological tension at stake — not the result.
@@ -984,32 +986,50 @@ def main() -> None:
     print(f"\n  Written: {out_path}")
     print(f"  Written: data/nodes/{data['campaign_id']}/ ({node_count} node files)")
 
-    # ── Step 2: generate Table B (Haiku, all nodes in one call) ───────────
+    # ── Step 2: generate Table B (Haiku, batched 3 nodes per call) ────────
 
     if not args.skip_table_b:
-        print(f"\nGenerating Table B via claude-haiku ({node_count} nodes)...")
-        table_b = asyncio.run(
-            _generate_table_b(
-                nodes_raw=data["nodes"],
-                campaign_id=data["campaign_id"],
-                tone=data.get("tone", ""),
-                title=data.get("title", ""),
-                intro=data.get("intro", ""),
-                lang=args.lang,
-                api_key=anthropic_key,
-            )
-        )
-        if table_b:
-            tb_path = write_table_b(table_b, data["campaign_id"])
-            print(f"  Written: {tb_path}")
-        else:
-            print("  Table B generation failed — run manually if needed:", file=sys.stderr)
-            print(f"    python generate_table_b.py --campaign {out_path}", file=sys.stderr)
+        nodes_list = data["nodes"]
+        batch_size = _TABLE_B_BATCH_SIZE
+        batches = [nodes_list[i:i + batch_size] for i in range(0, len(nodes_list), batch_size)]
+        print(f"\nGenerating Table B via claude-haiku ({node_count} nodes, {len(batches)} batch(es) of ≤{batch_size})...")
+
+        async def _run_batches() -> tuple[list[dict], bool]:
+            results: list[dict] = []
+            failed = False
+            for b_idx, batch in enumerate(batches, start=1):
+                batch_ids = [n["node_id"] for n in batch]
+                print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
+                result = await _generate_table_b(
+                    nodes_raw=batch,
+                    campaign_id=data["campaign_id"],
+                    tone=data.get("tone", ""),
+                    title=data.get("title", ""),
+                    intro=data.get("intro", ""),
+                    lang=args.lang,
+                    api_key=anthropic_key,
+                )
+                if result:
+                    results.extend(result)
+                else:
+                    failed = True
+                    print(f"  Batch {b_idx} failed.", file=sys.stderr)
+            return results, failed
+
+        table_b_all, any_failed = asyncio.run(_run_batches())
+
+        if table_b_all:
+            tb_path = write_table_b(table_b_all, data["campaign_id"])
+            print(f"  Written: {tb_path} ({len(table_b_all)} nodes)")
+        if any_failed:
+            print("  Some batches failed — retry with:", file=sys.stderr)
+            print(f"    ./loombound preload --campaign {data['campaign_id']}", file=sys.stderr)
 
     print(f"\nCAMPAIGN_ID={data['campaign_id']}")
     print(f"CAMPAIGN_PATH={out_path}")
+    campaign_id = data['campaign_id']
     print(f"\nTo play:")
-    print(f"  ./run --campaign {out_path} --slow anthropic --lang {args.lang}")
+    print(f"  ./loombound run --campaign {campaign_id} --slow anthropic --lang {args.lang}")
 
 
 if __name__ == "__main__":

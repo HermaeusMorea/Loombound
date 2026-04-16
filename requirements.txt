@@ -1,0 +1,7 @@
+# Runtime dependencies
+anthropic>=0.94.1       # Anthropic API (M2 classifier + Haiku Table B generation + Opus campaign gen)
+openai>=2.31.0          # OpenAI-compatible clients (DeepSeek, OpenAI, Qwen campaign gen)
+httpx>=0.28.1           # HTTP client (used by anthropic/openai SDKs)
+
+# Dev / test
+pytest>=9.0.3

@@ -2,6 +2,8 @@
 
 Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 
+> 英文版文档：[README.en.md](README.en.md) · [docs/game-design.en.md](docs/game-design.en.md) · [docs/llm-architecture.en.md](docs/llm-architecture.en.md)
+
 ## 快速开始
 
 ```bash
@@ -18,7 +20,9 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 ./loombound gen "债务猎人逃亡" --worldview "木星轨道殖民地由债务公会和打捞教团共同统治" --lang zh
 
 # 3. 启动游戏（预载路径：Claude arc 分类 + gemma3 本地展开）
-./loombound run --slow anthropic --lang zh
+# --lang zh 生成中文场景文字；省略则默认英文
+./loombound run --slow anthropic --lang zh   # 中文
+./loombound run --slow anthropic             # English
 
 # 指定 campaign
 ./loombound run --campaign hunters_night_yharnam_last_lucid --slow anthropic --lang zh
@@ -65,8 +69,6 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 ./loombound gen "theme" --worldview "..."  # 指定世界观
 ./loombound gen "theme" --model deepseek   # 用 DeepSeek 生成 campaign 图
 
-./loombound preload --campaign ID          # 为已有 campaign 补生成 Table B
-
 ./loombound run --slow anthropic           # 推荐：预载路径
 ./loombound run --slow anthropic --lang zh # 中文内容
 ./loombound run                            # 纯 authored 内容，不用 LLM
@@ -76,6 +78,7 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 
 ./loombound clean --campaign ID            # 删除单个 campaign 数据
 ./loombound clean --all                    # 清空所有 campaign（保留 arc 调色板）
+./loombound clean-logs                     # 清空 logs/llm.md
 ```
 
 ---
