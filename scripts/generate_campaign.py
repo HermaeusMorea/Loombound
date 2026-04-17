@@ -269,7 +269,6 @@ _TOOL = {
                     "additionalProperties": False,
                 },
             },
-        },
             "verdict_dict": {
                 "type": "array",
                 "description": (
@@ -576,6 +575,7 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
         },
         "start_node_id": data["start_node_id"],
         "nodes":         campaign_nodes,
+        "verdict_dict":  data.get("verdict_dict", []),
     }
     if generation_context:
         campaign_json["generation_context"] = generation_context
