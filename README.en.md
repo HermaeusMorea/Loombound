@@ -13,12 +13,12 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 # 1. One-time global setup — generate the arc-state palette (skip if data/m2_table_a.json already exists)
 ./loombound arc-palette
 
-# 2. Generate a campaign (Opus builds the graph, Haiku generates Table B skeletons automatically)
+# 2. Generate a campaign (Opus builds the graph, Haiku generates Table B automatically)
 ./loombound gen "Singapore underground hacker community" --lang zh
 ./loombound gen "Solar sail era archaeology" --tone "melancholic, poetic, space mystery with a hint of hope" --lang zh
 ./loombound gen "Debt hunter escape" --worldview "Jupiter orbital colonies ruled jointly by the Debt Guild and the Salvage Church" --lang zh
 
-# 3. Play (preloaded path: Claude arc classification + gemma3 local text expansion)
+# 3. Play (preloaded path: Haiku arc classification + gemma3 local text expansion)
 # --lang zh generates Chinese scene text; omit for English (default)
 ./loombound run             # English
 ./loombound run --lang zh   # Chinese
@@ -38,11 +38,13 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 |---|---|---|
 | **One-time** | Claude Opus | Generate global arc-state palette (`arc-palette`, ~50 enum entries) |
 | **Per campaign** | Claude Opus | Generate campaign graph (node topology, labels, map_blurb) |
-| **Per campaign** | Claude Haiku | Generate Table B (per-node scene skeletons: scene_concept, option structure) |
-| **Runtime** | Claude Opus | M2 classifier: current game state + arc palette → arc state ID (~10 tokens/node after cache hit) |
+| **Per campaign** | Claude Haiku | Generate Table B (per-node scene skeletons: scene_concept, option structure, no numeric values) |
+| **Runtime** | Claude Haiku | M2 classifier: after each player choice → arc state ID + per-option effects for the next arbitration (~$0.001/call after cache hit) |
 | **Runtime** | gemma3:4b (local) | Fast Core: Table B skeleton + arc state tendency → full scene text |
 
 Only `ANTHROPIC_API_KEY` + ollama (local gemma3) required.
+
+Opus only appears in offline phases (arc-palette and campaign generation). Runtime is entirely Haiku + gemma3.
 
 ### Cost Efficiency
 
@@ -50,23 +52,23 @@ The core benefit of the three-layer design is **moving high-frequency runtime sc
 
 | Approach | Runtime cost per play | 100-play total |
 |---|---|---|
-| Current (M2 + local Fast Core) | ~$0.013 | ~$1.4 |
+| Current (Haiku M2 + local Fast Core) | ~$0.010 | ~$1.1 |
 | Opus-only (replace Fast Core) | ~$0.20 | ~$20 |
-| **Gap** | | **~15×** |
+| **Gap** | | **~18×** |
 
-These numbers come from a real run: campaign "Heritage Liquidation Bureau" (5 nodes, 11 scene expansions), total spend $0.075, of which runtime was only $0.013. As player count grows, the one-time offline cost is amortized away and the gap stabilizes at **15–44×** (depending on Opus version pricing).
+M2 cost estimate: ~$0.001 per arbitration choice after Haiku prompt cache hit. A typical 5-node, 10-choice run ≈ $0.010. As player count grows, offline cost is amortized and the gap widens further.
 
-→ Full log and per-node data: [logs/heritage_liquidation_bureau_playthrough.md](logs/heritage_liquidation_bureau_playthrough.md)  
 → Full cost breakdown: [docs/llm-architecture.en.md](docs/llm-architecture.en.md#cost-analysis)
 
 ### Data Files
 
 | File | Source | Contents |
 |---|---|---|
-| `data/m2_table_a.json` | Claude Opus (one-time) | Arc-state palette (50 enum entries, runtime prompt cache) |
-| `data/campaigns/<id>.json` | Claude Opus (per campaign) | Campaign graph: node topology, no scene content |
-| `data/nodes/<id>/*.json` | Claude Opus (per campaign) | Node spec: floor, type, arbitration count |
-| `data/nodes/<id>/table_b.json` | Claude Haiku (per campaign) | Scene skeletons: scene_concept, sanity_axis, options |
+| `data/m2_table_a.json` | Claude Opus (one-time) | Arc-state palette (~50 enum entries, Haiku prompt cache at runtime) |
+| `data/campaigns/<id>.json` | Claude Opus (per campaign) | Campaign graph: node topology + per-node floor / type / arbitrations (inlined) |
+| `data/nodes/<id>/table_b.json` | Claude Haiku (per campaign) | Scene skeletons: scene_concept, sanity_axis, option structure (no h/m/s values) |
+
+> Table C (option structure without values — Haiku's per-campaign cached prefix) is derived from Table B at runtime and is not stored as a separate file.
 
 ---
 
@@ -106,10 +108,7 @@ cp .env.example .env   # then fill in your API keys
 - `ANTHROPIC_API_KEY` in `.env` — required for both `gen` and `run`
 - ollama running (`ollama serve`) with `ollama pull gemma3:4b` — required for `run` (Fast Core local expansion)
 
-> **Runtime requires Claude API only.** `./loombound run` uses Anthropic for both M2 classifier and
-> Slow Core — the prompt caching strategy (Table A prefix) is an Anthropic-specific feature and
-> breaks with other providers. `./loombound gen --model deepseek` is an offline operation and
-> can use any supported provider.
+> **Runtime requires Claude API only.** `./loombound run` uses Anthropic's prompt caching for the M2 classifier (Table A + Table C prefix) — this is an Anthropic-specific feature and breaks with other providers. `./loombound gen --model deepseek` is an offline operation and can use any supported provider.
 
 ### Supported Campaign Graph Providers (`--model`)
 

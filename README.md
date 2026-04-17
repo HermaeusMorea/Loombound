@@ -2,7 +2,7 @@
 
 Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 
-> 英文版文档：[README.en.md](README.en.md) · [docs/game-design.en.md](docs/game-design.en.md) · [docs/llm-architecture.en.md](docs/llm-architecture.en.md)
+> 英文版文档：[README.en.md](README.en.md) 
 
 ## 快速开始
 
@@ -18,7 +18,7 @@ cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 ./loombound gen "太阳帆时代考古调查" --tone "忧郁、诗性、带一点希望感的太空悬疑" --lang zh
 ./loombound gen "债务猎人逃亡" --worldview "木星轨道殖民地由债务公会和打捞教团共同统治" --lang zh
 
-# 3. 启动游戏（预载路径：Claude arc 分类 + gemma3 本地展开）
+# 3. 启动游戏（预载路径：Haiku arc 分类 + gemma3 本地展开）
 # --lang zh 生成中文场景文字；省略则默认英文
 ./loombound run --lang zh   # 中文
 ./loombound run             # English
@@ -38,11 +38,13 @@ cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 |---|---|---|
 | **一次性** | Claude Opus | 生成全局 arc-state 调色板（`arc-palette`，~50 行枚举） |
 | **每个 campaign** | Claude Opus | 生成 campaign 图（节点拓扑、标签、map_blurb） |
-| **每个 campaign** | Claude Haiku | 生成 Table B（每节点场景骨架：scene_concept、选项结构） |
-| **运行时** | Claude Opus | M2 分类器：当前游戏状态 + arc 调色板 → 返回 arc state ID（prompt cache 命中后 ~10 tokens/节点） |
+| **每个 campaign** | Claude Haiku | 生成 Table B（每节点场景骨架：scene_concept、选项结构，不含数值） |
+| **运行时** | Claude Haiku | M2 分类器：每次选择后后台调用 → 返回当前 arc state ID + 下一个 arbitration 的 per-option effects（prompt cache 后 ~$0.001/次） |
 | **运行时** | gemma3:4b（本地） | Fast Core：Table B 骨架 + arc state 倾向 → 展开完整场景文字 |
 
 全程只需要 `ANTHROPIC_API_KEY` + ollama（本地 gemma3）。
+
+Opus 仅出现在离线阶段（arc-palette 和 campaign 生成），运行时全程 Haiku + gemma3。
 
 ### 成本效率
 
@@ -50,23 +52,23 @@ cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 
 | 方案 | 单局运行时成本 | 100 局总花费 |
 |---|---|---|
-| 当前架构（M2 + 本地 Fast Core） | ~$0.013 | ~$1.4 |
+| 当前架构（Haiku M2 + 本地 Fast Core） | ~$0.010 | ~$1.1 |
 | 全 Opus 方案（替换 Fast Core） | ~$0.20 | ~$20 |
-| **差距** | | **~15×** |
+| **差距** | | **~18×** |
 
-数据来自实测：campaign "核战后遗址的审计员"（5 节点，11 次场景展开），总花费 $0.075，其中运行时仅 $0.013。随游玩规模扩大，离线成本被摊薄，差距稳定在 **15–44×**（取决于 Opus 版本定价）。
+M2 成本估算：每次 arbitration 选择 ~$0.001（Haiku prompt cache 命中后），典型 5 节点 10 次选择 ≈ $0.010。随游玩规模扩大，离线成本被摊薄，差距进一步拉大。
 
-→ 完整日志与逐节点数据：[logs/heritage_liquidation_bureau_playthrough.md](logs/heritage_liquidation_bureau_playthrough.md)  
 → 详细推算过程：[docs/llm-architecture.md](docs/llm-architecture.md#成本分析)
 
 ### 数据文件
 
 | 文件 | 来源 | 内容 |
 |---|---|---|
-| `data/m2_table_a.json` | Claude Opus（一次性） | arc-state 调色板（50 行枚举，运行时 prompt cache） |
-| `data/campaigns/<id>.json` | Claude Opus（每 campaign） | Campaign 图：节点拓扑，无场景内容 |
-| `data/nodes/<id>/*.json` | Claude Opus（每 campaign） | 节点 spec：floor、type、arbitration 数量 |
-| `data/nodes/<id>/table_b.json` | Claude Haiku（每 campaign） | 场景骨架：scene_concept、sanity_axis、选项 |
+| `data/m2_table_a.json` | Claude Opus（一次性） | arc-state 调色板（~50 行枚举，运行时 Haiku prompt cache） |
+| `data/campaigns/<id>.json` | Claude Opus（每 campaign） | Campaign 图：节点拓扑 + 每节点 floor / type / arbitrations（inlined） |
+| `data/nodes/<id>/table_b.json` | Claude Haiku（每 campaign） | 场景骨架：scene_concept、sanity_axis、选项结构（不含 h/m/s 数值） |
+
+> Table C（选项结构去掉数值，Haiku 的 per-campaign cached prefix）在运行时从 Table B 派生，不单独存文件。
 
 ---
 
@@ -105,8 +107,7 @@ cp .env.example .env   # 填入需要的 API key
 - `ANTHROPIC_API_KEY` — 必须，`gen` 和 `run` 都需要
 - ollama 在跑（`ollama serve`），已下载 `ollama pull gemma3:4b` — `run` 需要（Fast Core 本地展开）
 
-> **运行时只支持 Claude API。** `./loombound run` 的 M2 分类器和 Slow Core 均调用 Anthropic——
-> prompt caching（Table A prefix）是 Anthropic 独有特性，切换其他 provider 会破坏缓存策略。
+> **运行时只支持 Claude API。** `./loombound run` 的 M2 分类器使用 Anthropic prompt caching（Table A + Table C prefix）——这是 Anthropic 独有特性，切换其他 provider 会破坏缓存策略。
 > `./loombound gen --model deepseek` 是离线操作，不影响运行时，可以用其他 provider。
 
 ### 支持的 Campaign 图 Provider（`--model`）
@@ -138,4 +139,4 @@ LLM 调用记录在 `logs/llm.md`（含每次调用的 token 数、成本、cach
 
 ---
 
-游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 [PRISM](https://github.com/HermaeusMorea/PRISM) 项目。PRISM 是一个独立的私有协议规范，不是 Loombound 的依赖项 — 本 repo 可完全独立运行。
+游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 [PRISM](https://github.com/HermaeusMorea/PRISM) 项目。PRISM 是一个独立的私有协议规范，不是 Loombound 的依赖项——本 repo 可完全独立运行。
