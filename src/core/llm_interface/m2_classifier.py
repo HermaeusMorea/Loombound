@@ -160,6 +160,11 @@ Effect fields:
   m  money_delta    — typically -8 to +10.  Negative = cost, theft, loss.
   s  sanity_delta   — typically -8 to +3.   Negative = dread, trauma, revelation.
 
+For each option, assign v FIRST from the campaign verdict dictionary, then set h/m/s
+values that are consistent with that verdict. The verdict dictionary is appended to
+the T1 option index. Honor its numeric constraints — do not assign stable to an option
+with large negative deltas, or destabilizing to an option with net positive deltas.
+
 Calibration rules:
 - Scale magnitude to current world_pressure: low → small values, critical → large negatives.
 - Every arbitration must have at least one option with meaningfully different risk than others.
@@ -177,7 +182,7 @@ _NO_MATCH_ID = -1
 class M2ClassifierConfig:
     api_key: str | None = None
     model: str = "claude-haiku-4-5-20251001"
-    max_tokens: int = 150   # entry_id + one arb's per-option effects
+    max_tokens: int = 180   # entry_id + per-option verdict + h/m/s
     timeout: float = 30.0
 
 
@@ -193,10 +198,12 @@ class M2Classifier:
         config: M2ClassifierConfig | None = None,
         t2_cache_table_json: str = "[]",
         t1_cache_table_index_json: str = "",
+        verdict_dict_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
         self._t2_cache_table_json = t2_cache_table_json
         self._t1_cache_table_index_json = t1_cache_table_index_json
+        self._verdict_dict_json = verdict_dict_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
@@ -228,11 +235,15 @@ class M2Classifier:
                                     "type": "string",
                                     "description": "option_id from T1 option index.",
                                 },
+                                "v": {
+                                    "type": "string",
+                                    "description": "verdict id from the campaign verdict dictionary. Assign this first, then set h/m/s consistent with it.",
+                                },
                                 "h": {"type": "integer", "description": "health_delta"},
                                 "m": {"type": "integer", "description": "money_delta"},
                                 "s": {"type": "integer", "description": "sanity_delta"},
                             },
-                            "required": ["id", "h", "m", "s"],
+                            "required": ["id", "v", "h", "m", "s"],
                             "additionalProperties": False,
                         },
                     },
@@ -277,11 +288,18 @@ class M2Classifier:
                 },
             ]
 
-            # Block 2: T1 option index — per-campaign cache (only if loaded)
+            # Block 2: T1 option index + verdict dict — per-campaign cache (only if loaded)
             if self._t1_cache_table_index_json:
+                verdict_suffix = (
+                    f"\n\nVerdict dictionary for this campaign:\n{self._verdict_dict_json}"
+                    if self._verdict_dict_json else ""
+                )
                 user_blocks.append({
                     "type": "text",
-                    "text": f"T1 option index (node option structure for this campaign, no effect values):\n{self._t1_cache_table_index_json}",
+                    "text": (
+                        f"T1 option index (node option structure for this campaign, no effect values):\n"
+                        f"{self._t1_cache_table_index_json}{verdict_suffix}"
+                    ),
                     "cache_control": {"type": "ephemeral"},
                 })
 
@@ -334,7 +352,7 @@ class M2Classifier:
                         raw = json.loads(raw)
                     entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
 
-                    # Parse flat effects list → {option_id: {health_delta, money_delta, sanity_delta}}
+                    # Parse flat effects list → {option_id: {health_delta, money_delta, sanity_delta, verdict}}
                     effects_map: dict[str, dict] = {}
                     for item in raw.get("effects", []):
                         opt_id = str(item.get("id", ""))
@@ -343,6 +361,7 @@ class M2Classifier:
                                 "health_delta":  int(item.get("h", 0)),
                                 "money_delta":   int(item.get("m", 0)),
                                 "sanity_delta":  int(item.get("s", 0)),
+                                "verdict":       str(item.get("v", "")),
                             }
 
                     log.info(
@@ -362,6 +381,7 @@ class M2Classifier:
         """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
         self._t2_cache_table_json = t2_cache_table_json
 
-    def update_t1_cache_table_index(self, t1_cache_table_index_json: str) -> None:
-        """Replace the T1 option index JSON (e.g. after campaign switch)."""
+    def update_t1_cache_table_index(self, t1_cache_table_index_json: str, verdict_dict_json: str = "") -> None:
+        """Replace the T1 option index JSON and verdict dict (e.g. after campaign switch)."""
         self._t1_cache_table_index_json = t1_cache_table_index_json
+        self._verdict_dict_json = verdict_dict_json

@@ -99,6 +99,9 @@ def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
             eff = opt.setdefault("metadata", {}).setdefault("effects", {})
             for key in ("health_delta", "money_delta", "sanity_delta"):
                 eff[key] = opus_effects[opt_id].get(key, 0)
+            verdict = opus_effects[opt_id].get("verdict", "")
+            if verdict:
+                opt["verdict"] = verdict
 
 
 def _play_arbitration(
@@ -413,11 +416,15 @@ def main() -> None:
     # Build M2Classifier if T2 cache is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
     if run.memory.m2.t2_cache_table:
+        import json as _json
+        verdict_dict = campaign.get("verdict_dict", [])
+        verdict_dict_json = _json.dumps(verdict_dict, ensure_ascii=False) if verdict_dict else ""
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
             t2_cache_table_json=run.memory.m2.t2_cache_table_prompt_json(),
             t1_cache_table_index_json=run.memory.m2.t1_cache_table_index_json() if run.memory.m2.t1_cache_table else "",
+            verdict_dict_json=verdict_dict_json,
         )
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)

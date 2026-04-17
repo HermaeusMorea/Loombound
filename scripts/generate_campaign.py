@@ -191,6 +191,13 @@ important field for content coherence.
 map_blurb: 1–2 sentences the player sees on the map. Specific and evocative.
 intro: 2–3 sentences setting the whole campaign's opening mood.
 
+VERDICT DICTIONARY
+Generate 3–6 campaign-specific verdict labels that describe option consequences.
+- Always include "stable" (net delta ≥ 0) and "destabilizing" (net delta clearly negative).
+- Add 1–4 theme-specific entries that fit your campaign's tone (e.g. "cursed", "exploitative", "honorable", "corrupting").
+- Each entry needs a one-line description of the numeric constraints it implies for h/m/s values.
+- These labels will be used by the runtime AI to classify options before assigning numbers.
+
 Call create_campaign exactly once.
 """
 
@@ -263,7 +270,25 @@ _TOOL = {
                 },
             },
         },
-        "required": ["campaign_id", "title", "intro", "tone", "initial_core_state", "start_node_id", "nodes"],
+            "verdict_dict": {
+                "type": "array",
+                "description": (
+                    "3–6 campaign-specific verdict labels. "
+                    "Must include 'stable' and 'destabilizing'. "
+                    "Add theme-specific entries (e.g. 'cursed', 'exploitative')."
+                ),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id":          {"type": "string", "description": "Short snake_case label, e.g. 'cursed'"},
+                        "description": {"type": "string", "description": "One-line numeric constraint, e.g. 'net delta clearly negative'"},
+                    },
+                    "required": ["id", "description"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["campaign_id", "title", "intro", "tone", "initial_core_state", "start_node_id", "nodes", "verdict_dict"],
         "additionalProperties": False,
     },
 }
@@ -725,13 +750,13 @@ def main() -> None:
 
     # Anthropic key is always needed for T1 cache generation (Haiku)
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.skip_t1_cache_table and not anthropic_key:
+    if not args.skip_t1_cache and not anthropic_key:
         print(
             "Warning: ANTHROPIC_API_KEY not set — skipping T1 cache generation.\n"
             "Run with --skip-t1-cache to suppress this warning, or add the key to .env.",
             file=sys.stderr,
         )
-        args.skip_t1_cache_table = True
+        args.skip_t1_cache = True
 
     print(
         f"Generating campaign: '{args.theme}' ({args.nodes} nodes) "
@@ -759,7 +784,7 @@ def main() -> None:
 
     # ── Step 2: generate T1 cache (Haiku, batched 3 nodes per call) ────────
 
-    if not args.skip_t1_cache_table:
+    if not args.skip_t1_cache:
         generate_t1_cache_table_step(data, node_count, args.lang, anthropic_key)
 
     print(f"\nCAMPAIGN_ID={data['campaign_id']}")
