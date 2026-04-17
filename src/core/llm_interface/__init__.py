@@ -1,11 +1,11 @@
 """LLM content generation pipeline for Loombound.
 
-Two-layer asset model:
-  Slow Core (Claude)   → NodeSeedPack   (structured plan, tendency language)
-  Fast Core (gemma4)   → arbitration JSON dicts (full display text, precise effects)
+Two-layer runtime model:
+  M2 Classifier (Haiku) → entry_id + per-option effects (per-choice, background)
+  Fast Core (gemma3)    → arbitration JSON dicts (full display text)
 
 Public entry point:
-  PrefetchCache — manages background generation and cache retrieval.
+  PrefetchCache — manages background gemma3 generation and Haiku arc updates.
 """
 
 from .types import (
@@ -16,8 +16,6 @@ from .types import (
     PrefetchEntry,
     PrefetchStatus,
 )
-from .collector import build_quasi_description
-from .slow_core import SlowCoreClient, SlowCoreConfig, SlowCoreError
 from .fast_core import FastCoreExpander, FastCoreConfig
 from .m2_classifier import M2Classifier, M2ClassifierConfig
 from .prefetch import PrefetchCache
@@ -30,12 +28,6 @@ __all__ = [
     "ResolvedArbitration",
     "PrefetchEntry",
     "PrefetchStatus",
-    # Collector
-    "build_quasi_description",
-    # Slow Core
-    "SlowCoreClient",
-    "SlowCoreConfig",
-    "SlowCoreError",
     # Fast Core
     "FastCoreExpander",
     "FastCoreConfig",
