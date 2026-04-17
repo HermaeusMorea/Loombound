@@ -447,7 +447,7 @@ class PrefetchCache:
     ) -> None:
         try:
             if not run_memory.m2.has_caches():
-                reason = "t2_cache/t1_cache not loaded"
+                reason = "t2_cache_table/t1_cache_table not loaded"
                 log.warning("Prefetch: '%s' skipped — %s.", target_node_id, reason)
                 with self._lock:
                     entry = self._cache.get(target_node_id)
@@ -495,7 +495,7 @@ class PrefetchCache:
             # Fallback to entry 0 if snapshot id is missing
             arc_row = run_memory.m2.lookup_arc(0)
         if arc_row is None:
-            reason = f"t2_cache missing entry_id={arc_id_snapshot} and no entry 0"
+            reason = f"t2_cache_table missing entry_id={arc_id_snapshot} and no entry 0"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -506,7 +506,7 @@ class PrefetchCache:
         # Step 2: T1 cache lookup
         node_entry = run_memory.m2.lookup_node(target_node_id)
         if node_entry is None or not node_entry.arbitrations:
-            reason = f"t1_cache missing node_id={target_node_id}"
+            reason = f"t1_cache_table missing node_id={target_node_id}"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)

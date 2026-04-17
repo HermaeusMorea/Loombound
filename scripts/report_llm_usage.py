@@ -232,8 +232,8 @@ class RunReport:
     node_order: list[str]
     arc_palette: ArcPaletteEvent | None = None
     campaign_core: CampaignCoreEvent | None = None
-    t1_cache: T1CacheEvent | None = None
-    t1_cache_node_events: list[T1CacheEvent] = field(default_factory=list)
+    t1_cache_table: T1CacheEvent | None = None
+    t1_cache_table_node_events: list[T1CacheEvent] = field(default_factory=list)
     slow_calls: int = 0
     slow_input: int = 0
     slow_output: int = 0
@@ -251,24 +251,24 @@ class RunReport:
     # ── derived ──────────────────────────────────────────────────────────
 
     @property
-    def t1_cache_calls(self) -> int:
-        return len(self.t1_cache_node_events)
+    def t1_cache_table_calls(self) -> int:
+        return len(self.t1_cache_table_node_events)
 
     @property
-    def t1_cache_nodes(self) -> int:
-        return len({e.node_id for e in self.t1_cache_node_events if e.node_id})
+    def t1_cache_table_nodes(self) -> int:
+        return len({e.node_id for e in self.t1_cache_table_node_events if e.node_id})
 
     @property
-    def t1_cache_input(self) -> int:
-        if self.t1_cache_node_events:
-            return sum(e.input_tokens for e in self.t1_cache_node_events)
-        return self.t1_cache.input_tokens if self.t1_cache else 0
+    def t1_cache_table_input(self) -> int:
+        if self.t1_cache_table_node_events:
+            return sum(e.input_tokens for e in self.t1_cache_table_node_events)
+        return self.t1_cache_table.input_tokens if self.t1_cache_table else 0
 
     @property
-    def t1_cache_output(self) -> int:
-        if self.t1_cache_node_events:
-            return sum(e.output_tokens for e in self.t1_cache_node_events)
-        return self.t1_cache.output_tokens if self.t1_cache else 0
+    def t1_cache_table_output(self) -> int:
+        if self.t1_cache_table_node_events:
+            return sum(e.output_tokens for e in self.t1_cache_table_node_events)
+        return self.t1_cache_table.output_tokens if self.t1_cache_table else 0
 
     @property
     def fast_total(self) -> int:
@@ -306,10 +306,10 @@ class RunReport:
 
     @property
     def haiku_total_cost(self) -> float:
-        if self.t1_cache_node_events:
-            tb_cost = sum(e.cost for e in self.t1_cache_node_events)
+        if self.t1_cache_table_node_events:
+            tb_cost = sum(e.cost for e in self.t1_cache_table_node_events)
         else:
-            tb_cost = self.t1_cache.cost if self.t1_cache else 0.0
+            tb_cost = self.t1_cache_table.cost if self.t1_cache_table else 0.0
         core_cost = self.campaign_core.cost if self.campaign_core and not _is_opus(self.campaign_core.model or "") else 0.0
         return tb_cost + core_cost + self.m2_cost
 
@@ -418,7 +418,7 @@ def parse_campaign_core_events(lines: list[str]) -> list[CampaignCoreEvent]:
     return events
 
 
-def parse_t1_cache_events(
+def parse_t1_cache_table_events(
     lines: list[str],
     node_index: dict[str, set[str]] | None = None,
 ) -> list[T1CacheEvent]:
@@ -551,7 +551,7 @@ def analyze_run(
     campaign_titles: dict[str, str],
     arc_palette_events: list[ArcPaletteEvent] | None = None,
     campaign_core_events: list[CampaignCoreEvent] | None = None,
-    t1_cache_events: list[T1CacheEvent] | None = None,
+    t1_cache_table_events: list[T1CacheEvent] | None = None,
     campaign_nodes: dict[str, set[str]] | None = None,
 ) -> RunReport:
     # Determine start timestamp from first request line
@@ -695,17 +695,17 @@ def analyze_run(
         if eligible_cc:
             report.campaign_core = eligible_cc[-1]
 
-    if t1_cache_events and campaign_id:
+    if t1_cache_table_events and campaign_id:
         eligible_tb = [
-            e for e in t1_cache_events
+            e for e in t1_cache_table_events
             if e.campaign_id == campaign_id and e.timestamp <= start_ts
         ]
         if eligible_tb:
             node_events = [e for e in eligible_tb if e.node_id]
             if node_events:
-                report.t1_cache_node_events = node_events
+                report.t1_cache_table_node_events = node_events
             else:
-                report.t1_cache = eligible_tb[-1]
+                report.t1_cache_table = eligible_tb[-1]
 
     # Aggregate runtime totals
     for usage in node_usage.values():
@@ -819,18 +819,18 @@ def render_report(report: RunReport) -> str:
     else:
         lines.append("  campaign graph     (not found in log before this run)")
 
-    if report.t1_cache_node_events:
-        tb_in  = report.t1_cache_input
-        tb_out = report.t1_cache_output
-        tb_cost = sum(e.cost for e in report.t1_cache_node_events)
+    if report.t1_cache_table_node_events:
+        tb_in  = report.t1_cache_table_input
+        tb_out = report.t1_cache_table_output
+        tb_cost = sum(e.cost for e in report.t1_cache_table_node_events)
         lines.append("")
         lines.append("  preloaded assets:")
         lines.append(
-            f"    t1 cache: nodes={report.t1_cache_nodes} input={tb_in} output={tb_out} total={tb_in + tb_out}"
+            f"    t1 cache: nodes={report.t1_cache_table_nodes} input={tb_in} output={tb_out} total={tb_in + tb_out}"
         )
         offline_haiku_cost += tb_cost
-    elif report.t1_cache:
-        tb = report.t1_cache
+    elif report.t1_cache_table:
+        tb = report.t1_cache_table
         lines.append(_row("table b", "claude-haiku-4-5", tb.input_tokens, tb.output_tokens, tb.cost))
         offline_haiku_cost += tb.cost
     else:
@@ -838,7 +838,7 @@ def render_report(report: RunReport) -> str:
 
     offline_remote_tokens = (
         (report.campaign_core.input_tokens + report.campaign_core.output_tokens if report.campaign_core else 0)
-        + report.t1_cache_input + report.t1_cache_output
+        + report.t1_cache_table_input + report.t1_cache_table_output
         + (report.arc_palette.input_tokens + report.arc_palette.output_tokens if report.arc_palette else 0)
     )
 
@@ -967,7 +967,7 @@ def main() -> None:
     node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.campaign_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
     campaign_core_events = parse_campaign_core_events(lines)
-    t1_cache_events       = parse_t1_cache_events(lines, node_index)
+    t1_cache_table_events       = parse_t1_cache_table_events(lines, node_index)
     request_events       = parse_request_events(lines, node_index)
     runs = group_runs(request_events, len(lines))
 
@@ -984,7 +984,7 @@ def main() -> None:
         campaign_titles,
         arc_palette_events=arc_palette_events,
         campaign_core_events=campaign_core_events,
-        t1_cache_events=t1_cache_events,
+        t1_cache_table_events=t1_cache_table_events,
         campaign_nodes=campaign_nodes,
     )
     print(render_report(report))

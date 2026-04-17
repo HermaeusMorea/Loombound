@@ -3,7 +3,7 @@ from report_llm_usage import (
     group_runs,
     parse_campaign_core_events,
     parse_request_events,
-    parse_t1_cache_events,
+    parse_t1_cache_table_events,
     render_report,
     select_run,
 )
@@ -71,13 +71,13 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
     requests = parse_request_events(lines, node_index)
     runs = group_runs(requests, len(lines))
     campaign_core_events = parse_campaign_core_events(lines)
-    t1_cache_events = parse_t1_cache_events(lines, node_index)
+    t1_cache_table_events = parse_t1_cache_table_events(lines, node_index)
     report = analyze_run(
         lines,
         runs[0],
         campaign_titles,
         campaign_core_events=campaign_core_events,
-        t1_cache_events=t1_cache_events,
+        t1_cache_table_events=t1_cache_table_events,
         campaign_nodes=campaign_nodes,
     )
 
@@ -85,10 +85,10 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
     assert report.campaign_core.provider == "anthropic"
     assert report.campaign_core.input_tokens == 1200
     assert report.campaign_core.output_tokens == 300
-    assert report.t1_cache_calls == 2
-    assert report.t1_cache_nodes == 2
-    assert report.t1_cache_input == 320
-    assert report.t1_cache_output == 110
+    assert report.t1_cache_table_calls == 2
+    assert report.t1_cache_table_nodes == 2
+    assert report.t1_cache_table_input == 320
+    assert report.t1_cache_table_output == 110
     assert report.m2_calls == 1
     assert report.m2_input == 200
     assert report.m2_output == 20

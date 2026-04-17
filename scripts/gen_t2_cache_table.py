@@ -4,11 +4,11 @@ One-time setup. Calls Claude Opus once to produce ~50 entries covering the full
 space of dramatic arc combinations. The result is loaded into Claude's prompt
 cache at runtime so the M2 arc classifier (Haiku) can pick from it cheaply.
 
-Output: data/t2_arc_palette.json
+Output: data/t2_cache_table.json
 
 Usage:
-    python gen_t2_cache.py
-    python gen_t2_cache.py --count 50 --output data/t2_arc_palette.json
+    python gen_t2_cache_table.py
+    python gen_t2_cache_table.py --count 50 --output data/t2_cache_table.json
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """
@@ -24,7 +24,7 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = REPO_ROOT / ".env"
-OUTPUT_PATH = REPO_ROOT / "data" / "t2_arc_palette.json"
+OUTPUT_PATH = REPO_ROOT / "data" / "t2_cache_table.json"
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 _OPUS_INPUT_COST  = 5.0  / 1_000_000
 _OPUS_OUTPUT_COST = 25.0 / 1_000_000

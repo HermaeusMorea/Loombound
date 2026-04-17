@@ -3,8 +3,8 @@ import json
 from src.core.memory.m2_store import M2Store
 
 
-def test_m2_store_loads_node_keyed_t1_cache(tmp_path) -> None:
-    path = tmp_path / "t1_cache.json"
+def test_m2_store_loads_node_keyed_t1_cache_table(tmp_path) -> None:
+    path = tmp_path / "t1_cache_table.json"
     path.write_text(
         json.dumps(
             [
@@ -35,7 +35,7 @@ def test_m2_store_loads_node_keyed_t1_cache(tmp_path) -> None:
     )
 
     store = M2Store()
-    store.load_t1_cache(path)
+    store.load_t1_cache_table(path)
 
     node = store.lookup_node("ruined_market")
     assert node is not None

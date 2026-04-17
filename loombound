@@ -6,7 +6,7 @@
 #       Generate the T2 cache (global arc-state palette). One-time setup.
 #
 #   clean-palette
-#       Delete data/t2_arc_palette.json.
+#       Delete data/t2_cache_table.json.
 #
 #   gen "theme" [--nodes N] [--lang zh] [--tone "..."] [--worldview "..."]
 #               [--model PROVIDER[:MODEL]] [--skip-t1-cache]
@@ -19,7 +19,7 @@
 #       Print LLM usage / cost report for the last run.
 #
 #   clean [--campaign ID_OR_PATH] [--all]
-#       Remove campaign JSON and node files. Keeps data/t2_arc_palette.json.
+#       Remove campaign JSON and node files. Keeps data/t2_cache_table.json.
 #       --campaign : remove only that campaign's files
 #       --all (or no flag) : remove ALL campaigns and node directories
 #
@@ -86,12 +86,12 @@ case "$subcmd" in
 
     # ── arc-palette ─────────────────────────────────────────────────────────
     arc-palette)
-        exec "$PYTHON" scripts/gen_t2_cache.py "$@"
+        exec "$PYTHON" scripts/gen_t2_cache_table.py "$@"
         ;;
 
     # ── clean-palette ────────────────────────────────────────────────────────
     clean-palette)
-        target="$DATA_DIR/t2_arc_palette.json"
+        target="$DATA_DIR/t2_cache_table.json"
         if [[ -f "$target" ]]; then
             rm "$target"
             echo "Deleted $target"
@@ -201,7 +201,7 @@ case "$subcmd" in
 
         else
             # Remove all campaigns and node directories (keep T2 cache + rules/text/arbitrations)
-            echo "Cleaning all campaign data (keeping data/t2_arc_palette.json)..."
+            echo "Cleaning all campaign data (keeping data/t2_cache_table.json)..."
             removed=0
 
             for f in "$DATA_DIR/campaigns/"*.json; do

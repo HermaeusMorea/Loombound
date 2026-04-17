@@ -191,12 +191,12 @@ class M2Classifier:
     def __init__(
         self,
         config: M2ClassifierConfig | None = None,
-        t2_cache_json: str = "[]",
-        t1_option_index_json: str = "",
+        t2_cache_table_json: str = "[]",
+        t1_cache_table_index_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
-        self._t2_cache_json = t2_cache_json
-        self._t1_option_index_json = t1_option_index_json
+        self._t2_cache_table_json = t2_cache_table_json
+        self._t1_cache_table_index_json = t1_cache_table_index_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
@@ -272,16 +272,16 @@ class M2Classifier:
                 # Block 1: T2 cache — stable for entire session, global cache
                 {
                     "type": "text",
-                    "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_json}",
+                    "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_table_json}",
                     "cache_control": {"type": "ephemeral"},
                 },
             ]
 
             # Block 2: T1 option index — per-campaign cache (only if loaded)
-            if self._t1_option_index_json:
+            if self._t1_cache_table_index_json:
                 user_blocks.append({
                     "type": "text",
-                    "text": f"T1 option index (node option structure for this campaign, no effect values):\n{self._t1_option_index_json}",
+                    "text": f"T1 option index (node option structure for this campaign, no effect values):\n{self._t1_cache_table_index_json}",
                     "cache_control": {"type": "ephemeral"},
                 })
 
@@ -358,10 +358,10 @@ class M2Classifier:
             log.error("M2Classifier: classification failed: %s", exc)
             return _NO_MATCH_ID, {}, _empty_usage
 
-    def update_t2_cache(self, t2_cache_json: str) -> None:
+    def update_t2_cache_table(self, t2_cache_table_json: str) -> None:
         """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
-        self._t2_cache_json = t2_cache_json
+        self._t2_cache_table_json = t2_cache_table_json
 
-    def update_t1_option_index(self, t1_option_index_json: str) -> None:
+    def update_t1_cache_table_index(self, t1_cache_table_index_json: str) -> None:
         """Replace the T1 option index JSON (e.g. after campaign switch)."""
-        self._t1_option_index_json = t1_option_index_json
+        self._t1_cache_table_index_json = t1_cache_table_index_json

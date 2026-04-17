@@ -7,11 +7,11 @@ Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect
 values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 
-Output: data/nodes/<campaign_id>/t1_cache.json
+Output: data/nodes/<campaign_id>/t1_cache_table.json
 
 Usage (standalone):
-    python gen_t1_cache.py data/campaigns/my_campaign.json
-    python gen_t1_cache.py data/campaigns/my_campaign.json --lang zh
+    python gen_t1_cache_table.py data/campaigns/my_campaign.json
+    python gen_t1_cache_table.py data/campaigns/my_campaign.json --lang zh
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """
@@ -128,7 +128,7 @@ _SKELETON_ITEM = {
 }
 
 _T1_CACHE_TOOL = {
-    "name": "generate_t1_cache",
+    "name": "generate_t1_cache_table",
     "description": "Submit scene skeletons for ALL campaign nodes at once.",
     "input_schema": {
         "type": "object",
@@ -160,7 +160,7 @@ You are a narrative scene designer for a roguelite game.
 Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
 
 Rules:
-- Call generate_t1_cache exactly once with ALL the nodes given to you in this message.
+- Call generate_t1_cache_table exactly once with ALL the nodes given to you in this message.
 - Each node must have EXACTLY the number of arbitrations specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
 - sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
@@ -172,7 +172,7 @@ Rules:
 # Prompt builder + validator
 # ---------------------------------------------------------------------------
 
-def _build_t1_cache_user_msg(
+def _build_t1_cache_table_user_msg(
     nodes_raw: list[dict],
     title: str,
     tone: str,
@@ -212,7 +212,7 @@ def _build_t1_cache_user_msg(
     return user_msg, expected
 
 
-def _validate_t1_cache_response(raw: dict, expected: dict[str, int]) -> list[str]:
+def _validate_t1_cache_table_response(raw: dict, expected: dict[str, int]) -> list[str]:
     """Return a list of validation error strings (empty = valid).
 
     Checks both structure (node presence, arbitration count) and content
@@ -252,7 +252,7 @@ def _validate_t1_cache_response(raw: dict, expected: dict[str, int]) -> list[str
 # Haiku API call
 # ---------------------------------------------------------------------------
 
-async def _generate_t1_cache(
+async def _generate_t1_cache_table(
     nodes_raw: list[dict],
     campaign_id: str,
     tone: str,
@@ -268,7 +268,7 @@ async def _generate_t1_cache(
     client = anthropic.AsyncAnthropic(api_key=api_key)
     model = "claude-haiku-4-5-20251001"
 
-    user_msg, expected = _build_t1_cache_user_msg(nodes_raw, title, tone, intro, lang)
+    user_msg, expected = _build_t1_cache_table_user_msg(nodes_raw, title, tone, intro, lang)
 
     _md_log([
         f"## [{_ts()}] T1 CACHE REQUEST — `{campaign_id}` ({len(nodes_raw)} nodes)",
@@ -284,7 +284,7 @@ async def _generate_t1_cache(
                 system=_T1_CACHE_SYSTEM,
                 messages=[{"role": "user", "content": user_msg}],
                 tools=[_T1_CACHE_TOOL],
-                tool_choice={"type": "tool", "name": "generate_t1_cache"},
+                tool_choice={"type": "tool", "name": "generate_t1_cache_table"},
             )
         except Exception as exc:
             print(f"  [T1 cache attempt {attempt}] API error: {exc}")
@@ -295,7 +295,7 @@ async def _generate_t1_cache(
         u = response.usage
         raw: dict | None = None
         for block in response.content:
-            if block.type == "tool_use" and block.name == "generate_t1_cache":
+            if block.type == "tool_use" and block.name == "generate_t1_cache_table":
                 raw = _coerce_json(block.input)
                 break
 
@@ -303,7 +303,7 @@ async def _generate_t1_cache(
             print(f"  [T1 cache attempt {attempt}] no tool call returned, retrying...")
             continue
 
-        errors = _validate_t1_cache_response(raw, expected)
+        errors = _validate_t1_cache_table_response(raw, expected)
         result_nodes = raw.get("nodes", [])
 
         if errors:
@@ -318,11 +318,11 @@ async def _generate_t1_cache(
 
         # Stamp node metadata client-side (keeps T1 cache self-contained)
         node_meta = {n["node_id"]: n for n in nodes_raw}
-        t1_cache: list[dict] = []
+        t1_cache_table: list[dict] = []
         for n in result_nodes:
             nid = n["node_id"]
             meta = node_meta.get(nid, {})
-            t1_cache.append({
+            t1_cache_table.append({
                 "node_id":    nid,
                 "node_type":  meta.get("node_type", ""),
                 "label":      meta.get("label", ""),
@@ -342,10 +342,10 @@ async def _generate_t1_cache(
             *[
                 f"  {row['node_id']} (arb×{len(row['arbitrations'])}): "
                 + (row['arbitrations'][0].get('scene_concept', '')[:90] if row.get('arbitrations') else '(empty)')
-                for row in t1_cache
+                for row in t1_cache_table
             ],
         ])
-        return t1_cache
+        return t1_cache_table
 
     return None
 
@@ -354,11 +354,11 @@ async def _generate_t1_cache(
 # File writer
 # ---------------------------------------------------------------------------
 
-def write_t1_cache(t1_cache: list[dict], campaign_id: str) -> Path:
+def write_t1_cache_table(t1_cache_table: list[dict], campaign_id: str) -> Path:
     out_dir = REPO_ROOT / "data" / "nodes" / campaign_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "t1_cache.json"
-    out_path.write_text(json.dumps(t1_cache, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path = out_dir / "t1_cache_table.json"
+    out_path.write_text(json.dumps(t1_cache_table, ensure_ascii=False, indent=2), encoding="utf-8")
     return out_path
 
 
@@ -366,7 +366,7 @@ def write_t1_cache(t1_cache: list[dict], campaign_id: str) -> Path:
 # Public step function (called by generate_campaign.py)
 # ---------------------------------------------------------------------------
 
-def generate_t1_cache_step(
+def generate_t1_cache_table_step(
     data: dict,
     node_count: int,
     lang: str,
@@ -384,7 +384,7 @@ def generate_t1_cache_step(
         for b_idx, batch in enumerate(batches, start=1):
             batch_ids = [n["node_id"] for n in batch]
             print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
-            result = await _generate_t1_cache(
+            result = await _generate_t1_cache_table(
                 nodes_raw=batch,
                 campaign_id=data["campaign_id"],
                 tone=data.get("tone", ""),
@@ -400,11 +400,11 @@ def generate_t1_cache_step(
                 print(f"  Batch {b_idx} failed.", file=sys.stderr)
         return results, failed
 
-    t1_cache_all, any_failed = asyncio.run(_run_batches())
+    t1_cache_table_all, any_failed = asyncio.run(_run_batches())
 
-    if t1_cache_all:
-        t1_path = write_t1_cache(t1_cache_all, data["campaign_id"])
-        print(f"  Written: {t1_path} ({len(t1_cache_all)} nodes)")
+    if t1_cache_table_all:
+        t1_path = write_t1_cache_table(t1_cache_table_all, data["campaign_id"])
+        print(f"  Written: {t1_path} ({len(t1_cache_table_all)} nodes)")
     if any_failed:
         print("  Some batches failed — re-run gen to regenerate T1 cache.", file=sys.stderr)
 
@@ -447,7 +447,7 @@ def main() -> None:
         "intro":       campaign.get("intro", ""),
         "nodes":       nodes_list,
     }
-    generate_t1_cache_step(data, len(nodes_list), args.lang, api_key)
+    generate_t1_cache_table_step(data, len(nodes_list), args.lang, api_key)
 
 
 if __name__ == "__main__":

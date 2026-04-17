@@ -27,7 +27,7 @@ from pathlib import Path
 
 import anthropic
 
-from gen_t1_cache import generate_t1_cache_step, write_t1_cache  # noqa: F401
+from gen_t1_cache_table import generate_t1_cache_table_step, write_t1_cache_table  # noqa: F401
 
 REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()
@@ -525,7 +525,7 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
     campaigns_dir = REPO_ROOT / "data" / "campaigns"
     nodes_dir = REPO_ROOT / "data" / "nodes" / campaign_id
     campaigns_dir.mkdir(parents=True, exist_ok=True)
-    nodes_dir.mkdir(parents=True, exist_ok=True)  # for t1_cache.json
+    nodes_dir.mkdir(parents=True, exist_ok=True)  # for t1_cache_table.json
 
     campaign_nodes: dict = {}
     for node in nodes_raw:
@@ -725,13 +725,13 @@ def main() -> None:
 
     # Anthropic key is always needed for T1 cache generation (Haiku)
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.skip_t1_cache and not anthropic_key:
+    if not args.skip_t1_cache_table and not anthropic_key:
         print(
             "Warning: ANTHROPIC_API_KEY not set — skipping T1 cache generation.\n"
             "Run with --skip-t1-cache to suppress this warning, or add the key to .env.",
             file=sys.stderr,
         )
-        args.skip_t1_cache = True
+        args.skip_t1_cache_table = True
 
     print(
         f"Generating campaign: '{args.theme}' ({args.nodes} nodes) "
@@ -759,8 +759,8 @@ def main() -> None:
 
     # ── Step 2: generate T1 cache (Haiku, batched 3 nodes per call) ────────
 
-    if not args.skip_t1_cache:
-        generate_t1_cache_step(data, node_count, args.lang, anthropic_key)
+    if not args.skip_t1_cache_table:
+        generate_t1_cache_table_step(data, node_count, args.lang, anthropic_key)
 
     print(f"\nCAMPAIGN_ID={data['campaign_id']}")
     print(f"CAMPAIGN_PATH={out_path}")

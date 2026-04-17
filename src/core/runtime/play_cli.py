@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 DEFAULT_CAMPAIGN = REPO_ROOT / "data" / "campaigns" / "act1_campaign.json"
 RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
 TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
-T2_CACHE_PATH = REPO_ROOT / "data" / "t2_arc_palette.json"
+T2_CACHE_PATH = REPO_ROOT / "data" / "t2_cache_table.json"
 
 
 # ---------------------------------------------------------------------------
@@ -387,21 +387,21 @@ def main() -> None:
 
     # Load T2 cache (arc palette) and T1 cache (node skeletons) if available
     campaign_dir = REPO_ROOT / "data" / "nodes" / campaign.get("campaign_id", "")
-    t1_cache_path = campaign_dir / "t1_cache.json"
+    t1_cache_table_path = campaign_dir / "t1_cache_table.json"
 
     if T2_CACHE_PATH.exists():
-        run.memory.m2.load_t2_cache(T2_CACHE_PATH)
-    if t1_cache_path.exists():
-        run.memory.m2.load_t1_cache(t1_cache_path)
+        run.memory.m2.load_t2_cache_table(T2_CACHE_PATH)
+    if t1_cache_table_path.exists():
+        run.memory.m2.load_t1_cache_table(t1_cache_table_path)
 
     # Build M2Classifier if T2 cache is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
-    if run.memory.m2.t2_cache:
+    if run.memory.m2.t2_cache_table:
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
-            t2_cache_json=run.memory.m2.t2_cache_prompt_json(),
-            t1_option_index_json=run.memory.m2.t1_option_index_json() if run.memory.m2.t1_cache else "",
+            t2_cache_table_json=run.memory.m2.t2_cache_table_prompt_json(),
+            t1_cache_table_index_json=run.memory.m2.t1_cache_table_index_json() if run.memory.m2.t1_cache_table else "",
         )
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)

@@ -1,10 +1,10 @@
 """M2 memory store — runtime arc tendencies plus per-node scene skeletons.
 
 Two caches (PRISM Tn naming):
-  T2 cache  (data/t2_arc_palette.json): campaign-agnostic arc-state catalogue.
+  T2 cache  (data/t2_cache_table.json): campaign-agnostic arc-state catalogue.
             Loaded at game startup and cached into every Claude Haiku call.
 
-  T1 cache  (data/nodes/<campaign_id>/t1_cache.json): per-campaign node skeletons.
+  T1 cache  (data/nodes/<campaign_id>/t1_cache_table.json): per-campaign node skeletons.
             Each row is keyed by campaign node_id and stores one or more scene
             skeletons for that node. These skeletons are later modulated by the
             runtime T2 cache tendency selected by Haiku.
@@ -70,16 +70,16 @@ class M2NodeSkeletonEntry:
 class M2Store:
     """Holds T2 cache, node-keyed T1 cache, and runtime arc classification history."""
 
-    t2_cache: dict[int, M2Entry] = field(default_factory=dict)
-    t1_cache: dict[str, M2NodeSkeletonEntry] = field(default_factory=dict)
+    t2_cache_table: dict[int, M2Entry] = field(default_factory=dict)
+    t1_cache_table: dict[str, M2NodeSkeletonEntry] = field(default_factory=dict)
     current_id: int | None = None
     history: list[tuple[str, int]] = field(default_factory=list)
 
-    def load_t2_cache(self, path: Path) -> None:
+    def load_t2_cache_table(self, path: Path) -> None:
         """Load T2 cache (arc palette) from JSON. Expected format: list of M2Entry dicts."""
 
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.t2_cache = {}
+        self.t2_cache_table = {}
         for row in data:
             entry = M2Entry(
                 entry_id=int(row["entry_id"]),
@@ -88,13 +88,13 @@ class M2Store:
                 narrative_pacing=row["narrative_pacing"],
                 pending_intent=row["pending_intent"],
             )
-            self.t2_cache[entry.entry_id] = entry
+            self.t2_cache_table[entry.entry_id] = entry
 
-    def load_t1_cache(self, path: Path) -> None:
+    def load_t1_cache_table(self, path: Path) -> None:
         """Load T1 cache (node-keyed scene skeletons) from JSON."""
 
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.t1_cache = {}
+        self.t1_cache_table = {}
         for row in data:
             node_id = row.get("node_id", "")
             if not node_id:
@@ -109,7 +109,7 @@ class M2Store:
                 for arb in row.get("arbitrations", [])
                 if isinstance(arb, dict)
             ]
-            self.t1_cache[node_id] = M2NodeSkeletonEntry(
+            self.t1_cache_table[node_id] = M2NodeSkeletonEntry(
                 node_id=node_id,
                 node_type=row.get("node_type", ""),
                 label=row.get("label", ""),
@@ -126,32 +126,32 @@ class M2Store:
     def lookup_arc(self, m2_id: int) -> M2Entry | None:
         """Look up a T2 cache entry by entry_id."""
 
-        return self.t2_cache.get(m2_id)
+        return self.t2_cache_table.get(m2_id)
 
     def lookup_node(self, node_id: str) -> M2NodeSkeletonEntry | None:
         """Look up a T1 cache entry (node skeleton) by campaign node_id."""
 
-        return self.t1_cache.get(node_id)
+        return self.t1_cache_table.get(node_id)
 
     def has_caches(self) -> bool:
         """True if both T2 cache and T1 cache are loaded."""
 
-        return bool(self.t2_cache) and bool(self.t1_cache)
+        return bool(self.t2_cache_table) and bool(self.t1_cache_table)
 
-    def t2_cache_prompt_json(self) -> str:
+    def t2_cache_table_prompt_json(self) -> str:
         """Serialize T2 cache to compact JSON for the Haiku classifier prefix."""
 
-        rows = [e.to_dict() for e in sorted(self.t2_cache.values(), key=lambda e: e.entry_id)]
+        rows = [e.to_dict() for e in sorted(self.t2_cache_table.values(), key=lambda e: e.entry_id)]
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
 
-    def t1_option_index_json(self) -> str:
+    def t1_cache_table_index_json(self) -> str:
         """Serialize T1 cache structure (without effects) for the per-campaign cached prefix.
 
         T1 option index = T1 cache stripped to option_id + intent only — Haiku uses this
         to assign per-option effect values at runtime without seeing placeholder values.
         """
         rows = []
-        for node_id, entry in sorted(self.t1_cache.items()):
+        for node_id, entry in sorted(self.t1_cache_table.items()):
             arbs = []
             for idx, arb in enumerate(entry.arbitrations):
                 options = [
