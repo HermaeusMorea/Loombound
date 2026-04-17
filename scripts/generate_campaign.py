@@ -1085,7 +1085,7 @@ def main() -> None:
     print(f"CAMPAIGN_PATH={out_path}")
     campaign_id = data['campaign_id']
     print(f"\nTo play:")
-    print(f"  ./loombound run --campaign {campaign_id} --slow anthropic --lang {args.lang}")
+    print(f"  ./loombound run --campaign {campaign_id} --lang {args.lang}")
 
 
 if __name__ == "__main__":
