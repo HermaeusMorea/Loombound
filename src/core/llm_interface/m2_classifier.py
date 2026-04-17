@@ -176,7 +176,7 @@ _NO_MATCH_ID = -1
 @dataclass
 class M2ClassifierConfig:
     api_key: str | None = None
-    model: str = "claude-opus-4-6"
+    model: str = "claude-haiku-4-5-20251001"
     max_tokens: int = 150   # entry_id + one arb's per-option effects
     timeout: float = 30.0
 
