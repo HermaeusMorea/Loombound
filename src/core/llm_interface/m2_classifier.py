@@ -255,126 +255,120 @@ class M2Classifier:
             "cache_control": {"type": "ephemeral"},
         }
 
+    def _build_user_blocks(self) -> list[dict]:
+        blocks: list[dict] = [
+            {
+                "type": "text",
+                "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_table_json}",
+                "cache_control": {"type": "ephemeral"},
+            },
+        ]
+        if self._t1_cache_table_index_json:
+            verdict_suffix = (
+                f"\n\nVerdict dictionary for this campaign:\n{self._verdict_dict_json}"
+                if self._verdict_dict_json else ""
+            )
+            blocks.append({
+                "type": "text",
+                "text": (
+                    f"T1 option index (node option structure for this campaign, no effect values):\n"
+                    f"{self._t1_cache_table_index_json}{verdict_suffix}"
+                ),
+                "cache_control": {"type": "ephemeral"},
+            })
+        return blocks
+
+    @staticmethod
+    def _parse_effects(raw: dict) -> tuple[int, dict[str, dict]] | None:
+        """Parse and validate tool output. Returns None if format is invalid."""
+        try:
+            entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
+            effects_map: dict[str, dict] = {}
+            for item in raw.get("effects", []):
+                opt_id = str(item.get("id", ""))
+                v = str(item.get("v", ""))
+                if not opt_id or not v:
+                    return None
+                effects_map[opt_id] = {
+                    "health_delta": int(item["h"]),
+                    "money_delta":  int(item["m"]),
+                    "sanity_delta": int(item["s"]),
+                    "verdict":      v,
+                }
+            return entry_id, effects_map
+        except (KeyError, TypeError, ValueError):
+            return None
+
     async def classify(
         self,
         quasi_state: str,
         next_node_id: str | None = None,
         next_arb_idx: int | None = None,
     ) -> tuple[int, dict[str, dict], dict[str, int]]:
-        """Classify arc state and assign effects for the next arbitration.
+        """Classify arc state and assign effects + verdicts for the next arbitration.
 
-        Args:
-            quasi_state:   Current game state description (from build_classifier_input).
-            next_node_id:  Campaign node_id the next arbitration belongs to.
-            next_arb_idx:  0-based index of the next arbitration within that node.
-                           Pass None (or omit) when there is no next arbitration
-                           (last arb of a node → only entry_id is needed).
-
-        Returns:
-            (entry_id, effects_map, usage)
-            effects_map: {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}
-            Empty dict when next_node_id / next_arb_idx are not provided.
+        Retries up to 2 times if the response fails format validation.
+        Returns (entry_id, effects_map, usage). effects_map is empty when no
+        next arbitration is specified or all retries are exhausted.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
         }
-        try:
-            user_blocks: list[dict] = [
-                # Block 1: T2 cache — stable for entire session, global cache
-                {
-                    "type": "text",
-                    "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_table_json}",
-                    "cache_control": {"type": "ephemeral"},
-                },
-            ]
 
-            # Block 2: T1 option index + verdict dict — per-campaign cache (only if loaded)
-            if self._t1_cache_table_index_json:
-                verdict_suffix = (
-                    f"\n\nVerdict dictionary for this campaign:\n{self._verdict_dict_json}"
-                    if self._verdict_dict_json else ""
+        needs_effects = next_node_id is not None and next_arb_idx is not None
+        arb_hint = (
+            f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
+            if needs_effects else
+            "\n\nNo next arbitration — output empty effects list."
+        )
+
+        user_blocks = self._build_user_blocks()
+        user_blocks.append({"type": "text", "text": quasi_state + arb_hint})
+
+        _MAX_RETRIES = 2
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                response = await self._client.messages.create(
+                    model=self._cfg.model,
+                    max_tokens=self._cfg.max_tokens,
+                    system=[{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+                    messages=[{"role": "user", "content": user_blocks}],
+                    tools=[self._tool],
+                    tool_choice={"type": "tool", "name": "select_arc_and_effects"},
                 )
-                user_blocks.append({
-                    "type": "text",
-                    "text": (
-                        f"T1 option index (node option structure for this campaign, no effect values):\n"
-                        f"{self._t1_cache_table_index_json}{verdict_suffix}"
-                    ),
-                    "cache_control": {"type": "ephemeral"},
-                })
 
-            # Block 3: dynamic per-call content
-            if next_node_id is not None and next_arb_idx is not None:
-                arb_hint = (
-                    f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
+                u = response.usage
+                cache_read = getattr(u, "cache_read_input_tokens", 0) or 0
+                cache_created = getattr(u, "cache_creation_input_tokens", 0) or 0
+                usage = {
+                    "input": u.input_tokens,
+                    "output": u.output_tokens,
+                    "cache_created": cache_created,
+                    "cache_read": cache_read,
+                }
+                log.info(
+                    "M2Classifier: input=%d cache_created=%d cache_read=%d output=%d (attempt %d)",
+                    u.input_tokens, cache_created, cache_read, u.output_tokens, attempt + 1,
                 )
-            else:
-                arb_hint = "\n\nNo next arbitration — output empty effects list."
 
-            user_blocks.append({
-                "type": "text",
-                "text": quasi_state + arb_hint,
-            })
+                for block in response.content:
+                    if block.type == "tool_use" and block.name == "select_arc_and_effects":
+                        raw = block.input
+                        if isinstance(raw, str):
+                            raw = json.loads(raw)
 
-            response = await self._client.messages.create(
-                model=self._cfg.model,
-                max_tokens=self._cfg.max_tokens,
-                system=[
-                    {
-                        "type": "text",
-                        "text": _SYSTEM_PROMPT,
-                        "cache_control": {"type": "ephemeral"},
-                    }
-                ],
-                messages=[{"role": "user", "content": user_blocks}],
-                tools=[self._tool],
-                tool_choice={"type": "tool", "name": "select_arc_and_effects"},
-            )
+                        parsed = self._parse_effects(raw)
+                        if parsed is None and needs_effects:
+                            log.warning("M2Classifier: invalid format on attempt %d, retrying", attempt + 1)
+                            break
+                        entry_id, effects_map = parsed if parsed else (_NO_MATCH_ID, {})
+                        log.info("M2Classifier: entry_id=%d effects for %d option(s)", entry_id, len(effects_map))
+                        return entry_id, effects_map, usage
 
-            u = response.usage
-            cache_read = getattr(u, "cache_read_input_tokens", 0) or 0
-            cache_created = getattr(u, "cache_creation_input_tokens", 0) or 0
-            usage = {
-                "input": u.input_tokens,
-                "output": u.output_tokens,
-                "cache_created": cache_created,
-                "cache_read": cache_read,
-            }
-            log.info(
-                "M2Classifier: input=%d cache_created=%d cache_read=%d output=%d",
-                u.input_tokens, cache_created, cache_read, u.output_tokens,
-            )
-
-            for block in response.content:
-                if block.type == "tool_use" and block.name == "select_arc_and_effects":
-                    raw = block.input
-                    if isinstance(raw, str):
-                        raw = json.loads(raw)
-                    entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
-
-                    # Parse flat effects list → {option_id: {health_delta, money_delta, sanity_delta, verdict}}
-                    effects_map: dict[str, dict] = {}
-                    for item in raw.get("effects", []):
-                        opt_id = str(item.get("id", ""))
-                        if opt_id:
-                            effects_map[opt_id] = {
-                                "health_delta":  int(item.get("h", 0)),
-                                "money_delta":   int(item.get("m", 0)),
-                                "sanity_delta":  int(item.get("s", 0)),
-                                "verdict":       str(item.get("v", "")),
-                            }
-
-                    log.info(
-                        "M2Classifier: entry_id=%d effects for %d option(s)",
-                        entry_id, len(effects_map),
-                    )
-                    return entry_id, effects_map, usage
-
-            log.warning("M2Classifier: no tool_use block in response")
-            return _NO_MATCH_ID, {}, usage
-
-        except Exception as exc:
-            log.error("M2Classifier: classification failed: %s", exc)
+            except Exception as exc:
+                log.error("M2Classifier: attempt %d failed: %s", attempt + 1, exc)
+                if attempt == _MAX_RETRIES:
+                    return _NO_MATCH_ID, {}, _empty_usage
             return _NO_MATCH_ID, {}, _empty_usage
 
     def update_t2_cache_table(self, t2_cache_table_json: str) -> None:
