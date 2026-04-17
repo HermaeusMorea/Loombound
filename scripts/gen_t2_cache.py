@@ -1,15 +1,14 @@
-"""Offline script: generate the global arc-state palette (M2 Table A).
+"""Offline script: generate the T2 cache (global arc-state palette).
 
-One-time setup. Calls Claude Opus once to produce ~50 rows covering the full
+One-time setup. Calls Claude Opus once to produce ~50 entries covering the full
 space of dramatic arc combinations. The result is loaded into Claude's prompt
-cache at runtime so the M2 arc classifier can pick from it cheaply (~10 tokens
-per node).
+cache at runtime so the M2 arc classifier (Haiku) can pick from it cheaply.
 
-Output: data/m2_table_a.json
+Output: data/t2_arc_palette.json
 
 Usage:
-    python generate_arc_palette.py
-    python generate_arc_palette.py --count 50 --output data/m2_table_a.json
+    python gen_t2_cache.py
+    python gen_t2_cache.py --count 50 --output data/t2_arc_palette.json
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """
@@ -25,7 +24,7 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = REPO_ROOT / ".env"
-OUTPUT_PATH = REPO_ROOT / "data" / "m2_table_a.json"
+OUTPUT_PATH = REPO_ROOT / "data" / "t2_arc_palette.json"
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 _OPUS_INPUT_COST  = 5.0  / 1_000_000
 _OPUS_OUTPUT_COST = 25.0 / 1_000_000
@@ -188,7 +187,7 @@ def generate(count: int = 50) -> list[dict]:
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Generate global arc-state palette (M2 Table A).")
+    parser = argparse.ArgumentParser(description="Generate T2 cache (global arc-state palette).")
     parser.add_argument("--count", type=int, default=50, help="Target number of entries (default: 50).")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output JSON path.")
     parser.add_argument("--force", action="store_true",

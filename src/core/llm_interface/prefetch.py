@@ -76,7 +76,7 @@ def _md_log(lines: list[str]) -> None:
 
 
 def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
-    """Convert a Table A row into a Fast Core tendency payload."""
+    """Convert a T2 cache entry into a Fast Core tendency payload."""
 
     return {
         "entry_id": str(getattr(arc_row, "entry_id", "")),
@@ -91,10 +91,10 @@ def _merge_preloaded_seed(
     skeleton: Any,
     arc_row: Any,
 ) -> ArbitrationSeed:
-    """Blend a node skeleton from Table B with the runtime Table A tendency.
+    """Blend a T1 cache node skeleton with the runtime T2 cache tendency.
 
-    Effects in the seed come from Table B (Haiku-generated placeholders).
-    Opus per-option effects are applied separately at play time via play_cli's
+    Effects in the seed come from the T1 cache (Haiku-generated placeholders).
+    Haiku per-option effects are applied separately at play time via play_cli's
     _overlay_effects, which patches the expanded payload dict directly.
     """
     raw_options = skeleton.options or []
@@ -148,7 +148,7 @@ class PrefetchCache:
     2. Per-choice arc updates (Opus M2):
        update_arc_state() → after each player choice, fires async Opus call.
        consume_arb_effects() → blocks briefly for Opus result, returns option effects.
-       _current_arc_id property → latest classified Table A entry_id.
+       _current_arc_id property → latest classified T2 cache entry_id.
     """
 
     def __init__(
@@ -195,8 +195,8 @@ class PrefetchCache:
     ) -> None:
         """Start background generation for target_node_id if not already running.
 
-        Uses the preloaded path: Table B skeleton + current _current_arc_id tendency
-        → gemma3 expansion. If Table B is unavailable, marks the entry as failed
+        Uses the preloaded path: T1 cache skeleton + current _current_arc_id tendency
+        → gemma3 expansion. If T1 cache is unavailable, marks the entry as failed
         and the caller falls back to authored JSON.
         """
         with self._lock:
@@ -446,8 +446,8 @@ class PrefetchCache:
         arc_id_snapshot: int,
     ) -> None:
         try:
-            if not run_memory.m2.has_tables():
-                reason = "table_a/table_b not loaded"
+            if not run_memory.m2.has_caches():
+                reason = "t2_cache/t1_cache not loaded"
                 log.warning("Prefetch: '%s' skipped — %s.", target_node_id, reason)
                 with self._lock:
                     entry = self._cache.get(target_node_id)
@@ -484,18 +484,18 @@ class PrefetchCache:
         arbitration_count: int,
         arc_id_snapshot: int,
     ) -> None:
-        """Preloaded path: look up Table A + Table B, expand with Fast Core.
+        """Preloaded path: look up T2 cache + T1 cache, expand with Fast Core.
 
-        No Opus call here — arc tendency comes from arc_id_snapshot which was
+        No Haiku call here — arc tendency comes from arc_id_snapshot which was
         captured at trigger() time from _current_arc_id.
         """
-        # Step 1: Table A lookup for arc tendency
+        # Step 1: T2 cache lookup for arc tendency
         arc_row = run_memory.m2.lookup_arc(arc_id_snapshot)
         if arc_row is None:
             # Fallback to entry 0 if snapshot id is missing
             arc_row = run_memory.m2.lookup_arc(0)
         if arc_row is None:
-            reason = f"table_a missing entry_id={arc_id_snapshot} and no entry 0"
+            reason = f"t2_cache missing entry_id={arc_id_snapshot} and no entry 0"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -503,10 +503,10 @@ class PrefetchCache:
                     entry.mark_failed(reason)
             return
 
-        # Step 2: Table B skeleton lookup
+        # Step 2: T1 cache lookup
         node_entry = run_memory.m2.lookup_node(target_node_id)
         if node_entry is None or not node_entry.arbitrations:
-            reason = f"table_b missing node_id={target_node_id}"
+            reason = f"t1_cache missing node_id={target_node_id}"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -515,7 +515,7 @@ class PrefetchCache:
             return
 
         _md_log([
-            f"## [{_ts()}] TABLE B LOOKUP — node `{target_node_id}` (arc_id={arc_id_snapshot})",
+            f"## [{_ts()}] T1 CACHE LOOKUP — node `{target_node_id}` (arc_id={arc_id_snapshot})",
             f"node_type: {node_entry.node_type}",
             f"label: {node_entry.label}",
             f"arbitrations: {len(node_entry.arbitrations)}",
@@ -523,13 +523,13 @@ class PrefetchCache:
             f"world_pressure: {arc_row.world_pressure}",
         ])
 
-        # Step 3: Merge Table B skeletons with arc tendency
+        # Step 3: Merge T1 cache skeletons with arc tendency
         merged_seeds: list[ArbitrationSeed] = []
         for idx in range(arbitration_count):
             skeleton = node_entry.arbitrations[min(idx, len(node_entry.arbitrations) - 1)]
             arb_seed = _merge_preloaded_seed(skeleton, arc_row)
             merged_seeds.append(arb_seed)
-            arb_id = f"{target_node_id}_tb_{idx:02d}"
+            arb_id = f"{target_node_id}_t1_{idx:02d}"
             _md_log([
                 f"## [{_ts()}] FAST CORE REQUEST (preloaded) — `{arb_id}`",
                 f"scene_concept: {arb_seed.scene_concept}",
@@ -538,7 +538,7 @@ class PrefetchCache:
             ])
 
         # Step 4: Fast Core expands each arbitration
-        resolved = await self._expand_arbitrations(merged_seeds, target_node_id, "tb", core_state)
+        resolved = await self._expand_arbitrations(merged_seeds, target_node_id, "t1", core_state)
 
         # Step 5: Assemble seed_pack and store in cache
         seed_pack = NodeSeedPack(

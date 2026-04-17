@@ -1,8 +1,8 @@
-"""Tests for _validate_table_b_response — structural and content checks."""
+"""Tests for _validate_t1_cache_response — structural and content checks."""
 
 from __future__ import annotations
 
-from generate_campaign import _validate_table_b_response
+from gen_t1_cache import _validate_t1_cache_response as _validate_table_b_response
 
 
 def _valid_arb(node_id: str = "node_a", n_opts: int = 2) -> dict:

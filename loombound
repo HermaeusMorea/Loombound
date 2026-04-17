@@ -3,14 +3,14 @@
 #
 # SUBCOMMANDS
 #   arc-palette  [--count N] [--output PATH]
-#       Generate the global arc-state palette (Table A). One-time setup.
+#       Generate the T2 cache (global arc-state palette). One-time setup.
 #
 #   clean-palette
-#       Delete data/m2_table_a.json.
+#       Delete data/t2_arc_palette.json.
 #
 #   gen "theme" [--nodes N] [--lang zh] [--tone "..."] [--worldview "..."]
-#               [--model PROVIDER[:MODEL]] [--skip-table-b]
-#       Generate a campaign graph (Opus) + Table B skeletons (Haiku).
+#               [--model PROVIDER[:MODEL]] [--skip-t1-cache]
+#       Generate a campaign graph (Opus) + T1 cache skeletons (Haiku).
 #
 #   run [--campaign ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
 #       Launch the game. Requires ANTHROPIC_API_KEY (Claude API only).
@@ -19,7 +19,7 @@
 #       Print LLM usage / cost report for the last run.
 #
 #   clean [--campaign ID_OR_PATH] [--all]
-#       Remove campaign JSON and node files. Keeps data/m2_table_a.json.
+#       Remove campaign JSON and node files. Keeps data/t2_arc_palette.json.
 #       --campaign : remove only that campaign's files
 #       --all (or no flag) : remove ALL campaigns and node directories
 #
@@ -86,12 +86,12 @@ case "$subcmd" in
 
     # ── arc-palette ─────────────────────────────────────────────────────────
     arc-palette)
-        exec "$PYTHON" scripts/generate_arc_palette.py "$@"
+        exec "$PYTHON" scripts/gen_t2_cache.py "$@"
         ;;
 
     # ── clean-palette ────────────────────────────────────────────────────────
     clean-palette)
-        target="$DATA_DIR/m2_table_a.json"
+        target="$DATA_DIR/t2_arc_palette.json"
         if [[ -f "$target" ]]; then
             rm "$target"
             echo "Deleted $target"
@@ -200,8 +200,8 @@ case "$subcmd" in
             [[ $removed -eq 0 ]] && echo "Nothing to clean for campaign '$campaign_stem'."
 
         else
-            # Remove all campaigns and node directories (keep Table A + rules/text/arbitrations)
-            echo "Cleaning all campaign data (keeping data/m2_table_a.json)..."
+            # Remove all campaigns and node directories (keep T2 cache + rules/text/arbitrations)
+            echo "Cleaning all campaign data (keeping data/t2_arc_palette.json)..."
             removed=0
 
             for f in "$DATA_DIR/campaigns/"*.json; do

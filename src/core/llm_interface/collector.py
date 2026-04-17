@@ -225,7 +225,7 @@ def build_classifier_input(
     """Build the input sent to the M2 arc-state classifier (Claude).
 
     Contains only mechanical game state — no planning request.
-    The classifier's job is purely structural: pick the best-matching Table A row.
+    The classifier's job is purely structural: pick the best-matching T2 cache entry.
     """
     sections = _build_state_sections(
         core_state,

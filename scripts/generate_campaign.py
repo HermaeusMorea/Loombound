@@ -2,9 +2,9 @@
 """Generate a Loombound campaign.
 
 Step 1: Claude Opus generates the campaign graph (node topology, labels, map_blurbs).
-Step 2: Claude Haiku generates Table B — scene skeletons for every node (batch, one call).
+Step 2: Claude Haiku generates T1 cache — scene skeletons for every node (batch, one call).
 
-Both steps run automatically. Use --skip-table-b to stop after Step 1.
+Both steps run automatically. Use --skip-t1-cache to stop after Step 1.
 
 Usage:
     python generate_campaign.py "drowned city cult investigation"
@@ -12,7 +12,7 @@ Usage:
     python generate_campaign.py "渔村诅咒" --lang zh --nodes 6
     python generate_campaign.py "solar archaeology" --tone "dirty political thriller"
     python generate_campaign.py "theme" --provider deepseek
-    python generate_campaign.py "theme" --skip-table-b
+    python generate_campaign.py "theme" --skip-t1-cache
 """
 
 from __future__ import annotations
@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
+
+from gen_t1_cache import generate_t1_cache_step, write_t1_cache  # noqa: F401
 
 REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()
@@ -277,81 +279,6 @@ _TOOL_OPENAI = {
 
 
 # ---------------------------------------------------------------------------
-# Table B tool schema (Claude Haiku — batch, all nodes in one call)
-# ---------------------------------------------------------------------------
-
-_SKELETON_ITEM = {
-    "type": "object",
-    "properties": {
-        "scene_type": {"type": "string"},
-        "scene_concept": {
-            "type": "string",
-            "description": "1-2 sentences: what physically happens here. Specific, tendency-flexible.",
-        },
-        "sanity_axis": {
-            "type": "string",
-            "description": "One short phrase naming the tension (e.g. 'obedience vs conscience'). No analysis.",
-        },
-        "options": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 4,
-            "items": {
-                "type": "object",
-                "properties": {
-                    "option_id": {"type": "string"},
-                    "intent":    {"type": "string"},
-                    "tags":      {"type": "array", "items": {"type": "string"}},
-                    "effects": {
-                        "type": "object",
-                        "properties": {
-                            "health_delta":    {"type": "integer"},
-                            "money_delta":     {"type": "integer"},
-                            "sanity_delta":    {"type": "integer"},
-                            "add_conditions":  {"type": "array", "items": {"type": "string"}},
-                        },
-                        "additionalProperties": False,
-                    },
-                },
-                "required": ["option_id", "intent", "tags", "effects"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    "required": ["scene_type", "scene_concept", "sanity_axis", "options"],
-    "additionalProperties": False,
-}
-
-_TABLE_B_TOOL = {
-    "name": "generate_table_b",
-    "description": "Submit scene skeletons for ALL campaign nodes at once.",
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "nodes": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "node_id": {"type": "string"},
-                        "arbitrations": {
-                            "type": "array",
-                            "minItems": 1,
-                            "items": _SKELETON_ITEM,
-                        },
-                    },
-                    "required": ["node_id", "arbitrations"],
-                    "additionalProperties": False,
-                },
-            },
-        },
-        "required": ["nodes"],
-        "additionalProperties": False,
-    },
-}
-
-
-# ---------------------------------------------------------------------------
 # Campaign graph generation — Anthropic
 # ---------------------------------------------------------------------------
 
@@ -528,201 +455,6 @@ def _build_user_msg(
 
 
 # ---------------------------------------------------------------------------
-# Table B generation — Claude Haiku (batched, 3 nodes per call)
-# ---------------------------------------------------------------------------
-
-_TABLE_B_BATCH_SIZE = 3
-
-
-def _build_table_b_user_msg(
-    nodes_raw: list[dict],
-    title: str,
-    tone: str,
-    intro: str,
-    lang: str,
-) -> tuple[str, dict[str, int]]:
-    """Build the user message for a Table B batch call.
-
-    Returns (user_msg, expected) where expected maps node_id → arbitration count.
-    """
-    node_lines = []
-    expected: dict[str, int] = {}
-    for node in nodes_raw:
-        nid = node["node_id"]
-        arb_n = int(node.get("arbitration_count", 1))
-        expected[nid] = arb_n
-        node_lines.append(
-            f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
-            f"floor: {node.get('floor', 1)}  arbitrations_required: {arb_n}\n"
-            f"    label: {node.get('label', '')}\n"
-            f"    map_blurb: {node.get('map_blurb', '')}"
-        )
-
-    lang_note = (
-        "Write all narrative text (scene_concept, sanity_axis, intent) in Chinese (中文).\n"
-        if lang == "zh" else ""
-    )
-    user_msg = (
-        f"Campaign: {title}\n"
-        f"Tone: {tone}\n"
-        f"Premise: {intro}\n\n"
-        f"{lang_note}"
-        f"Generate Table B skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
-        f"Each node must have EXACTLY the specified number of arbitrations.\n\n"
-        + "\n".join(node_lines)
-    )
-    return user_msg, expected
-
-
-def _validate_table_b_response(raw: dict, expected: dict[str, int]) -> list[str]:
-    """Return a list of validation error strings (empty = valid).
-
-    Checks both structure (node presence, arbitration count) and content
-    (non-empty scene_concept, sanity_axis, and option intents/ids).
-    """
-    result_nodes = raw.get("nodes", [])
-    result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
-    errors: list[str] = []
-    for nid, want in expected.items():
-        got_node = result_by_id.get(nid)
-        if got_node is None:
-            errors.append(f"missing node_id={nid}")
-            continue
-        arbs = got_node.get("arbitrations", [])
-        got = len(arbs)
-        if got != want:
-            errors.append(f"{nid}: expected {want} arbitrations, got {got}")
-            continue
-        # Content validation — catch empty fields that would silently break Fast Core
-        for arb_idx, arb in enumerate(arbs):
-            prefix = f"{nid}[{arb_idx}]"
-            if not str(arb.get("scene_concept", "")).strip():
-                errors.append(f"{prefix}: scene_concept is empty")
-            if not str(arb.get("sanity_axis", "")).strip():
-                errors.append(f"{prefix}: sanity_axis is empty")
-            options = arb.get("options", [])
-            if not options:
-                errors.append(f"{prefix}: options list is empty")
-            for opt_idx, opt in enumerate(options):
-                if not str(opt.get("option_id", "")).strip():
-                    errors.append(f"{prefix} opt[{opt_idx}]: option_id is empty")
-                if not str(opt.get("intent", "")).strip():
-                    errors.append(f"{prefix} opt[{opt_idx}]: intent is empty")
-    return errors
-
-
-_TABLE_B_SYSTEM = """\
-You are a narrative scene designer for a roguelite game.
-Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
-
-Rules:
-- Call generate_table_b exactly once with ALL the nodes given to you in this message.
-- Each node must have EXACTLY the number of arbitrations specified.
-- scene_concept: what physically happens — specific but not locked to one dramatic outcome.
-- sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
-- Do not hardcode a single dramatic tendency; runtime arc state will modulate these later.
-"""
-
-
-async def _generate_table_b(
-    nodes_raw: list[dict],
-    campaign_id: str,
-    tone: str,
-    title: str,
-    intro: str,
-    lang: str,
-    api_key: str,
-    *,
-    max_retries: int = 2,
-) -> list[dict] | None:
-    """Call Claude Haiku to generate Table B for all nodes in one batch."""
-
-    client = anthropic.AsyncAnthropic(api_key=api_key)
-    model = "claude-haiku-4-5-20251001"
-
-    user_msg, expected = _build_table_b_user_msg(nodes_raw, title, tone, intro, lang)
-
-    _md_log([
-        f"## [{_ts()}] TABLE B REQUEST — `{campaign_id}` ({len(nodes_raw)} nodes)",
-        f"model: {model}",
-        *[f"  {n['node_id']} arb×{n.get('arbitration_count', 1)}" for n in nodes_raw],
-    ])
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            response = await client.messages.create(
-                model=model,
-                max_tokens=8000,
-                system=_TABLE_B_SYSTEM,
-                messages=[{"role": "user", "content": user_msg}],
-                tools=[_TABLE_B_TOOL],
-                tool_choice={"type": "tool", "name": "generate_table_b"},
-            )
-        except Exception as exc:
-            print(f"  [Table B attempt {attempt}] API error: {exc}")
-            if attempt == max_retries:
-                return None
-            continue
-
-        u = response.usage
-        raw: dict | None = None
-        for block in response.content:
-            if block.type == "tool_use" and block.name == "generate_table_b":
-                raw = _coerce_json(block.input)
-                break
-
-        if raw is None:
-            print(f"  [Table B attempt {attempt}] no tool call returned, retrying...")
-            continue
-
-        errors = _validate_table_b_response(raw, expected)
-        result_nodes = raw.get("nodes", [])
-
-        if errors:
-            print(f"  [Table B attempt {attempt}] validation errors: {errors}")
-            _md_log([
-                f"## [{_ts()}] TABLE B RETRY — `{campaign_id}` attempt={attempt}",
-                *errors,
-            ])
-            if attempt == max_retries:
-                return None
-            continue
-
-        # Stamp node metadata client-side (keeps Table B self-contained)
-        node_meta = {n["node_id"]: n for n in nodes_raw}
-        table_b: list[dict] = []
-        for n in result_nodes:
-            nid = n["node_id"]
-            meta = node_meta.get(nid, {})
-            table_b.append({
-                "node_id":    nid,
-                "node_type":  meta.get("node_type", ""),
-                "label":      meta.get("label", ""),
-                "map_blurb":  meta.get("map_blurb", ""),
-                "arbitrations": n["arbitrations"],
-            })
-
-        haiku_cost = u.input_tokens * _HAIKU_INPUT_COST + u.output_tokens * _HAIKU_OUTPUT_COST
-        print(f"  Table B: input={u.input_tokens}  output={u.output_tokens}  "
-              f"(~${haiku_cost:.4f})")
-        _md_log([
-            f"## [{_ts()}] TABLE B RESPONSE — `{campaign_id}` attempt={attempt}",
-            f"model: {model}",
-            f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
-            f"cost: ${haiku_cost:.4f}",
-            "summaries:",
-            *[
-                f"  {row['node_id']} (arb×{len(row['arbitrations'])}): "
-                + (row['arbitrations'][0].get('scene_concept', '')[:90] if row.get('arbitrations') else '(empty)')
-                for row in table_b
-            ],
-        ])
-        return table_b
-
-    return None
-
-
-# ---------------------------------------------------------------------------
 # Response normalisation
 # ---------------------------------------------------------------------------
 
@@ -793,7 +525,7 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
     campaigns_dir = REPO_ROOT / "data" / "campaigns"
     nodes_dir = REPO_ROOT / "data" / "nodes" / campaign_id
     campaigns_dir.mkdir(parents=True, exist_ok=True)
-    nodes_dir.mkdir(parents=True, exist_ok=True)  # for table_b.json
+    nodes_dir.mkdir(parents=True, exist_ok=True)  # for t1_cache.json
 
     campaign_nodes: dict = {}
     for node in nodes_raw:
@@ -829,14 +561,6 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
     )
 
     return out_path, len(nodes_raw)
-
-
-def write_table_b(table_b: list[dict], campaign_id: str) -> Path:
-    out_dir = REPO_ROOT / "data" / "nodes" / campaign_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "table_b.json"
-    out_path.write_text(json.dumps(table_b, ensure_ascii=False, indent=2), encoding="utf-8")
-    return out_path
 
 
 # ---------------------------------------------------------------------------
@@ -928,49 +652,6 @@ def _step1_generate_graph(
     return data
 
 
-def _step2_generate_table_b_step(
-    data: dict,
-    node_count: int,
-    lang: str,
-    anthropic_key: str,
-) -> None:
-    """Generate Table B skeletons for all nodes (batched) and write to disk."""
-    nodes_list = data["nodes"]
-    batch_size = _TABLE_B_BATCH_SIZE
-    batches = [nodes_list[i:i + batch_size] for i in range(0, len(nodes_list), batch_size)]
-    print(f"\nGenerating Table B via claude-haiku ({node_count} nodes, {len(batches)} batch(es) of ≤{batch_size})...")
-
-    async def _run_batches() -> tuple[list[dict], bool]:
-        results: list[dict] = []
-        failed = False
-        for b_idx, batch in enumerate(batches, start=1):
-            batch_ids = [n["node_id"] for n in batch]
-            print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
-            result = await _generate_table_b(
-                nodes_raw=batch,
-                campaign_id=data["campaign_id"],
-                tone=data.get("tone", ""),
-                title=data.get("title", ""),
-                intro=data.get("intro", ""),
-                lang=lang,
-                api_key=anthropic_key,
-            )
-            if result:
-                results.extend(result)
-            else:
-                failed = True
-                print(f"  Batch {b_idx} failed.", file=sys.stderr)
-        return results, failed
-
-    table_b_all, any_failed = asyncio.run(_run_batches())
-
-    if table_b_all:
-        tb_path = write_table_b(table_b_all, data["campaign_id"])
-        print(f"  Written: {tb_path} ({len(table_b_all)} nodes)")
-    if any_failed:
-        print("  Some batches failed — re-run gen to regenerate Table B.", file=sys.stderr)
-
-
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1002,8 +683,8 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=3,
                         help="Max attempts on graph validation failure (default: 3)")
     parser.add_argument(
-        "--skip-table-b", action="store_true",
-        help="Skip Table B generation (campaign graph only).",
+        "--skip-t1-cache", action="store_true",
+        help="Skip T1 cache generation (campaign graph only).",
     )
     parser.add_argument(
         "--provider", default=None, metavar="PROVIDER",
@@ -1042,15 +723,15 @@ def main() -> None:
         )
         sys.exit(1)
 
-    # Anthropic key is always needed for Table B (Haiku)
+    # Anthropic key is always needed for T1 cache generation (Haiku)
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.skip_table_b and not anthropic_key:
+    if not args.skip_t1_cache and not anthropic_key:
         print(
-            "Warning: ANTHROPIC_API_KEY not set — skipping Table B generation.\n"
-            "Run with --skip-table-b to suppress this warning, or add the key to .env.",
+            "Warning: ANTHROPIC_API_KEY not set — skipping T1 cache generation.\n"
+            "Run with --skip-t1-cache to suppress this warning, or add the key to .env.",
             file=sys.stderr,
         )
-        args.skip_table_b = True
+        args.skip_t1_cache = True
 
     print(
         f"Generating campaign: '{args.theme}' ({args.nodes} nodes) "
@@ -1076,10 +757,10 @@ def main() -> None:
 
     print(f"\n  Written: {out_path} ({node_count} nodes inlined)")
 
-    # ── Step 2: generate Table B (Haiku, batched 3 nodes per call) ────────
+    # ── Step 2: generate T1 cache (Haiku, batched 3 nodes per call) ────────
 
-    if not args.skip_table_b:
-        _step2_generate_table_b_step(data, node_count, args.lang, anthropic_key)
+    if not args.skip_t1_cache:
+        generate_t1_cache_step(data, node_count, args.lang, anthropic_key)
 
     print(f"\nCAMPAIGN_ID={data['campaign_id']}")
     print(f"CAMPAIGN_PATH={out_path}")

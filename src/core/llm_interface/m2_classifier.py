@@ -1,20 +1,20 @@
 """M2 arc-state classifier — runtime Claude call (per-choice).
 
 Called after each player choice to:
-  1. Classify the current arc state → best-fit Table A entry_id
+  1. Classify the current arc state → best-fit T2 cache entry_id
   2. Assign per-option effect values for the NEXT arbitration in the current node
 
 Cache structure (Anthropic prompt-cache prefix):
   system    — arc classification guide       ~3,000 tokens  (global, cached)
   tool      — select_arc_and_effects schema  ~1,000 tokens  (global, cached)
-  user[0]   — Table A                        ~1,500 tokens  (session, cached)
-  user[1]   — Table C (option structure)     ~2,000 tokens  (per-campaign, cached)
+  user[0]   — T2 cache (arc palette)         ~1,500 tokens  (session, cached)
+  user[1]   — T1 option index                ~2,000 tokens  (per-campaign, cached)
   user[2]   — quasi state + target arb hint  ~200-400 tokens (dynamic, uncached)
 
 Token budget per call (after cache warm):
-  Input  (cached):   system + tool + Table A + Table C  ~5,000 tokens @ 0.1× rate
-  Input  (dynamic):  quasi state + arb hint              ~300 tokens @ 1× rate
-  Output:            entry_id + per-option effects        ~80-120 tokens
+  Input  (cached):   system + tool + T2 cache + T1 option index  ~5,000 tokens @ 0.1× rate
+  Input  (dynamic):  quasi state + arb hint                       ~300 tokens @ 1× rate
+  Output:            entry_id + per-option effects                  ~80-120 tokens
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ You are the runtime intelligence layer for a narrative game engine.
 You have two jobs — both handled in a single tool call:
 
 JOB 1 — ARC STATE CLASSIFICATION
-Receive Table A (arc state catalogue) and the current game state.
-Select the Table A entry_id that best matches the current arc state.
+Receive the T2 cache (arc state catalogue) and the current game state.
+Select the T2 cache entry_id that best matches the current arc state.
 
 Selection rules:
 - Match arc_trajectory first (rising/plateau/climax/resolution/pivot).
@@ -144,9 +144,9 @@ Step 2. Identify the arc_trajectory that best describes the run's current moment
 Step 3. Identify the world_pressure from environmental and threat signals.
 Step 4. Identify the narrative_pacing from the density and urgency of recent events.
 Step 5. Identify the pending_intent from what the protagonist is positioned to do next.
-Step 6. Scan Table A for the row whose four fields most closely match your assessment.
+Step 6. Scan the T2 cache for the entry whose four fields most closely match your assessment.
         Prefer exact matches on trajectory and pressure; use pacing and intent as
-        tiebreakers. If no row is within two dimensions of a match, return -1.
+        tiebreakers. If no entry is within two dimensions of a match, return -1.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -191,18 +191,18 @@ class M2Classifier:
     def __init__(
         self,
         config: M2ClassifierConfig | None = None,
-        table_a_json: str = "[]",
-        table_c_json: str = "",
+        t2_cache_json: str = "[]",
+        t1_option_index_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
-        self._table_a_json = table_a_json
-        self._table_c_json = table_c_json
+        self._t2_cache_json = t2_cache_json
+        self._t1_option_index_json = t1_option_index_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
             "name": "select_arc_and_effects",
             "description": (
-                "Select the best-matching Table A arc state and assign per-option "
+                "Select the best-matching T2 cache arc state and assign per-option "
                 "gameplay effect values for the specified next arbitration."
             ),
             "input_schema": {
@@ -211,8 +211,8 @@ class M2Classifier:
                     "entry_id": {
                         "type": "integer",
                         "description": (
-                            "The entry_id of the best-matching Table A row, "
-                            "or -1 if no row is a reasonable match."
+                            "The entry_id of the best-matching T2 cache entry, "
+                            "or -1 if no entry is a reasonable match."
                         ),
                     },
                     "effects": {
@@ -226,7 +226,7 @@ class M2Classifier:
                             "properties": {
                                 "id": {
                                     "type": "string",
-                                    "description": "option_id from Table C.",
+                                    "description": "option_id from T1 option index.",
                                 },
                                 "h": {"type": "integer", "description": "health_delta"},
                                 "m": {"type": "integer", "description": "money_delta"},
@@ -240,7 +240,7 @@ class M2Classifier:
                 "required": ["entry_id", "effects"],
                 "additionalProperties": False,
             },
-            # Cache the tool schema alongside Table A for maximum prefix reuse
+            # Cache the tool schema alongside T2 cache for maximum prefix reuse
             "cache_control": {"type": "ephemeral"},
         }
 
@@ -269,19 +269,19 @@ class M2Classifier:
         }
         try:
             user_blocks: list[dict] = [
-                # Block 1: Table A — stable for entire session, global cache
+                # Block 1: T2 cache — stable for entire session, global cache
                 {
                     "type": "text",
-                    "text": f"Table A (arc state catalogue):\n{self._table_a_json}",
+                    "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_json}",
                     "cache_control": {"type": "ephemeral"},
                 },
             ]
 
-            # Block 2: Table C — per-campaign cache (only if loaded)
-            if self._table_c_json:
+            # Block 2: T1 option index — per-campaign cache (only if loaded)
+            if self._t1_option_index_json:
                 user_blocks.append({
                     "type": "text",
-                    "text": f"Table C (node option structure for this campaign, no effect values):\n{self._table_c_json}",
+                    "text": f"T1 option index (node option structure for this campaign, no effect values):\n{self._t1_option_index_json}",
                     "cache_control": {"type": "ephemeral"},
                 })
 
@@ -358,10 +358,10 @@ class M2Classifier:
             log.error("M2Classifier: classification failed: %s", exc)
             return _NO_MATCH_ID, {}, _empty_usage
 
-    def update_table_a(self, table_a_json: str) -> None:
-        """Replace the cached Table A JSON (e.g. after offline regeneration)."""
-        self._table_a_json = table_a_json
+    def update_t2_cache(self, t2_cache_json: str) -> None:
+        """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
+        self._t2_cache_json = t2_cache_json
 
-    def update_table_c(self, table_c_json: str) -> None:
-        """Replace the cached Table C JSON (e.g. after campaign switch)."""
-        self._table_c_json = table_c_json
+    def update_t1_option_index(self, t1_option_index_json: str) -> None:
+        """Replace the T1 option index JSON (e.g. after campaign switch)."""
+        self._t1_option_index_json = t1_option_index_json

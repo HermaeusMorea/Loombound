@@ -139,4 +139,4 @@ LLM 调用记录在 `logs/llm.md`（含每次调用的 token 数、成本、cach
 
 ---
 
-游戏的 LLM 分层架构（M0/M1/M2 三层记忆、prompt cache 策略、Fast/Slow Core 分工）设计参考自作者正在进行的 [PRISM](https://github.com/HermaeusMorea/PRISM) 项目。PRISM 是一个独立的私有协议规范，不是 Loombound 的依赖项——本 repo 可完全独立运行。
+游戏的 LLM 分层架构（M0/M1/M2 三层记忆、C0/C1/C2 prompting cache 策略、T0/T1/T2 Core 分工）设计参考自作者正在进行的另一个项目。

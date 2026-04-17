@@ -1,8 +1,8 @@
 {
   "campaign_id": "heritage_liquidation_bureau",
-  "title": "遗产清算局：第七次废墟审计",
-  "intro": "你是遗产清算局派驻第十七废墟区的审计员，编号丙-4091。你的公文包里装着三份空白税单、一支断了尖的铅笔、以及一本已经过期两百年的《废墟估价手册（修订第三版）》。局里的电报说得很清楚：完成审计，征收税款，否则你自己就会被列入清算名单。",
-  "tone": "卡夫卡式官僚荒诞与末世废土的融合。基调是灰尘、发黄纸张、盖满红色印章的表格、以及在瓦砾堆上一丝不苟执行已无意义规则的黑色幽默。意象应反复出现：锈蚀的档案柜、用废墟碎砖搭建的办公桌、幸存者对着税单困惑的眼神、以及审计员内心深处对\"秩序\"与\"暴政\"边界的动摇。语气克制、干燥、偶尔流露出压抑的悲悯，像一份写得过于详尽的验尸报告。",
+  "title": "遗产清算局：废墟审计",
+  "intro": "核战结束已两百年，文明的灰烬早已冷却，但遗产清算局的印章从未停止盖落。你是编号丁-0937的外勤审计员，背着一只装满发黄税单的公文包，被派往废墟区执行\"历史欠税追征令\"。在这片被辐射与荒芜吞没的土地上，你的任务荒诞而庄严——向那些勉强活着的人，追讨一个早已不存在的国家的税款。",
+  "tone": "后启示录官僚主义黑色喜剧。基调是荒诞与悲凉交织——破败的废墟中矗立着一丝不苟的公文体系，辐射尘埃落在盖满红章的税单上。视觉意象应充满锈蚀的铁皮棚屋、褪色的政府标语、用弹壳做成的算盘，以及穿着破旧但依然整洁制服的审计员。语气在冷面幽默与末世孤独之间摇摆，角色们以荒谬的认真态度对待早已失去意义的制度，而这种认真本身既可笑又令人心碎。",
   "initial_core_state": {
     "health": 80,
     "max_health": 100,
@@ -18,63 +18,63 @@
       "traumas": []
     }
   },
-  "start_node_id": "arrival_checkpoint",
+  "start_node_id": "outpost_checkpoint",
   "nodes": {
-    "arrival_checkpoint": {
-      "label": "第十七废墟区检查站",
-      "map_blurb": "一座用生锈钢筋和旧公文柜搭成的岗亭横在废墟入口。值班员要求你出示三份不同颜色的通行证——其中两份的颜色已经在核战中绝迹了。",
+    "outpost_checkpoint": {
+      "label": "废墟区检查站",
+      "map_blurb": "清算局在废墟边缘设立的最后一个官方检查站，铁皮屋顶上插着一面褪色到几乎全白的国旗。一台手摇发报机仍在忠实地向总局发送\"一切正常\"的信号。",
       "node_type": "threshold",
       "floor": 1,
       "arbitrations": 2,
       "next_nodes": [
-        "records_vault",
-        "survivor_settlement"
+        "scrap_market",
+        "survivors_commune"
       ]
     },
-    "records_vault": {
-      "label": "地下档案穹库",
-      "map_blurb": "检查站地下三层，数万份战前房产证和税务记录被整齐地堆叠在防辐射铅柜中。有人在档案间搭了一张行军床，旁边放着半杯已经结晶的茶。",
-      "node_type": "archive",
+    "scrap_market": {
+      "label": "拾荒者黑市",
+      "map_blurb": "用废旧汽车壳搭建的露天集市，瓶盖是硬通货，干净的水比子弹更值钱。这里的每一笔交易理论上都应缴纳增值税——理论上。",
+      "node_type": "market",
       "floor": 2,
       "arbitrations": 2,
       "next_nodes": [
-        "faction_crossroads"
+        "tax_archive"
       ]
     },
-    "survivor_settlement": {
-      "label": "幸存者定居点·旧商场",
-      "map_blurb": "一座坍塌了三分之二的商场里住着四十七名幸存者。他们用购物车搭建房屋，用旧收银台做饭桌。你到达时，一个孩子正用你局里的空白税单折纸飞机。",
-      "node_type": "investigation",
+    "survivors_commune": {
+      "label": "幸存者公社",
+      "map_blurb": "一座由地铁隧道改建的地下聚落，三百余人在此繁衍生息了八代。他们有自己的法律、自己的货币，以及一种对\"外面来的制服人\"根深蒂固的敌意。",
+      "node_type": "encounter",
       "floor": 2,
       "arbitrations": 3,
       "next_nodes": [
-        "faction_crossroads"
+        "tax_archive"
       ]
     },
-    "faction_crossroads": {
-      "label": "局内密电·两条路线",
-      "map_blurb": "你的短波收音机同时收到两份密电：改良派副局长命你'酌情减免、维系秩序'；清算派督察则要求你'严格执行、不留余地'。静电噪音中，你听见自己的心跳。",
-      "node_type": "crossroads",
+    "tax_archive": {
+      "label": "区税务档案馆",
+      "map_blurb": "半塌的混凝土建筑深处，数以万计的纸质档案在辐射中奇迹般保存了下来。每一份都记录着两百年前某个公民的纳税义务——以及他们后代至今未清的欠款。",
+      "node_type": "archive",
       "floor": 3,
-      "arbitrations": 1,
+      "arbitrations": 2,
       "next_nodes": [
-        "black_market_annex",
+        "campfire_ruins",
         "final_audit"
       ]
     },
-    "black_market_annex": {
-      "label": "废墟黑市·旧邮局",
-      "map_blurb": "旧邮局的分拣大厅里，有人用战前邮票当货币，用过期罐头做抵押品。一个自称'前局员'的商人能帮你伪造审计报告——代价是你公文包里最后一份空白税单。",
-      "node_type": "market",
+    "campfire_ruins": {
+      "label": "废墟中的篝火",
+      "map_blurb": "一栋倒塌的税务大楼前，有人用公文纸生了一堆火。你可以在这里短暂休息，用税单的背面记录今天的见闻，或者干脆把它们也扔进火里。",
+      "node_type": "rest",
       "floor": 4,
-      "arbitrations": 2,
+      "arbitrations": 1,
       "next_nodes": [
         "final_audit"
       ]
     },
     "final_audit": {
-      "label": "最终审计·废墟中央广场",
-      "map_blurb": "广场中央，一张从瓦砾中刨出来的橡木办公桌被擦得一尘不染。幸存者们围坐四周，等待你宣读审计结果。风吹起地上的灰尘和碎纸片，像某种古老的、无人记得的仪式。",
+      "label": "最终审计",
+      "map_blurb": "废墟深处最大的定居点，一位自称\"区长\"的老人统治着上千名幸存者。你的税单上写着：此区累计欠税两百年，含滞纳金共计——一个已经没有任何意义的天文数字。",
       "node_type": "ritual",
       "floor": 5,
       "arbitrations": 3,
@@ -82,11 +82,11 @@
     }
   },
   "generation_context": {
-    "theme": "核战后遗址的审计员",
+    "theme": "核战两百年后，唯一仍正常运转的政府机构是遗产清算局，你是一名被派往废墟区的审计员，负责向幸存者追征早已失效的税款",
     "language": "zh",
     "provider": "anthropic",
     "model": "claude-opus-4-6",
-    "tone_hint": "卡夫卡式荒诞，纸张气息，旧世界的官僚体系在瓦砾上继续运转",
-    "worldview_hint": "文明崩塌200年后，唯一存活的政府机构是'遗产清算局'——专门评估废墟价值、向幸存者征收'生存税'。局内分两派：改良派认为规则保住了秩序，清算派认为规则本身就是暴政。"
+    "tone_hint": null,
+    "worldview_hint": null
   }
 }

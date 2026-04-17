@@ -3,7 +3,7 @@ from report_llm_usage import (
     group_runs,
     parse_campaign_core_events,
     parse_request_events,
-    parse_table_b_events,
+    parse_t1_cache_events,
     render_report,
     select_run,
 )
@@ -49,9 +49,9 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
         "theme: orbital salvage mutiny",
         "tokens — input: 1200  output: 300",
         "",
-        "## [2026-04-15 09:59:00 UTC] TABLE B NODE RESPONSE — `demo_node_a`",
+        "## [2026-04-15 09:59:00 UTC] T1 CACHE NODE RESPONSE — `demo_node_a`",
         "tokens — input: 150  output: 60",
-        "## [2026-04-15 09:59:02 UTC] TABLE B NODE RESPONSE — `demo_node_b`",
+        "## [2026-04-15 09:59:02 UTC] T1 CACHE NODE RESPONSE — `demo_node_b`",
         "tokens — input: 170  output: 50",
         "",
         "## [2026-04-15 10:05:00 UTC] M2 CLASSIFIER REQUEST — node `demo_node_a`",
@@ -71,13 +71,13 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
     requests = parse_request_events(lines, node_index)
     runs = group_runs(requests, len(lines))
     campaign_core_events = parse_campaign_core_events(lines)
-    table_b_events = parse_table_b_events(lines, node_index)
+    t1_cache_events = parse_t1_cache_events(lines, node_index)
     report = analyze_run(
         lines,
         runs[0],
         campaign_titles,
         campaign_core_events=campaign_core_events,
-        table_b_events=table_b_events,
+        t1_cache_events=t1_cache_events,
         campaign_nodes=campaign_nodes,
     )
 
@@ -85,10 +85,10 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
     assert report.campaign_core.provider == "anthropic"
     assert report.campaign_core.input_tokens == 1200
     assert report.campaign_core.output_tokens == 300
-    assert report.table_b_calls == 2
-    assert report.table_b_nodes == 2
-    assert report.table_b_input == 320
-    assert report.table_b_output == 110
+    assert report.t1_cache_calls == 2
+    assert report.t1_cache_nodes == 2
+    assert report.t1_cache_input == 320
+    assert report.t1_cache_output == 110
     assert report.m2_calls == 1
     assert report.m2_input == 200
     assert report.m2_output == 20
@@ -96,7 +96,7 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
 
     rendered = render_report(report)
     assert "preloaded assets:" in rendered
-    assert "table b: nodes=2 input=320 output=110 total=430" in rendered
+    assert "t1 cache: nodes=2 input=320 output=110 total=430" in rendered
     assert "offline remote:  1930" in rendered
 
 

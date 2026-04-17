@@ -139,4 +139,4 @@ All LLM calls are recorded in `logs/llm.md` with token counts, cost, and cache h
 
 ---
 
-The M0/M1/M2 three-layer memory model, prompt cache strategy, and Fast/Slow Core separation used in this project are inspired by the author's ongoing [PRISM](https://github.com/HermaeusMorea/PRISM) project. PRISM is a separate private protocol specification and is not a dependency of Loombound — this repo runs fully standalone.
+The M0/M1/M2 three-layer memory model, C0/C1/C2 prompting cache strategy, and T0/T1/T2 Core separation used in this project are inspired by the author's another ongoing project. 
