@@ -45,7 +45,6 @@ from src.core.state_adapter import (
 
 log = logging.getLogger(__name__)
 
-DEFAULT_CAMPAIGN = REPO_ROOT / "data" / "campaigns" / "act1_campaign.json"
 RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
 TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
 T2_CACHE_PATH = REPO_ROOT / "data" / "t2_cache_table.json"
@@ -339,7 +338,7 @@ def main() -> None:
     _load_dotenv()
 
     parser = argparse.ArgumentParser(description="Play a Loombound campaign. Requires ANTHROPIC_API_KEY and ollama (gemma3:4b).")
-    parser.add_argument("--campaign", type=Path, default=DEFAULT_CAMPAIGN, help="Path to a campaign JSON file.")
+    parser.add_argument("--campaign", type=Path, default=None, help="Path to a campaign JSON file.")
     parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
     parser.add_argument(
@@ -351,6 +350,23 @@ def main() -> None:
              "Can also be set via FAST_CORE_MODEL env var.",
     )
     args = parser.parse_args()
+
+    if args.campaign is None:
+        print(
+            "No campaign found. Generate one first:\n"
+            "\n"
+            "  ./loombound gen \"your theme\"\n"
+            "\n"
+            "Requires ANTHROPIC_API_KEY in .env.\n"
+            "\n"
+            "With Haiku M2 + local gemma3 (Fast Core), a typical 5-node run costs ~$0.01.\n"
+            "Replacing Fast Core with Opus alone would cost ~$0.20 — about 20× more.\n"
+            "The gap widens as you generate more campaigns and play more runs.\n"
+            "\n"
+            "  cp .env.example .env   # then fill in ANTHROPIC_API_KEY",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # --- Startup check: Claude API key required ---
     api_key = os.environ.get("ANTHROPIC_API_KEY")
