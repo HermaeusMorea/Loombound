@@ -17,11 +17,12 @@ from pathlib import Path
 # Pricing (per token)
 # ---------------------------------------------------------------------------
 
-OPUS_INPUT      = 5.0  / 1_000_000
-OPUS_OUTPUT     = 25.0 / 1_000_000
-OPUS_CACHE_READ = 0.50 / 1_000_000
-HAIKU_INPUT     = 0.80 / 1_000_000
-HAIKU_OUTPUT    = 4.0  / 1_000_000
+OPUS_INPUT       = 5.0  / 1_000_000
+OPUS_OUTPUT      = 25.0 / 1_000_000
+OPUS_CACHE_READ  = 0.50 / 1_000_000   # 10% of Opus input rate
+HAIKU_INPUT      = 0.80 / 1_000_000
+HAIKU_OUTPUT     = 4.0  / 1_000_000
+HAIKU_CACHE_READ = 0.08 / 1_000_000   # 10% of Haiku input rate
 
 EQUIV_HAIKU_OUTPUT = HAIKU_OUTPUT   # cost per local token if it had been remote (Haiku)
 EQUIV_OPUS_OUTPUT  = OPUS_OUTPUT    # cost per local token if it had been remote (Opus)
@@ -32,7 +33,7 @@ def opus_cost(inp: int, out: int, cache_read: int = 0) -> float:
 
 
 def haiku_cost(inp: int, out: int, cache_read: int = 0) -> float:
-    return inp * HAIKU_INPUT + out * HAIKU_OUTPUT + cache_read * OPUS_CACHE_READ
+    return inp * HAIKU_INPUT + out * HAIKU_OUTPUT + cache_read * HAIKU_CACHE_READ
 
 
 def _is_opus(model: str) -> bool:
@@ -60,9 +61,15 @@ RE_SLOW_RESPONSE = re.compile(
 RE_FAST_RESPONSE = re.compile(
     r"^## \[(?P<ts>[^\]]+)\] FAST CORE RESPONSE(?: \([^)]+\))? — `(?P<arb>[^`]+)`$"
 )
+# Old format (per-node Opus): kept for backward-compatible log parsing
 RE_M2_REQUEST  = re.compile(r"^## \[(?P<ts>[^\]]+)\] M2 CLASSIFIER REQUEST — node `(?P<node>[^`]+)`$")
 RE_M2_RESPONSE = re.compile(
     r"^## \[(?P<ts>[^\]]+)\] M2 CLASSIFIER RESPONSE — node `(?P<node>[^`]+)` entry_id=(?P<entry_id>-?\d+)$"
+)
+# New format (per-choice Haiku): label is "node_id:arb_idx" or "entry_id_only"
+RE_M2_UPDATE_REQUEST  = re.compile(r"^## \[(?P<ts>[^\]]+)\] M2 ARC UPDATE REQUEST — (?P<label>\S+)$")
+RE_M2_UPDATE_RESPONSE = re.compile(
+    r"^## \[(?P<ts>[^\]]+)\] M2 ARC UPDATE RESPONSE — (?P<label>\S+) entry_id=(?P<entry_id>-?\d+)$"
 )
 RE_COMPLETE = re.compile(
     r"^## \[(?P<ts>[^\]]+)\] COMPLETE(?: \(preloaded\))? — `(?P<node>[^`]+)` "
@@ -172,11 +179,11 @@ class M2CallUsage:
 
     @property
     def cost(self) -> float:
-        return opus_cost(self.input_tokens, self.output_tokens, self.cache_read)
+        return haiku_cost(self.input_tokens, self.output_tokens, self.cache_read)
 
     @property
     def cache_savings(self) -> float:
-        return self.cache_read * (OPUS_INPUT - OPUS_CACHE_READ)
+        return self.cache_read * (HAIKU_INPUT - HAIKU_CACHE_READ)
 
 
 @dataclass
@@ -207,11 +214,11 @@ class NodeUsage:
 
     @property
     def m2_cost(self) -> float:
-        return opus_cost(self.m2_input, self.m2_output, self.m2_cache_read)
+        return haiku_cost(self.m2_input, self.m2_output, self.m2_cache_read)
 
     @property
     def m2_cache_savings(self) -> float:
-        return self.m2_cache_read * (OPUS_INPUT - OPUS_CACHE_READ)
+        return self.m2_cache_read * (HAIKU_INPUT - HAIKU_CACHE_READ)
 
 
 @dataclass
@@ -273,29 +280,29 @@ class RunReport:
 
     @property
     def m2_cost(self) -> float:
-        return opus_cost(self.m2_input, self.m2_output, self.m2_cache_read)
+        return haiku_cost(self.m2_input, self.m2_output, self.m2_cache_read)
 
     @property
     def m2_cache_savings(self) -> float:
-        return self.m2_cache_read * (OPUS_INPUT - OPUS_CACHE_READ)
+        return self.m2_cache_read * (HAIKU_INPUT - HAIKU_CACHE_READ)
 
     @property
     def opus_total_input(self) -> int:
         core_in = self.campaign_core.input_tokens if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0
         pal_in  = self.arc_palette.input_tokens if self.arc_palette else 0
-        return core_in + pal_in + self.m2_input
+        return core_in + pal_in
 
     @property
     def opus_total_output(self) -> int:
         core_out = self.campaign_core.output_tokens if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0
         pal_out  = self.arc_palette.output_tokens if self.arc_palette else 0
-        return core_out + pal_out + self.m2_output
+        return core_out + pal_out
 
     @property
     def opus_total_cost(self) -> float:
         pal_cost  = self.arc_palette.cost if self.arc_palette else 0.0
         core_cost = self.campaign_core.cost if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0.0
-        return pal_cost + core_cost + self.m2_cost
+        return pal_cost + core_cost
 
     @property
     def haiku_total_cost(self) -> float:
@@ -304,7 +311,7 @@ class RunReport:
         else:
             tb_cost = self.table_b.cost if self.table_b else 0.0
         core_cost = self.campaign_core.cost if self.campaign_core and not _is_opus(self.campaign_core.model or "") else 0.0
-        return tb_cost + core_cost
+        return tb_cost + core_cost + self.m2_cost
 
     @property
     def total_api_cost(self) -> float:
@@ -451,15 +458,33 @@ def parse_table_b_events(
     return events
 
 
+def _label_to_node(label: str) -> str | None:
+    """Extract campaign node_id from an M2 ARC UPDATE label.
+
+    Label formats:
+      "node_id:arb_idx"  e.g. "flooded_gate:1"  → "flooded_gate"
+      "entry_id_only"                             → None (no effects, skip)
+    """
+    if label == "entry_id_only":
+        return None
+    return label.split(":")[0]
+
+
 def parse_request_events(lines: list[str], node_index: dict[str, set[str]]) -> list[RequestEvent]:
     events: list[RequestEvent] = []
     for idx, line in enumerate(lines, start=1):
-        slow_m = RE_SLOW_REQUEST.match(line)
-        m2_m   = RE_M2_REQUEST.match(line)
+        slow_m       = RE_SLOW_REQUEST.match(line)
+        m2_old       = RE_M2_REQUEST.match(line)          # old per-node format
+        m2_new       = RE_M2_UPDATE_REQUEST.match(line)   # new per-choice format
         if slow_m:
             ts, node = parse_timestamp(slow_m.group("ts")), slow_m.group("node")
-        elif m2_m:
-            ts, node = parse_timestamp(m2_m.group("ts")), m2_m.group("node")
+        elif m2_old:
+            ts, node = parse_timestamp(m2_old.group("ts")), m2_old.group("node")
+        elif m2_new:
+            ts = parse_timestamp(m2_new.group("ts"))
+            node = _label_to_node(m2_new.group("label"))
+            if node is None:
+                continue   # entry_id_only call — skip as run boundary marker
         else:
             continue
         events.append(RequestEvent(
@@ -593,11 +618,19 @@ def analyze_run(
             pending_slow_node = pending_m2_node = None
             continue
 
-        m2_resp = RE_M2_RESPONSE.match(line)
+        m2_resp = RE_M2_RESPONSE.match(line)         # old per-node format
+        m2_new  = RE_M2_UPDATE_RESPONSE.match(line)  # new per-choice format
         if m2_resp:
             pending_m2_node = m2_resp.group("node")
             node_usage.setdefault(pending_m2_node, NodeUsage())
             pending_slow_node = pending_fast_node = None
+            continue
+        if m2_new:
+            nid = _label_to_node(m2_new.group("label"))
+            if nid:
+                pending_m2_node = nid
+                node_usage.setdefault(pending_m2_node, NodeUsage())
+                pending_slow_node = pending_fast_node = None
             continue
 
         # Token lines
@@ -831,7 +864,7 @@ def render_report(report: RunReport) -> str:
         cr_note = f"cache_read={_tok(cr)} saved={_usd(savings)}" if cr else ""
         lines.append(_row(
             f"m2 classifier ×{report.m2_calls}",
-            "claude-opus-4-6",
+            "claude-haiku-4-5",
             report.m2_input, report.m2_output,
             report.m2_cost,
             cr_note,
@@ -864,13 +897,14 @@ def render_report(report: RunReport) -> str:
         _model_cost(report.slow_model, report.slow_input, report.slow_output)
         if report.slow_calls else 0.0
     )
-    total_opus_cost  = offline_opus_cost + report.m2_cost + runtime_slow_cost
-    total_haiku_cost = offline_haiku_cost
+    total_opus_cost  = offline_opus_cost + runtime_slow_cost
+    total_haiku_cost = offline_haiku_cost + report.m2_cost
     total_api_cost   = total_opus_cost + total_haiku_cost
 
-    lines.append(f"  {'claude (all)':<28}  {_usd(total_opus_cost)}")
+    if total_opus_cost:
+        lines.append(f"  {'opus (offline)':<28}  {_usd(total_opus_cost)}")
     if total_haiku_cost:
-        lines.append(f"  {'haiku (table b)':<28}  {_usd(total_haiku_cost)}")
+        lines.append(f"  {'haiku (table b + m2)':<28}  {_usd(total_haiku_cost)}")
     lines.append(f"  {'─' * 40}")
     lines.append(f"  {'total API spend':<28}  {_usd(total_api_cost)}")
 
@@ -882,7 +916,7 @@ def render_report(report: RunReport) -> str:
     lines.append(f"  saved vs opus:            ~{_usd(saved_o)}")
 
     if report.m2_cache_read:
-        lines.append(f"  opus cache savings:       ~{_usd(report.m2_cache_savings)}  ({_tok(report.m2_cache_read)} cache_read tokens)")
+        lines.append(f"  haiku cache savings:      ~{_usd(report.m2_cache_savings)}  ({_tok(report.m2_cache_read)} cache_read tokens)")
 
     # ── PER NODE ─────────────────────────────────────────────────────────
     if report.node_usage:
