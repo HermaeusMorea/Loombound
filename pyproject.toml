@@ -9,7 +9,7 @@ description = "Roguelite narrative engine with a three-layer AI architecture (lo
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  { name = "xyu" }
+  { name = "xxx" }
 ]
 dependencies = [
   "anthropic>=0.94.1",
