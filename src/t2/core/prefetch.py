@@ -172,6 +172,7 @@ class PrefetchCache:
         # Per-choice arc state tracking
         self._current_arc_id: int = 0   # updated after each Opus response
         self._pending_effects: dict[str, dict[str, dict]] = {}  # "node:arb" → effects_map
+        self._pending_rule_ids: dict[str, str] = {}             # "node:arb" → rule_id
         self._effects_events: dict[str, threading.Event] = {}   # "node:arb" → Event
         self._arc_lock = threading.Lock()
 
@@ -352,11 +353,13 @@ class PrefetchCache:
         node_id: str,
         arb_idx: int,
         timeout: float = 8.0,
-    ) -> dict[str, dict]:
-        """Wait for and consume Opus-assigned effects for a specific encounter.
+    ) -> tuple[dict[str, dict], str]:
+        """Wait for and consume M2-assigned effects and rule selection for a specific encounter.
 
-        Returns {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}.
-        Returns empty dict if no effects were requested or Opus timed out.
+        Returns (effects_map, selected_rule_id).
+        effects_map: {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}
+        selected_rule_id: rule id string, or "" if M2 selected none.
+        Both are empty/blank on cache miss or timeout.
         """
         effects_key = f"{node_id}:{arb_idx}"
 
@@ -368,14 +371,15 @@ class PrefetchCache:
 
         with self._arc_lock:
             effects = self._pending_effects.pop(effects_key, {})
+            rule_id = self._pending_rule_ids.pop(effects_key, "")
             self._effects_events.pop(effects_key, None)
 
         if not effects:
-            log.debug("Prefetch: no Opus effects for '%s' arb %d.", node_id, arb_idx)
+            log.debug("Prefetch: no M2 effects for '%s' arb %d.", node_id, arb_idx)
         else:
-            log.info("Prefetch: consumed Opus effects for '%s' arb %d (%d option(s)).",
-                     node_id, arb_idx, len(effects))
-        return effects
+            log.info("Prefetch: consumed M2 effects for '%s' arb %d (%d option(s)) rule=%r.",
+                     node_id, arb_idx, len(effects), rule_id)
+        return effects, rule_id
 
     # ------------------------------------------------------------------
     # Internal: Opus arc update
@@ -398,7 +402,7 @@ class PrefetchCache:
         ])
 
         try:
-            entry_id, effects_map, usage = await self._m2_classifier.classify(  # type: ignore[union-attr]
+            entry_id, rule_id, effects_map, usage = await self._m2_classifier.classify(  # type: ignore[union-attr]
                 quasi,
                 next_node_id=next_node_id,
                 next_arb_idx=next_arb_idx,
@@ -419,7 +423,7 @@ class PrefetchCache:
         _cost  = _inp * _OPUS_INPUT_COST + _out * _OPUS_OUTPUT_COST + _cr * _OPUS_CACHE_READ_COST
         _saved = _cr * (_OPUS_INPUT_COST - _OPUS_CACHE_READ_COST)
         _md_log([
-            f"## [{_ts()}] M2 ARC UPDATE RESPONSE — {label} entry_id={entry_id}",
+            f"## [{_ts()}] M2 ARC UPDATE RESPONSE — {label} entry_id={entry_id} rule={rule_id!r}",
             f"tokens — input: {_inp}  output: {_out}  cache_created: {_cc}  cache_read: {_cr}",
             f"cost: ${_cost:.4f}  cache_savings: ${_saved:.4f}",
             f"effects: {len(effects_map)} option(s)",
@@ -431,6 +435,8 @@ class PrefetchCache:
                 log.info("M2: arc_id updated → %d", entry_id)
             if effects_key and effects_map:
                 self._pending_effects[effects_key] = effects_map
+            if effects_key and rule_id:
+                self._pending_rule_ids[effects_key] = rule_id
             if effects_key:
                 event = self._effects_events.get(effects_key)
                 if event:

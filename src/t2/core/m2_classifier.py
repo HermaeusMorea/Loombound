@@ -150,7 +150,22 @@ Step 6. Scan the T2 cache for the entry whose four fields most closely match you
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-JOB 2 — EFFECT ASSIGNMENT
+JOB 2 — RULE SELECTION
+You will also be given the saga's rule list. Each rule has an id, a name, a set of
+decision_types, and a natural-language description of when it should apply.
+
+Select the rule whose intent best matches the next encounter's scene type and the
+current arc state. Output its id as selected_rule_id.
+
+Selection criteria:
+- The rule's decision_types should include the next encounter's scene_type.
+- The rule's intent should fit the current world_pressure and arc_trajectory.
+- If no rule is a reasonable fit, output selected_rule_id = "".
+- If no next encounter is specified, output selected_rule_id = "".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+JOB 3 — EFFECT ASSIGNMENT
 You will be told which specific encounter comes next: node_id + arb_index.
 Look up that encounter in Table C (per-campaign option structure).
 Assign h/m/s integer values for every option in THAT ONE encounter only.
@@ -182,7 +197,7 @@ _NO_MATCH_ID = -1
 class M2ClassifierConfig:
     api_key: str | None = None
     model: str = "claude-haiku-4-5-20251001"
-    max_tokens: int = 180   # entry_id + per-option verdict + h/m/s
+    max_tokens: int = 220   # entry_id + selected_rule_id + per-option verdict + h/m/s
     timeout: float = 30.0
 
 
@@ -199,18 +214,20 @@ class M2Classifier:
         a2_cache_table_json: str = "[]",
         a1_cache_table_index_json: str = "",
         toll_lexicon_json: str = "",
+        rules_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
         self._a2_cache_table_json = a2_cache_table_json
         self._a1_cache_table_index_json = a1_cache_table_index_json
         self._toll_lexicon_json = toll_lexicon_json
+        self._rules_json = rules_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
             "name": "select_arc_and_effects",
             "description": (
-                "Select the best-matching T2 cache arc state and assign per-option "
-                "gameplay effect values for the specified next encounter."
+                "Select the best-matching T2 cache arc state, select the most fitting "
+                "saga rule, and assign per-option gameplay effect values for the next encounter."
             ),
             "input_schema": {
                 "type": "object",
@@ -220,6 +237,14 @@ class M2Classifier:
                         "description": (
                             "The entry_id of the best-matching T2 cache entry, "
                             "or -1 if no entry is a reasonable match."
+                        ),
+                    },
+                    "selected_rule_id": {
+                        "type": "string",
+                        "description": (
+                            "The id of the saga rule that best fits the next encounter "
+                            "and current arc state. Empty string if no rule fits or no "
+                            "next encounter was specified."
                         ),
                     },
                     "effects": {
@@ -248,7 +273,7 @@ class M2Classifier:
                         },
                     },
                 },
-                "required": ["entry_id", "effects"],
+                "required": ["entry_id", "selected_rule_id", "effects"],
                 "additionalProperties": False,
             },
             # Cache the tool schema alongside T2 cache for maximum prefix reuse
@@ -264,6 +289,10 @@ class M2Classifier:
             },
         ]
         if self._a1_cache_table_index_json:
+            rules_suffix = (
+                f"\n\nSaga rules (select one per encounter):\n{self._rules_json}"
+                if self._rules_json else ""
+            )
             verdict_suffix = (
                 f"\n\nToll lexicon for this saga:\n{self._toll_lexicon_json}"
                 if self._toll_lexicon_json else ""
@@ -272,17 +301,18 @@ class M2Classifier:
                 "type": "text",
                 "text": (
                     f"T1 option index (node option structure for this campaign, no effect values):\n"
-                    f"{self._a1_cache_table_index_json}{verdict_suffix}"
+                    f"{self._a1_cache_table_index_json}{rules_suffix}{verdict_suffix}"
                 ),
                 "cache_control": {"type": "ephemeral"},
             })
         return blocks
 
     @staticmethod
-    def _parse_effects(raw: dict) -> tuple[int, dict[str, dict]] | None:
+    def _parse_effects(raw: dict) -> tuple[int, str, dict[str, dict]] | None:
         """Parse and validate tool output. Returns None if format is invalid."""
         try:
             entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
+            selected_rule_id = str(raw.get("selected_rule_id", ""))
             effects_map: dict[str, dict] = {}
             for item in raw.get("effects", []):
                 opt_id = str(item.get("id", ""))
@@ -295,7 +325,7 @@ class M2Classifier:
                     "sanity_delta": int(item["s"]),
                     "toll":         v,
                 }
-            return entry_id, effects_map
+            return entry_id, selected_rule_id, effects_map
         except (KeyError, TypeError, ValueError):
             return None
 
@@ -304,12 +334,13 @@ class M2Classifier:
         quasi_state: str,
         next_node_id: str | None = None,
         next_arb_idx: int | None = None,
-    ) -> tuple[int, dict[str, dict], dict[str, int]]:
-        """Classify arc state and assign effects + verdicts for the next encounter.
+    ) -> tuple[int, str, dict[str, dict], dict[str, int]]:
+        """Classify arc state, select a rule, and assign effects for the next encounter.
 
         Retries up to 2 times if the response fails format validation.
-        Returns (entry_id, effects_map, usage). effects_map is empty when no
-        next encounter is specified or all retries are exhausted.
+        Returns (entry_id, selected_rule_id, effects_map, usage).
+        selected_rule_id is "" when no rule fits or no next encounter is specified.
+        effects_map is empty when no next encounter is specified or retries exhausted.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
@@ -319,7 +350,7 @@ class M2Classifier:
         arb_hint = (
             f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
             if needs_effects else
-            "\n\nNo next encounter — output empty effects list."
+            "\n\nNo next encounter — output empty effects list and empty selected_rule_id."
         )
 
         user_blocks = self._build_user_blocks()
@@ -361,15 +392,18 @@ class M2Classifier:
                         if parsed is None and needs_effects:
                             log.warning("M2Classifier: invalid format on attempt %d, retrying", attempt + 1)
                             break
-                        entry_id, effects_map = parsed if parsed else (_NO_MATCH_ID, {})
-                        log.info("M2Classifier: entry_id=%d effects for %d option(s)", entry_id, len(effects_map))
-                        return entry_id, effects_map, usage
+                        entry_id, rule_id, effects_map = parsed if parsed else (_NO_MATCH_ID, "", {})
+                        log.info(
+                            "M2Classifier: entry_id=%d rule=%r effects for %d option(s)",
+                            entry_id, rule_id, len(effects_map),
+                        )
+                        return entry_id, rule_id, effects_map, usage
 
             except Exception as exc:
                 log.error("M2Classifier: attempt %d failed: %s", attempt + 1, exc)
                 if attempt == _MAX_RETRIES:
-                    return _NO_MATCH_ID, {}, _empty_usage
-            return _NO_MATCH_ID, {}, _empty_usage
+                    return _NO_MATCH_ID, "", {}, _empty_usage
+            return _NO_MATCH_ID, "", {}, _empty_usage
 
     def update_a2_cache_table(self, a2_cache_table_json: str) -> None:
         """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
@@ -379,3 +413,7 @@ class M2Classifier:
         """Replace the A1 option index JSON and toll lexicon (e.g. after saga switch)."""
         self._a1_cache_table_index_json = a1_cache_table_index_json
         self._toll_lexicon_json = toll_lexicon_json
+
+    def update_rules(self, rules_json: str) -> None:
+        """Replace the saga rules JSON (e.g. after saga switch)."""
+        self._rules_json = rules_json

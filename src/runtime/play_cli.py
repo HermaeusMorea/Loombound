@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import logging
 import os
 import sys
@@ -115,11 +116,13 @@ def _play_encounter(
     saga_waypoint_id: str,
     total_arbs: int,
 ) -> None:
-    # Overlay Opus-assigned effects before loading (may be empty dict on cache miss)
+    # Consume M2-assigned effects and rule selection (may be empty on cache miss)
+    m2_effects: dict[str, dict] = {}
+    m2_rule_id: str = ""
     if prefetch is not None:
-        opus_effects = prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
-        if opus_effects:
-            _overlay_effects(payload, opus_effects)
+        m2_effects, m2_rule_id = prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
+        if m2_effects:
+            _overlay_effects(payload, m2_effects)
 
     encounter = waypoint.load_current_encounter(payload)
     sync_encounter_resources(run, encounter)
@@ -136,7 +139,15 @@ def _play_encounter(
     evaluations = evaluate_rules(encounter, rules, theme_scores)
     waypoint.rule_state.reset_for_arbitration()
     waypoint.rule_state.record_evaluations(evaluations)
-    selected = select_rule(evaluations, rule_system=run.rule_system, run_memory=run.memory)
+
+    # M2 rule selection is primary; deterministic evaluation is the fallback.
+    m2_rule = next((r for r in rules if r.id == m2_rule_id), None) if m2_rule_id else None
+    selected = (
+        type("_Sel", (), {"rule": m2_rule})()  # lightweight wrapper matching select_rule output
+        if m2_rule else
+        select_rule(evaluations, rule_system=run.rule_system, run_memory=run.memory)
+    )
+
     waypoint.rule_state.record_selected_rule(selected.rule.id if selected else None)
     waypoint.rule_state.record_selection_trace(
         build_selection_trace(evaluations, rule_system=run.rule_system, run_memory=run.memory)
@@ -148,6 +159,7 @@ def _play_encounter(
         encounter_id=encounter.encounter_id,
         selected_rule_id=selected.rule.id if selected else None,
         matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
+        source="m2" if m2_rule else "kernel",
     )
 
     option_results = enforce_rule(encounter, selected.rule if selected else None)
@@ -417,15 +429,19 @@ def main() -> None:
     m2_classifier: M2Classifier | None = None
     if run.memory.a2.a2_cache_table:
         import json as _json
-        toll_lexicon_path = REPO_ROOT / "data" / "campaigns" / f"{saga.get('saga_id', '')}_toll_lexicon.json"
+        saga_id = saga.get("saga_id", "")
+        campaigns_dir = REPO_ROOT / "data" / "campaigns"
+        toll_lexicon_path = campaigns_dir / f"{saga_id}_toll_lexicon.json"
         toll_lexicon = _json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
         toll_lexicon_json = _json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
+        rules_json = _json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
             a2_cache_table_json=run.memory.a2.a2_cache_table_prompt_json(),
             a1_cache_table_index_json=run.memory.a2.a1_cache_table_index_json() if run.memory.a2.a1_cache_table else "",
             toll_lexicon_json=toll_lexicon_json,
+            rules_json=rules_json,
         )
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
