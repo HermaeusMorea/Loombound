@@ -103,7 +103,7 @@ def build_a1_entry(
         narrative_thread = ""
 
     return A1Entry(
-        node_id=waypoint_memory.waypoint_id,
+        waypoint_id=waypoint_memory.waypoint_id,
         scene_type=waypoint_memory.waypoint_type,
         pressure_level=pressure_level,
         resource_trajectory=resource_trajectory,

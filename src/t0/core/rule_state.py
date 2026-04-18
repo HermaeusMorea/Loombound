@@ -39,7 +39,7 @@ class WaypointRuleState:
     selected_rule_id: str | None = None
     selection_trace: list[str] = field(default_factory=list)
 
-    def reset_for_arbitration(self) -> None:
+    def reset_for_encounter(self) -> None:
         """Clear per-encounter fields while keeping node-level availability."""
 
         self.candidate_rule_ids = []

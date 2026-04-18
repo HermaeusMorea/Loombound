@@ -12,7 +12,7 @@ Arc state tracking (per-choice Opus calls):
     async Opus M2 call in a background thread.
   - Opus returns entry_id (current arc state) + per-option effects for the next arb.
   - _current_arc_id is updated immediately when Opus responds.
-  - Effects are stored keyed by "node_id:arb_idx" and consumed by play_cli just
+  - Effects are stored keyed by "waypoint_id:arb_idx" and consumed by play_cli just
     before displaying the target encounter.
   - C1 prefetch reads _current_arc_id directly — no Opus call needed.
 
@@ -44,7 +44,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.t1.core import C1Expander, C1Config
 from .m2_classifier import M2Classifier
-from .types import EncounterSeed, EncounterOptionSeed, NodeSeedPack, PrefetchEntry
+from .types import EncounterSeed, EncounterOptionSeed, WaypointSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
 
@@ -190,30 +190,30 @@ class PrefetchCache:
 
     def trigger(
         self,
-        target_node_id: str,
+        target_waypoint_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
         waypoint_history: list[WaypointSummary],
         encounter_count: int,
         current_waypoint_memory: WaypointMemory | None = None,
     ) -> None:
-        """Start background generation for target_node_id if not already running.
+        """Start background generation for target_waypoint_id if not already running.
 
         Uses the preloaded path: T1 cache skeleton + current _current_arc_id tendency
         → C1 expansion. If T1 cache is unavailable, marks the entry as failed
         and the caller falls back to authored JSON.
         """
         with self._lock:
-            existing = self._cache.get(target_node_id)
+            existing = self._cache.get(target_waypoint_id)
             if existing and existing.status in ("pending", "ready"):
                 log.debug("Prefetch: '%s' already %s, skipping trigger.",
-                          target_node_id, existing.status)
+                          target_waypoint_id, existing.status)
                 return
-            entry = PrefetchEntry(node_id=target_node_id, status="pending")
-            self._cache[target_node_id] = entry
+            entry = PrefetchEntry(waypoint_id=target_waypoint_id, status="pending")
+            self._cache[target_waypoint_id] = entry
 
         log.info("Prefetch: triggering background generation for '%s' (%d encounter(s)).",
-                 target_node_id, encounter_count)
+                 target_waypoint_id, encounter_count)
 
         # Snapshot the arc_id at trigger time — C1 uses this for tendency
         arc_id_snapshot = self._current_arc_id
@@ -225,7 +225,7 @@ class PrefetchCache:
         def _run() -> None:
             asyncio.run(
                 self._generate(
-                    target_node_id,
+                    target_waypoint_id,
                     state_snapshot,
                     memory_snapshot,
                     encounter_count,
@@ -235,15 +235,15 @@ class PrefetchCache:
 
         t = threading.Thread(
             target=_run,
-            name=f"prefetch-{target_node_id}",
+            name=f"prefetch-{target_waypoint_id}",
             daemon=True,
         )
         t.start()
 
-    def wait_for(self, node_id: str, timeout: float = 120.0) -> None:
-        """Block until prefetch for node_id is no longer pending."""
+    def wait_for(self, waypoint_id: str, timeout: float = 120.0) -> None:
+        """Block until prefetch for waypoint_id is no longer pending."""
         with self._lock:
-            entry = self._cache.get(node_id)
+            entry = self._cache.get(waypoint_id)
         if entry is None or entry.status != "pending":
             return
 
@@ -254,7 +254,7 @@ class PrefetchCache:
         try:
             while time.monotonic() < deadline:
                 with self._lock:
-                    entry = self._cache.get(node_id)
+                    entry = self._cache.get(waypoint_id)
                 if entry is None or entry.status != "pending":
                     break
                 print(f"\r{spinner[idx % len(spinner)]} generating content...",
@@ -264,12 +264,12 @@ class PrefetchCache:
         finally:
             print(f"\r\033[0m\033[K", end="", file=sys.stderr, flush=True)
 
-    def consume(self, node_id: str) -> list[dict[str, Any]] | None:
+    def consume(self, waypoint_id: str) -> list[dict[str, Any]] | None:
         """Return resolved encounter payloads if generation succeeded."""
         with self._lock:
-            entry = self._cache.get(node_id)
+            entry = self._cache.get(waypoint_id)
             if entry is None:
-                log.debug("Prefetch: no entry for '%s' — authored fallback.", node_id)
+                log.debug("Prefetch: no entry for '%s' — authored fallback.", waypoint_id)
                 return None
 
             status = entry.status
@@ -277,30 +277,30 @@ class PrefetchCache:
             if status == "ready":
                 resolved = list(entry.resolved)
                 arb_count = len(resolved)
-                del self._cache[node_id]
+                del self._cache[waypoint_id]
             else:
                 resolved = None
                 arb_count = 0
 
         if status == "pending":
-            log.info("Prefetch: '%s' still generating — authored fallback.", node_id)
+            log.info("Prefetch: '%s' still generating — authored fallback.", waypoint_id)
             return None
         if status == "failed":
             log.warning("Prefetch: '%s' generation failed (%s) — authored fallback.",
-                        node_id, error)
+                        waypoint_id, error)
             return None
         if status == "stale":
-            log.info("Prefetch: '%s' is stale — authored fallback.", node_id)
+            log.info("Prefetch: '%s' is stale — authored fallback.", waypoint_id)
             return None
 
         log.info("Prefetch: '%s' ready — using %d LLM-generated encounter(s).",
-                 node_id, arb_count)
+                 waypoint_id, arb_count)
         return resolved
 
-    def invalidate(self, node_id: str) -> None:
+    def invalidate(self, waypoint_id: str) -> None:
         """Mark a cached entry as stale (e.g. after a major state change)."""
         with self._lock:
-            entry = self._cache.get(node_id)
+            entry = self._cache.get(waypoint_id)
             if entry:
                 entry.mark_stale()
 
@@ -311,17 +311,17 @@ class PrefetchCache:
     def update_arc_state(
         self,
         quasi: str,
-        next_node_id: str | None,
+        next_waypoint_id: str | None,
         next_arb_idx: int | None,
     ) -> None:
         """Fire-and-forget Opus call after each player choice.
 
         Args:
-            quasi:         Current game state description (build_classifier_input output).
-            next_node_id:  Node the next encounter belongs to.
-                           None = last arb of a node transition (effects not needed yet).
-            next_arb_idx:  0-based index of the next encounter in next_node_id.
-                           None = no next arb in same node (only update entry_id).
+            quasi:             Current game state description (build_classifier_input output).
+            next_waypoint_id:  Waypoint the next encounter belongs to.
+                               None = last arb of a waypoint transition (effects not needed yet).
+            next_arb_idx:      0-based index of the next encounter in next_waypoint_id.
+                               None = no next arb in same waypoint (only update entry_id).
 
         Both must be non-None to produce effects. If either is None, Opus still
         classifies the arc state (updates _current_arc_id) but returns no effects.
@@ -330,8 +330,8 @@ class PrefetchCache:
             return
 
         effects_key: str | None = None
-        if next_node_id is not None and next_arb_idx is not None:
-            effects_key = f"{next_node_id}:{next_arb_idx}"
+        if next_waypoint_id is not None and next_arb_idx is not None:
+            effects_key = f"{next_waypoint_id}:{next_arb_idx}"
             with self._arc_lock:
                 event = threading.Event()
                 self._effects_events[effects_key] = event
@@ -339,18 +339,18 @@ class PrefetchCache:
         quasi_copy = quasi  # string is immutable, no deep copy needed
 
         def _run() -> None:
-            asyncio.run(self._run_arc_update(quasi_copy, next_node_id, next_arb_idx, effects_key))
+            asyncio.run(self._run_arc_update(quasi_copy, next_waypoint_id, next_arb_idx, effects_key))
 
         t = threading.Thread(
             target=_run,
-            name=f"m2-{next_node_id}-{next_arb_idx}",
+            name=f"m2-{next_waypoint_id}-{next_arb_idx}",
             daemon=True,
         )
         t.start()
 
     def consume_arb_effects(
         self,
-        node_id: str,
+        waypoint_id: str,
         arb_idx: int,
         timeout: float = 8.0,
     ) -> tuple[dict[str, dict], str]:
@@ -361,7 +361,7 @@ class PrefetchCache:
         selected_rule_id: rule id string, or "" if M2 selected none.
         Both are empty/blank on cache miss or timeout.
         """
-        effects_key = f"{node_id}:{arb_idx}"
+        effects_key = f"{waypoint_id}:{arb_idx}"
 
         with self._arc_lock:
             event = self._effects_events.get(effects_key)
@@ -375,10 +375,10 @@ class PrefetchCache:
             self._effects_events.pop(effects_key, None)
 
         if not effects:
-            log.debug("Prefetch: no M2 effects for '%s' arb %d.", node_id, arb_idx)
+            log.debug("Prefetch: no M2 effects for '%s' arb %d.", waypoint_id, arb_idx)
         else:
             log.info("Prefetch: consumed M2 effects for '%s' arb %d (%d option(s)) rule=%r.",
-                     node_id, arb_idx, len(effects), rule_id)
+                     waypoint_id, arb_idx, len(effects), rule_id)
         return effects, rule_id
 
     # ------------------------------------------------------------------
@@ -388,12 +388,12 @@ class PrefetchCache:
     async def _run_arc_update(
         self,
         quasi: str,
-        next_node_id: str | None,
+        next_waypoint_id: str | None,
         next_arb_idx: int | None,
         effects_key: str | None,
     ) -> None:
         """Call M2Classifier, update _current_arc_id, store effects."""
-        label = f"{next_node_id}:{next_arb_idx}" if next_node_id else "entry_id_only"
+        label = f"{next_waypoint_id}:{next_arb_idx}" if next_waypoint_id else "entry_id_only"
         _md_log([
             f"## [{_ts()}] M2 ARC UPDATE REQUEST — {label}",
             "```",
@@ -404,7 +404,7 @@ class PrefetchCache:
         try:
             entry_id, rule_id, effects_map, usage = await self._m2_classifier.classify(  # type: ignore[union-attr]
                 quasi,
-                next_node_id=next_node_id,
+                next_waypoint_id=next_waypoint_id,
                 next_arb_idx=next_arb_idx,
             )
         except Exception as exc:
@@ -448,7 +448,7 @@ class PrefetchCache:
 
     async def _generate(
         self,
-        target_node_id: str,
+        target_waypoint_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
         encounter_count: int,
@@ -457,14 +457,14 @@ class PrefetchCache:
         try:
             if not run_memory.a2.has_caches():
                 reason = "a2_cache_table/a1_cache_table not loaded"
-                log.warning("Prefetch: '%s' skipped — %s.", target_node_id, reason)
+                log.warning("Prefetch: '%s' skipped — %s.", target_waypoint_id, reason)
                 with self._lock:
-                    entry = self._cache.get(target_node_id)
+                    entry = self._cache.get(target_waypoint_id)
                     if entry:
                         entry.mark_failed(reason)
                 return
             await self._generate_preloaded(
-                target_node_id,
+                target_waypoint_id,
                 core_state,
                 run_memory,
                 encounter_count,
@@ -473,21 +473,21 @@ class PrefetchCache:
         except Exception as exc:
             tb = traceback.format_exc()
             _md_log([
-                f"## [{_ts()}] FAILED — `{target_node_id}`",
+                f"## [{_ts()}] FAILED — `{target_waypoint_id}`",
                 f"error: {exc}",
                 "```",
                 tb,
                 "```",
             ])
-            log.error("Prefetch: '%s' generation failed: %s", target_node_id, exc, exc_info=True)
+            log.error("Prefetch: '%s' generation failed: %s", target_waypoint_id, exc, exc_info=True)
             with self._lock:
-                entry = self._cache.get(target_node_id)
+                entry = self._cache.get(target_waypoint_id)
                 if entry:
                     entry.mark_failed(str(exc))
 
     async def _generate_preloaded(
         self,
-        target_node_id: str,
+        target_waypoint_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
         encounter_count: int,
@@ -505,26 +505,26 @@ class PrefetchCache:
             arc_row = run_memory.a2.lookup_arc(0)
         if arc_row is None:
             reason = f"a2_cache_table missing entry_id={arc_id_snapshot} and no entry 0"
-            log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
+            log.warning("Prefetch[preloaded]: '%s' — %s.", target_waypoint_id, reason)
             with self._lock:
-                entry = self._cache.get(target_node_id)
+                entry = self._cache.get(target_waypoint_id)
                 if entry:
                     entry.mark_failed(reason)
             return
 
         # Step 2: T1 cache lookup
-        node_entry = run_memory.a2.lookup_waypoint(target_node_id)
+        node_entry = run_memory.a2.lookup_waypoint(target_waypoint_id)
         if node_entry is None or not node_entry.encounters:
-            reason = f"a1_cache_table missing waypoint_id={target_node_id}"
-            log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
+            reason = f"a1_cache_table missing waypoint_id={target_waypoint_id}"
+            log.warning("Prefetch[preloaded]: '%s' — %s.", target_waypoint_id, reason)
             with self._lock:
-                entry = self._cache.get(target_node_id)
+                entry = self._cache.get(target_waypoint_id)
                 if entry:
                     entry.mark_failed(reason)
             return
 
         _md_log([
-            f"## [{_ts()}] A1 CACHE LOOKUP — waypoint `{target_node_id}` (arc_id={arc_id_snapshot})",
+            f"## [{_ts()}] A1 CACHE LOOKUP — waypoint `{target_waypoint_id}` (arc_id={arc_id_snapshot})",
             f"waypoint_type: {node_entry.waypoint_type}",
             f"label: {node_entry.label}",
             f"encounters: {len(node_entry.encounters)}",
@@ -538,7 +538,7 @@ class PrefetchCache:
             skeleton = node_entry.encounters[min(idx, len(node_entry.encounters) - 1)]
             arb_seed = _merge_preloaded_seed(skeleton, arc_row)
             merged_seeds.append(arb_seed)
-            arb_id = f"{target_node_id}_t1_{idx:02d}"
+            arb_id = f"{target_waypoint_id}_t1_{idx:02d}"
             _md_log([
                 f"## [{_ts()}] C1 REQUEST (preloaded) — `{arb_id}`",
                 f"scene_concept: {arb_seed.scene_concept}",
@@ -547,41 +547,41 @@ class PrefetchCache:
             ])
 
         # Step 4: Fast Core expands each encounter
-        resolved = await self._expand_arbitrations(merged_seeds, target_node_id, "t1", core_state)
+        resolved = await self._expand_encounters(merged_seeds, target_waypoint_id, "t1", core_state)
 
         # Step 5: Assemble seed_pack and store in cache
-        seed_pack = NodeSeedPack(
-            target_node_id=target_node_id,
+        seed_pack = WaypointSeedPack(
+            target_waypoint_id=target_waypoint_id,
             node_theme=arc_row.arc_trajectory,
             narrative_direction=arc_row.pending_intent,
             encounters=merged_seeds,
         )
 
         with self._lock:
-            entry = self._cache.get(target_node_id)
+            entry = self._cache.get(target_waypoint_id)
             if entry:
                 entry.mark_ready(seed_pack, resolved)
 
         _md_log([
-            f"## [{_ts()}] COMPLETE (preloaded) — `{target_node_id}` "
+            f"## [{_ts()}] COMPLETE (preloaded) — `{target_waypoint_id}` "
             f"({len(resolved)} encounter(s), arc_id={arc_id_snapshot})",
         ])
         log.info(
             "Prefetch[preloaded]: '%s' complete (%d arb(s), arc_id=%d).",
-            target_node_id, len(resolved), arc_id_snapshot,
+            target_waypoint_id, len(resolved), arc_id_snapshot,
         )
 
-    async def _expand_arbitrations(
+    async def _expand_encounters(
         self,
         seeds: list[EncounterSeed],
-        node_id: str,
+        waypoint_id: str,
         id_prefix: str,
         core_state: CoreStateView,
     ) -> list[dict[str, Any]]:
         """Expand a list of EncounterSeeds via Fast Core; log each call."""
         resolved: list[dict[str, Any]] = []
         for idx, arb_seed in enumerate(seeds):
-            arb_id = f"{node_id}_{id_prefix}_{idx:02d}"
+            arb_id = f"{waypoint_id}_{id_prefix}_{idx:02d}"
             payload, fc_usage = await self._fast.expand(arb_seed, core_state, arb_id)
             resolved.append(payload)
 

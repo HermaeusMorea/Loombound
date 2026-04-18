@@ -192,7 +192,7 @@ class Waypoint:
         self.current_encounter = encounter
         return encounter
 
-    def begin_arbitration(self, encounter: Encounter) -> None:
+    def begin_encounter(self, encounter: Encounter) -> None:
         """Attach an externally created encounter to this node."""
 
         self.current_encounter = encounter
@@ -311,7 +311,7 @@ class Run:
         self.current_waypoint = None
         return node
 
-    def begin_run_arbitration(self, encounter: Encounter) -> None:
+    def begin_run_encounter(self, encounter: Encounter) -> None:
         """Replace the current run-owned encounter object."""
 
         self.current_encounter = encounter

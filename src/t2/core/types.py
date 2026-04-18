@@ -1,7 +1,7 @@
 """Data types for the LLM content generation pipeline.
 
 Two-layer asset model:
-  NodeSeedPack      — Slow Core output (Claude): high-density structured plan
+  WaypointSeedPack      — Slow Core output (Claude): high-density structured plan
                       for one node, containing multiple EncounterSeed entries.
   ResolvedEncounter — Fast Core output (gemma4): full encounter JSON dict
                         ready for validate_arbitration_asset → runtime.
@@ -58,13 +58,13 @@ class EncounterSeed:
 
 
 @dataclass
-class NodeSeedPack:
+class WaypointSeedPack:
     """Slow Core output: structured plan for all encounters in one future node.
 
-    One Slow Core API call produces one NodeSeedPack.
+    One Slow Core API call produces one WaypointSeedPack.
     Fast Core expands each EncounterSeed into a full encounter JSON dict.
     """
-    target_node_id: str
+    target_waypoint_id: str
     node_theme: str
     narrative_direction: str
     encounters: list[EncounterSeed] = field(default_factory=list)
@@ -98,16 +98,16 @@ PrefetchStatus = Literal["pending", "ready", "failed", "stale"]
 
 @dataclass
 class PrefetchEntry:
-    """Prefetch state for one future node, held in PrefetchCache."""
-    node_id: str
+    """Prefetch state for one future waypoint, held in PrefetchCache."""
+    waypoint_id: str
     status: PrefetchStatus = "pending"
-    seed_pack: NodeSeedPack | None = None
+    seed_pack: WaypointSeedPack | None = None
     # Resolved encounter payloads in order — consumed by _play_node.
     resolved: list[dict[str, Any]] = field(default_factory=list)
     error: str = ""
     created_at: datetime = field(default_factory=_now)
 
-    def mark_ready(self, seed: NodeSeedPack, resolved: list[dict[str, Any]]) -> None:
+    def mark_ready(self, seed: WaypointSeedPack, resolved: list[dict[str, Any]]) -> None:
         self.seed_pack = seed
         self.resolved = resolved
         self.status = "ready"

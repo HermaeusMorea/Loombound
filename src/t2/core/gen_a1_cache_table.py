@@ -1,7 +1,7 @@
-"""Offline script: generate the T1 cache (per-campaign node scene skeletons).
+"""Offline script: generate the T1 cache (per-saga waypoint scene skeletons).
 
-Called automatically by generate_campaign.py after the campaign graph is built.
-Can also be run standalone to regenerate T1 cache for an existing campaign.
+Called automatically by generate_campaign.py after the saga graph is built.
+Can also be run standalone to regenerate T1 cache for an existing saga.
 
 Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect
@@ -129,7 +129,7 @@ _SKELETON_ITEM = {
 
 _T1_CACHE_TOOL = {
     "name": "generate_t1_cache_table",
-    "description": "Submit scene skeletons for ALL campaign nodes at once.",
+    "description": "Submit scene skeletons for ALL saga waypoints at once.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -181,7 +181,7 @@ def _build_t1_cache_table_user_msg(
 ) -> tuple[str, dict[str, int]]:
     """Build the user message for a T1 cache batch call.
 
-    Returns (user_msg, expected) where expected maps node_id → encounter count.
+    Returns (user_msg, expected) where expected maps waypoint_id → encounter count.
     """
     node_lines = []
     expected: dict[str, int] = {}
@@ -422,19 +422,19 @@ def generate_t1_cache_table_step(
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Generate T1 cache for an existing campaign.")
-    parser.add_argument("campaign", type=Path, help="Path to campaign JSON file.")
+    parser = argparse.ArgumentParser(description="Generate T1 cache for an existing saga.")
+    parser.add_argument("saga", type=Path, help="Path to saga JSON file.")
     parser.add_argument("--lang", choices=["en", "zh"], default="en",
                         help="Language for narrative text (default: en)")
     args = parser.parse_args()
 
-    if not args.campaign.exists():
-        print(f"Error: campaign file not found: {args.campaign}", file=sys.stderr)
+    if not args.saga.exists():
+        print(f"Error: saga file not found: {args.saga}", file=sys.stderr)
         sys.exit(1)
 
-    campaign = json.loads(args.campaign.read_text(encoding="utf-8"))
-    nodes_list = list(campaign.get("waypoints", {}).values()) if isinstance(campaign["waypoints"], dict) \
-        else campaign.get("nodes", [])
+    saga = json.loads(args.saga.read_text(encoding="utf-8"))
+    nodes_list = list(saga.get("waypoints", {}).values()) if isinstance(saga["waypoints"], dict) \
+        else saga.get("nodes", [])
 
     for node in nodes_list:
         if "encounter_count" not in node:
@@ -447,10 +447,10 @@ def main() -> None:
         sys.exit(1)
 
     data = {
-        "saga_id": campaign["saga_id"],
-        "title":       campaign.get("title", ""),
-        "tone":        campaign.get("tone", ""),
-        "intro":       campaign.get("intro", ""),
+        "saga_id": saga["saga_id"],
+        "title":       saga.get("title", ""),
+        "tone":        saga.get("tone", ""),
+        "intro":       saga.get("intro", ""),
         "waypoints":       nodes_list,
     }
     generate_t1_cache_table_step(data, len(nodes_list), args.lang, api_key)

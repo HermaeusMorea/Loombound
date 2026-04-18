@@ -3,15 +3,15 @@ from pathlib import Path
 import pytest
 
 from src.runtime.saga import choose_index
-from src.t0.core import AssetValidationError, validate_arbitration_asset, validate_node_asset
+from src.t0.core import AssetValidationError, validate_encounter_asset, validate_waypoint_asset
 
 
-def test_validate_node_asset_requires_arbitration_file() -> None:
+def test_validate_waypoint_asset_requires_arbitration_file() -> None:
     with pytest.raises(AssetValidationError, match="non-empty 'file'"):
-        validate_node_asset(
+        validate_waypoint_asset(
             {
-                "node_id": "node_01",
-                "node_type": "crossroads",
+                "waypoint_id": "node_01",
+                "waypoint_type": "crossroads",
                 "depth": 1,
                 "encounters": [{}],
             },
@@ -19,9 +19,9 @@ def test_validate_node_asset_requires_arbitration_file() -> None:
         )
 
 
-def test_validate_arbitration_asset_rejects_empty_options() -> None:
+def test_validate_encounter_asset_rejects_empty_options() -> None:
     with pytest.raises(AssetValidationError, match="non-empty 'options' list"):
-        validate_arbitration_asset(
+        validate_encounter_asset(
             {
                 "context": {
                     "context_id": "crossroads_01",

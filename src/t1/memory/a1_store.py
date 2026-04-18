@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 class A1Entry:
     """Scene-level semantic summary of one completed waypoint."""
 
-    node_id: str
+    waypoint_id: str
     scene_type: str
     # Resource/pressure state at waypoint exit
     pressure_level: str       # low | moderate | high | critical

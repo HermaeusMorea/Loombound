@@ -28,12 +28,12 @@ def load_json_asset(path: Path) -> dict:
     return payload
 
 
-def validate_node_asset(payload: dict[str, Any], *, source: Path | None = None) -> dict[str, Any]:
-    """Validate the minimum structure required for a node asset."""
+def validate_waypoint_asset(payload: dict[str, Any], *, source: Path | None = None) -> dict[str, Any]:
+    """Validate the minimum structure required for a waypoint asset."""
 
     label = _source_label(source)
-    _require_string(payload, "node_id", label)
-    _require_string(payload, "node_type", label)
+    _require_string(payload, "waypoint_id", label)
+    _require_string(payload, "waypoint_type", label)
     _require_int(payload, "depth", label)
 
     encounters = payload.get("encounters", [])
@@ -54,7 +54,7 @@ def validate_node_asset(payload: dict[str, Any], *, source: Path | None = None) 
     return payload
 
 
-def validate_arbitration_asset(payload: dict[str, Any], *, source: Path | None = None) -> dict[str, Any]:
+def validate_encounter_asset(payload: dict[str, Any], *, source: Path | None = None) -> dict[str, Any]:
     """Validate the minimum structure required for an encounter asset."""
 
     label = _source_label(source)
@@ -82,10 +82,10 @@ def validate_arbitration_asset(payload: dict[str, Any], *, source: Path | None =
     return payload
 
 
-def load_arbitration(path: Path, *, owner_kind: str = "run", owner_id: str = "loombound") -> Encounter:
+def load_encounter(path: Path, *, owner_kind: str = "run", owner_id: str = "loombound") -> Encounter:
     """Build an encounter object from an authored encounter JSON file."""
 
-    payload = validate_arbitration_asset(load_json_asset(path), source=path)
+    payload = validate_encounter_asset(load_json_asset(path), source=path)
     return Encounter.from_dict(payload, owner_kind=owner_kind, owner_id=owner_id)
 
 

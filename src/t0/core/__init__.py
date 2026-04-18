@@ -5,16 +5,16 @@ from .effects import apply_option_effects
 from .rule_state import WaypointRuleState, RuleSystem
 from .signals import build_signals
 from .context_builder import (
-    AssetValidationError, load_arbitration, load_json_asset,
-    validate_arbitration_asset, validate_node_asset,
+    AssetValidationError, load_encounter, load_json_asset,
+    validate_encounter_asset, validate_waypoint_asset,
 )
 
 __all__ = [
     "enforce_rule", "apply_option_effects",
     "WaypointRuleState", "RuleSystem",
     "build_signals",
-    "AssetValidationError", "load_arbitration", "load_json_asset",
-    "validate_arbitration_asset", "validate_node_asset",
+    "AssetValidationError", "load_encounter", "load_json_asset",
+    "validate_encounter_asset", "validate_waypoint_asset",
 ]
 
 
@@ -39,7 +39,7 @@ def build_selection_trace(*args, **kwargs):
 
 
 from .cli import (
-    pause, render_arbitration_view, render_choices, render_input_panel,
+    pause, render_encounter_view, render_choices, render_input_panel,
     render_map_hud, render_node_header, render_result, render_run_complete,
     render_run_intro, render_state_panel,
 )

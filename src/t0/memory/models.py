@@ -189,7 +189,7 @@ class RuleEvaluation:
 
 @dataclass(slots=True)
 class OptionResult:
-    """Final verdict for one player-facing option after a rule is selected."""
+    """Final toll outcome for one player-facing option after a rule is selected."""
 
     option_id: str
     label: str

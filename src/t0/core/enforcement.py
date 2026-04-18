@@ -1,4 +1,4 @@
-"""Turn a selected rule into per-option sanity verdicts."""
+"""Turn a selected rule into per-option toll outcomes."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from src.t0.memory import Encounter
 
 
 def enforce_rule(encounter: Encounter, rule: RuleTemplate | None) -> list[OptionResult]:
-    # Apply M2-assigned verdict to each option. sanity_penalty comes from the
-    # selected rule (if any); non-stable verdict always incurs the penalty.
+    # Apply M2-assigned toll to each option. sanity_penalty comes from the
+    # selected rule (if any); non-stable toll always incurs the penalty.
     results: list[OptionResult] = []
     for option in encounter.options:
         m2_toll = option.get("toll", "")

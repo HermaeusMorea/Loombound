@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate a Loombound campaign.
+"""Generate a Loombound saga.
 
-Step 1: Claude Opus generates the campaign graph (node topology, labels, map_blurbs).
-Step 2: Claude Haiku generates T1 cache — scene skeletons for every node (batch, one call).
+Step 1: Claude Opus generates the saga graph (waypoint topology, labels, map_blurbs).
+Step 2: Claude Haiku generates T1 cache — scene skeletons for every waypoint (batch, one call).
 
 Both steps run automatically. Use --skip-t1-cache to stop after Step 1.
 
@@ -124,16 +124,16 @@ def _log_campaign_core_usage(
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """\
-You are a campaign designer for a text-adventure roguelite. Your sole job is to call \
-create_campaign exactly once with a complete, structurally valid campaign based on the \
+You are a saga designer for a text-adventure roguelite. Your sole job is to call \
+create_campaign exactly once with a complete, structurally valid saga based on the \
 theme the user provides. Invent the tone, setting, and genre yourself — do not default \
 to any particular aesthetic unless the theme clearly implies one.
 
-─── CAMPAIGN DESIGN RULES ──────────────────────────────────────────────────
+─── SAGA DESIGN RULES ──────────────────────────────────────────────────────
 NODE GRAPH
 - All waypoint_ids referenced in any waypoint's next_waypoints MUST appear as a waypoint_id in your waypoints list.
 - start_waypoint_id MUST be one of the waypoint_ids you define.
-- At least one waypoint must have next_waypoints: [] (the terminal node — campaign's climax).
+- At least one waypoint must have next_waypoints: [] (the terminal node — saga's climax).
 - Depth must increase strictly along any path through the graph.
 - Prefer branching over linear chains — at least one fork somewhere in the graph.
 
@@ -153,23 +153,23 @@ ARBITRATION COUNT (integer, 1–3 per node)
   3  — major node, prolonged encounter
 
 TONE FIELD
-Write a 2–4 sentence description of the campaign's genre, atmosphere, and aesthetic. \
-This will be injected into the content generator for every node. Be specific: name the \
+Write a 2–4 sentence description of the saga's genre, atmosphere, and aesthetic. \
+This will be injected into the content generator for every waypoint. Be specific: name the \
 genre, the mood, the kind of imagery that should recur. This is the single most \
 important field for content coherence.
 
 map_blurb: 1–2 sentences the player sees on the map. Specific and evocative.
-intro: 2–3 sentences setting the whole campaign's opening mood.
+intro: 2–3 sentences setting the whole saga's opening mood.
 
 VERDICT DICTIONARY
-Generate 3–6 campaign-specific verdict labels that describe option consequences.
+Generate 3–6 saga-specific toll labels that describe option consequences.
 - Always include "stable" (net delta ≥ 0) and "destabilizing" (net delta clearly negative).
-- Add 1–4 theme-specific entries that fit your campaign's tone (e.g. "cursed", "exploitative", "honorable", "corrupting").
+- Add 1–4 theme-specific entries that fit your saga's tone (e.g. "cursed", "exploitative", "honorable", "corrupting").
 - Each entry needs a one-line description of the numeric constraints it implies for h/m/s values.
 - These labels will be used by the runtime AI to classify options before assigning numbers.
 
 RULES
-Generate 3–5 campaign-specific rules that define the psychological logic of this world. \
+Generate 3–5 saga-specific rules that define the psychological logic of this world. \
 Each rule is a pattern the protagonist should follow to maintain stability — a discipline, \
 a survival heuristic, a moral code forged by this world's specific pressures.
 - id: snake_case, descriptive (e.g. "rule_never_open_unmarked_doors")
@@ -201,7 +201,7 @@ Call create_campaign exactly once.
 
 _TOOL = {
     "name": "create_campaign",
-    "description": "Output a complete Loombound campaign structure.",
+    "description": "Output a complete Loombound saga structure.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -227,8 +227,8 @@ _TOOL = {
             "tone": {
                 "type": "string",
                 "description": (
-                    "2–4 sentences describing the campaign's genre, atmosphere, and aesthetic. "
-                    "Used by the runtime content generator for every node. Be specific."
+                    "2–4 sentences describing the saga's genre, atmosphere, and aesthetic. "
+                    "Used by the runtime content generator for every waypoint. Be specific."
                 ),
             },
             "start_waypoint_id": {
@@ -243,7 +243,7 @@ _TOOL = {
                     "properties": {
                         "waypoint_id": {
                             "type": "string",
-                            "description": "snake_case, unique within campaign",
+                            "description": "snake_case, unique within saga",
                         },
                         "label":      {"type": "string", "description": "Short display name"},
                         "map_blurb":  {"type": "string", "description": "1–2 atmospheric sentences for map screen"},
@@ -270,7 +270,7 @@ _TOOL = {
             "toll_lexicon": {
                 "type": "array",
                 "description": (
-                    "3–6 campaign-specific verdict labels. "
+                    "3–6 saga-specific toll labels. "
                     "Must include 'stable' and 'destabilizing'. "
                     "Add theme-specific entries (e.g. 'cursed', 'exploitative')."
                 ),
@@ -286,7 +286,7 @@ _TOOL = {
             },
             "rules": {
                 "type": "array",
-                "description": "3–5 campaign-specific rules defining this world's psychological logic.",
+                "description": "3–5 saga-specific rules defining this world's psychological logic.",
                 "minItems": 3,
                 "maxItems": 5,
                 "items": {
@@ -394,7 +394,7 @@ def _build_user_msg(
     worldview_hint: str | None = None,
 ) -> str:
     parts = [
-        f"Design a Loombound campaign with exactly {node_count} nodes.",
+        f"Design a Loombound saga with exactly {node_count} waypoints.",
         f"Theme: {theme}",
     ]
     if tone_hint:
@@ -429,10 +429,10 @@ def _normalise(data: dict) -> dict:
     data = dict(data)
     if isinstance(nodes, dict):
         normalised: list[dict] = []
-        for node_id, spec in nodes.items():
+        for waypoint_id, spec in nodes.items():
             if isinstance(spec, dict):
                 spec = dict(spec)
-                spec.setdefault("waypoint_id", node_id)
+                spec.setdefault("waypoint_id", waypoint_id)
                 normalised.append(spec)
         data["waypoints"] = normalised
     elif isinstance(nodes, list):
@@ -447,7 +447,7 @@ def _normalise(data: dict) -> dict:
 
 def validate_graph(
     nodes: list[dict],
-    start_node_id: str,
+    start_waypoint_id: str,
     expected_node_count: int | None = None,
 ) -> list[str]:
     errors: list[str] = []
@@ -460,8 +460,8 @@ def validate_graph(
         return errors
     node_ids = {n["waypoint_id"] for n in nodes}
 
-    if start_node_id not in node_ids:
-        errors.append(f"start_node_id '{start_node_id}' not found in nodes")
+    if start_waypoint_id not in node_ids:
+        errors.append(f"start_waypoint_id '{start_waypoint_id}' not found in nodes")
 
     if expected_node_count is not None and len(node_ids) != expected_node_count:
         errors.append(
@@ -476,7 +476,7 @@ def validate_graph(
                 )
 
     if not any(not n.get("next_waypoints") for n in nodes):
-        errors.append("No terminal nodes (next_nodes: []) — campaign has no ending")
+        errors.append("No terminal nodes (next_waypoints: []) — saga has no ending")
 
     return errors
 
@@ -597,7 +597,7 @@ def _step1_generate_graph(
     model: str,
     api_key: str,
 ) -> dict:
-    """Generate and validate the campaign graph, retrying up to args.retries times.
+    """Generate and validate the saga graph, retrying up to args.retries times.
 
     Calls sys.exit(1) if all retries fail.
     """
@@ -645,7 +645,7 @@ def _step1_generate_graph(
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Generate a Loombound campaign.")
+    parser = argparse.ArgumentParser(description="Generate a Loombound saga.")
     parser.add_argument(
         "theme",
         nargs="?",
@@ -670,7 +670,7 @@ def main() -> None:
                         help="Max attempts on graph validation failure (default: 3)")
     parser.add_argument(
         "--skip-t1-cache", action="store_true",
-        help="Skip T1 cache generation (campaign graph only).",
+        help="Skip T1 cache generation (saga graph only).",
     )
     args = parser.parse_args()
 
@@ -687,7 +687,7 @@ def main() -> None:
 
     print(f"Generating saga: '{args.theme}' ({args.nodes} nodes) via {model}")
 
-    # ── Step 1: generate campaign graph ────────────────────────────────────
+    # ── Step 1: generate saga graph ─────────────────────────────────────────
 
     data = _step1_generate_graph(args, model, api_key)
 

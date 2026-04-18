@@ -272,15 +272,15 @@ def render_input_panel(prompt: str, hint: str = "Type a number, or q to quit.") 
     )
 
 
-def render_run_intro(campaign: dict[str, Any]) -> None:
-    """Render the campaign intro shown at the start of a run."""
+def render_run_intro(saga: dict[str, Any]) -> None:
+    """Render the saga intro shown at the start of a run."""
 
     _clear_screen()
     width = min(_screen_width(), 96)
     print(
         _box(
             "Loombound",
-            [f"{BOLD}{campaign['title']}{RESET}", "", campaign["intro"]],
+            [f"{BOLD}{saga['title']}{RESET}", "", saga["intro"]],
             width=width,
             color=FG_MAGENTA,
         )
@@ -316,7 +316,7 @@ def render_state_panel(run: Any) -> None:
     print(_box("State", lines, width=width, color=FG_CYAN))
 
 
-def render_arbitration_view(run: Any, encounter: Any, selected_rule: Any) -> None:
+def render_encounter_view(run: Any, encounter: Any, selected_rule: Any) -> None:
     """Render the current encounter scene and the state panel."""
 
     _clear_screen()
@@ -420,7 +420,7 @@ def render_result(run: Any, chosen_result: Any, narration: Any, applied_notes: l
 
 
 def render_run_complete(run: Any) -> None:
-    """Render the final run summary after the campaign ends."""
+    """Render the final run summary after the saga ends."""
 
     _clear_screen()
     width = min(_screen_width(), 110)
@@ -440,19 +440,19 @@ def render_run_complete(run: Any) -> None:
     print(_box("Run Complete", lines, width=width, color=FG_MAGENTA))
 
 
-def render_map_hud(run: Any, campaign: dict[str, Any], next_nodes: list[str]) -> None:
+def render_map_hud(run: Any, saga: dict[str, Any], next_waypoints: list[str]) -> None:
     """Render the map screen with the shared HUD at the top."""
 
     _clear_screen()
     width = min(_screen_width(), 110)
-    subtitle = f"{len(next_nodes)} path{'s' if len(next_nodes) != 1 else ''} available"
+    subtitle = f"{len(next_waypoints)} path{'s' if len(next_waypoints) != 1 else ''} available"
     print(_hud_bar(run, "Map", subtitle))
     print()
     lines = ["Where do you go next?", ""]
-    for idx, next_node_id in enumerate(next_nodes, start=1):
-        next_node = campaign["waypoints"][next_node_id]
-        lines.append(f"{BOLD}{idx}.{RESET} {next_node['label']}")
-        lines.append(f"   {next_node['map_blurb']}")
+    for idx, next_waypoint_id in enumerate(next_waypoints, start=1):
+        next_waypoint = saga["waypoints"][next_waypoint_id]
+        lines.append(f"{BOLD}{idx}.{RESET} {next_waypoint['label']}")
+        lines.append(f"   {next_waypoint['map_blurb']}")
         lines.append("")
     if lines and lines[-1] == "":
         lines.pop()

@@ -18,7 +18,7 @@ from src.t0.memory import append_node_event, record_choice, update_after_node
 from src.t0.memory.models import NarrationBlock
 from src.t0.core import (
     pause,
-    render_arbitration_view,
+    render_encounter_view,
     render_choices,
     render_input_panel,
     render_map_hud,
@@ -40,7 +40,7 @@ from src.t0.core import build_signals
 from src.t0.core import (
     AssetValidationError,
     load_json_asset,
-    validate_arbitration_asset,
+    validate_encounter_asset,
 )
 
 
@@ -128,7 +128,7 @@ def _play_encounter(
     sync_encounter_resources(run, encounter)
     append_node_event(
         waypoint.memory,
-        "arbitration_loaded",
+        "encounter_loaded",
         encounter_id=encounter.encounter_id,
         scene_type=encounter.context.scene_type,
         context_id=encounter.context.context_id,
@@ -136,7 +136,7 @@ def _play_encounter(
 
     signals = build_signals(encounter)
     evaluations = evaluate_rules(encounter, rules)
-    waypoint.rule_state.reset_for_arbitration()
+    waypoint.rule_state.reset_for_encounter()
     waypoint.rule_state.record_evaluations(evaluations)
 
     # M2 rule selection is primary; deterministic evaluation is the fallback.
@@ -172,7 +172,7 @@ def _play_encounter(
             or ""
         )
 
-    render_arbitration_view(run, encounter, selected.rule if selected else None)
+    render_encounter_view(run, encounter, selected.rule if selected else None)
     render_choices(option_results)
     render_input_panel("Choose an option")
 
@@ -226,7 +226,7 @@ def _play_encounter(
     waypoint.close_current_encounter()
     append_node_event(
         waypoint.memory,
-        "arbitration_finalized",
+        "encounter_finalized",
         encounter_id=encounter.encounter_id,
         selected_rule_id=selected.rule.id if selected else None,
         player_choice=chosen_result.option_id,
@@ -260,7 +260,7 @@ def _play_node(
     llm_count, authored_specs = _parse_encounters(saga_waypoint)
     total_arbs = llm_count or len(authored_specs)
 
-    # Prefetch cache is keyed by campaign node ID (e.g. "night_market").
+    # Prefetch cache is keyed by saga waypoint ID (e.g. "night_market").
     cache_key = saga_waypoint_id or waypoint_id
     if prefetch:
         prefetch.wait_for(cache_key)
@@ -272,7 +272,7 @@ def _play_node(
         payloads = []
     else:
         payloads = [
-            validate_arbitration_asset(
+            validate_encounter_asset(
                 load_json_asset(resolve_asset_path(spec["file"])),
                 source=resolve_asset_path(spec["file"]),
             )
@@ -286,7 +286,7 @@ def _play_node(
             narration_table=narration_table,
         )
 
-    waypoint.memory.node_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_arbitrations:sanity={waypoint.memory.sanity_lost_in_node}"
+    waypoint.memory.node_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_encounters:sanity={waypoint.memory.sanity_lost_in_node}"
     append_node_event(
         waypoint.memory,
         "node_finalized",
@@ -325,7 +325,7 @@ def _prefetch_targets(
             arb_count = llm_c or len(authored)
             if arb_count:
                 prefetch.trigger(
-                    target_node_id=target_id,
+                    target_waypoint_id=target_id,
                     core_state=run.core_state,
                     run_memory=run.memory,
                     waypoint_history=list(run.waypoint_history),
@@ -468,15 +468,15 @@ def main() -> None:
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
     prefetch.warmup()
 
-    current_node_id = saga["start_waypoint_id"]
+    current_waypoint_id = saga["start_waypoint_id"]
 
-    # Prefetch the start node while the player reads the intro.
-    # The main loop only prefetches next_nodes, so without this the first
-    # LLM-mode node would always have empty encounters.
+    # Prefetch the start waypoint while the player reads the intro.
+    # The main loop only prefetches next_waypoints, so without this the first
+    # LLM-mode waypoint would always have empty encounters.
     _prefetch_targets(
         prefetch=prefetch,
         saga=saga,
-        target_ids=[current_node_id],
+        target_ids=[current_waypoint_id],
         run=run,
     )
 
@@ -484,18 +484,18 @@ def main() -> None:
     pause("Press Enter to step onto the road...")
     nodes_played = 0
     try:
-        while current_node_id:
-            saga_waypoint = saga["waypoints"][current_node_id]
+        while current_waypoint_id:
+            saga_waypoint = saga["waypoints"][current_waypoint_id]
 
-            # Determine next nodes now so we can trigger prefetch for all of them
-            next_nodes = saga_waypoint.get("next_waypoints", [])
+            # Determine next waypoints now so we can trigger prefetch for all of them
+            next_waypoints = saga_waypoint.get("next_waypoints", [])
 
-            # Trigger background generation for each candidate next node
-            if next_nodes:
+            # Trigger background generation for each candidate next waypoint
+            if next_waypoints:
                 _prefetch_targets(
                     prefetch=prefetch,
                     saga=saga,
-                    target_ids=next_nodes,
+                    target_ids=next_waypoints,
                     run=run,
                 )
 
@@ -505,13 +505,13 @@ def main() -> None:
                 saga_waypoint,
                 rules,
                 prefetch=prefetch,
-                saga_waypoint_id=current_node_id,
+                saga_waypoint_id=current_waypoint_id,
                 narration_table=narration_table,
             )
             nodes_played += 1
 
-            if next_nodes:
-                lookahead_targets = _collect_lookahead_targets(saga, next_nodes)
+            if next_waypoints:
+                lookahead_targets = _collect_lookahead_targets(saga, next_waypoints)
                 _prefetch_targets(
                     prefetch=prefetch,
                     saga=saga,
@@ -520,20 +520,20 @@ def main() -> None:
                     current_waypoint_memory=completed_node_memory,
                 )
 
-            if not next_nodes:
+            if not next_waypoints:
                 break
             if args.nodes is not None and nodes_played >= args.nodes:
                 break
 
-            render_map_hud(run, saga, next_nodes)
+            render_map_hud(run, saga, next_waypoints)
             render_input_panel("Choose your next destination")
-            next_index = choose_index("> ", len(next_nodes))
-            current_node_id = next_nodes[next_index]
+            next_index = choose_index("> ", len(next_waypoints))
+            current_waypoint_id = next_waypoints[next_index]
 
-            # Trigger Opus for arb 0 of the chosen next node.
-            # Runs in background while the player reads the node header + waits for C1.
+            # Trigger Opus for arb 0 of the chosen next waypoint.
+            # Runs in background while the player reads the waypoint header + waits for C1.
             quasi = build_classifier_input(run.core_state, run.memory, list(run.waypoint_history))
-            prefetch.update_arc_state(quasi, current_node_id, 0)
+            prefetch.update_arc_state(quasi, current_waypoint_id, 0)
 
     except KeyboardInterrupt:
         print("\n\nRun interrupted.")

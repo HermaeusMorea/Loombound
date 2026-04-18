@@ -17,7 +17,7 @@ from src.t1.core.expander import (
     _template_fallback,
 )
 from src.t2.core.types import EncounterOptionSeed, EncounterSeed
-from src.t0.core import validate_arbitration_asset
+from src.t0.core import validate_encounter_asset
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ def test_assemble_add_marks_preserved():
     assert eff["add_marks"] == ["cursed", "wet"]
 
 
-def test_assemble_output_passes_validate_arbitration_asset():
+def test_assemble_output_passes_validate_encounter_asset():
     seed = _seed(2)
     expanded = {
         "scene_summary": "Dim corridor, water dripping.",
@@ -190,7 +190,7 @@ def test_assemble_output_passes_validate_arbitration_asset():
         ],
     }
     result = _assemble(seed, expanded, _state(), "arb_valid_01")
-    validate_arbitration_asset(result)  # must not raise
+    validate_encounter_asset(result)  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ def test_expand_falls_back_to_template_on_http_error():
         payload, usage = asyncio.run(expander.expand(seed, state, "arb_fallback"))
 
     # Fallback must still produce a valid encounter
-    validate_arbitration_asset(payload)
+    validate_encounter_asset(payload)
     # Labels come from intent when ollama is unavailable
     assert payload["options"][0]["label"] == seed.options[0].intent
     assert usage == {"prompt_tokens": 0, "eval_tokens": 0}
@@ -261,6 +261,6 @@ def test_expand_returns_usage_on_success():
     ):
         payload, usage = asyncio.run(expander.expand(seed, _state(), "arb_ok"))
 
-    validate_arbitration_asset(payload)
+    validate_encounter_asset(payload)
     assert usage["prompt_tokens"] == 120
     assert usage["eval_tokens"] == 80

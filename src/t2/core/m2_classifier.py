@@ -8,7 +8,7 @@ Cache structure (Anthropic prompt-cache prefix):
   system    — arc classification guide       ~3,000 tokens  (global, cached)
   tool      — select_arc_and_effects schema  ~1,000 tokens  (global, cached)
   user[0]   — T2 cache (arc palette)         ~1,500 tokens  (session, cached)
-  user[1]   — T1 option index                ~2,000 tokens  (per-campaign, cached)
+  user[1]   — T1 option index                ~2,000 tokens  (per-saga, cached)
   user[2]   — quasi state + target arb hint  ~200-400 tokens (dynamic, uncached)
 
 Token budget per call (after cache warm):
@@ -167,7 +167,7 @@ Selection criteria:
 
 JOB 3 — EFFECT ASSIGNMENT
 You will be told which specific encounter comes next: node_id + arb_index.
-Look up that encounter in Table C (per-campaign option structure).
+Look up that encounter in Table C (per-saga option structure).
 Assign h/m/s integer values for every option in THAT ONE encounter only.
 
 Effect fields:
@@ -332,7 +332,7 @@ class M2Classifier:
     async def classify(
         self,
         quasi_state: str,
-        next_node_id: str | None = None,
+        next_waypoint_id: str | None = None,
         next_arb_idx: int | None = None,
     ) -> tuple[int, str, dict[str, dict], dict[str, int]]:
         """Classify arc state, select a rule, and assign effects for the next encounter.
@@ -346,9 +346,9 @@ class M2Classifier:
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
         }
 
-        needs_effects = next_node_id is not None and next_arb_idx is not None
+        needs_effects = next_waypoint_id is not None and next_arb_idx is not None
         arb_hint = (
-            f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
+            f"\n\nAssign effects for: waypoint_id={next_waypoint_id}, arb_index={next_arb_idx}"
             if needs_effects else
             "\n\nNo next encounter — output empty effects list and empty selected_rule_id."
         )
