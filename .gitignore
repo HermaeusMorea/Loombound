@@ -10,6 +10,13 @@ build/
 *.egg-info/
 logs/*
 !logs/sample_deep_mine_cult_act1.md
-# LLM-generated campaign data — excluded (regenerate with ./loombound gen)
+# LLM-generated saga data — excluded (regenerate with ./loombound gen)
 data/sagas/*
 data/waypoints/*
+# Sample saga included as reference
+!data/sagas/deep_mine_cult_act1.json
+!data/sagas/deep_mine_cult_act1_narration_table.json
+!data/sagas/deep_mine_cult_act1_rules.json
+!data/sagas/deep_mine_cult_act1_toll_lexicon.json
+!data/waypoints/deep_mine_cult_act1/
+!data/waypoints/deep_mine_cult_act1/a1_cache_table.json

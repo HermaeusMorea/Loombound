@@ -1,0 +1,92 @@
+{
+  "saga_id": "deep_mine_cult_act1",
+  "title": "深矿教团：地核之语",
+  "intro": "你是矿务局派驻第七竖井的督察员，本应调查连续三周的矿工失踪案。但当升降梯降入地底第一刻，你便听见了岩壁深处那绵长的、不该存在的低语。现在你明白了——那些矿工并非失踪，他们是被召唤的。",
+  "tone": "幽闭恐怖与宗教狂热交织的地下哥特工业风。基调是窒息、潮湿、黑暗中闪烁的矿灯与结晶体的冷光。语言意象应反复出现：矿脉如血管搏动、岩层如皮肤剥落、矿石中嵌入的面孔与手指、祭司口中喃喃的地质经文。一切场景发生在不断下沉的矿道、洞窟与地下教堂中，空气中弥漫硫磺与铁锈的气味。越深入，人体与矿物的界限越模糊——皮肤开始结晶、血液变得沉重、思维被岩层的压力扭曲。",
+  "initial_core_state": {
+    "health": 9,
+    "max_health": 10,
+    "money": 4,
+    "sanity": 8,
+    "depth": 1,
+    "act": 1
+  },
+  "initial_meta_state": {
+    "active_marks": [],
+    "metadata": {
+      "major_events": [],
+      "traumas": []
+    }
+  },
+  "start_waypoint_id": "shaft_seven_entrance",
+  "waypoints": {
+    "shaft_seven_entrance": {
+      "label": "第七竖井·入口",
+      "map_blurb": "生锈的升降梯嘎吱作响地沉入黑暗。井壁上刻满了教团符文，有些符文在你的矿灯下微微发光。",
+      "waypoint_type": "threshold",
+      "depth": 1,
+      "encounters": 2,
+      "next_waypoints": [
+        "abandoned_chapel",
+        "foreman_quarters"
+      ]
+    },
+    "abandoned_chapel": {
+      "label": "废弃矿下礼拜堂",
+      "map_blurb": "一座用矿渣砌成的地下教堂，祭坛上的结晶体仍在缓慢生长。空气中回荡着数十个声音的残响，像是凝固在石壁里的祈祷。",
+      "waypoint_type": "archive",
+      "depth": 2,
+      "encounters": 2,
+      "next_waypoints": [
+        "crystal_gallery"
+      ]
+    },
+    "foreman_quarters": {
+      "label": "工头宿舍·第三层",
+      "map_blurb": "被匆忙遗弃的宿舍区，床铺上长满了灰白色的矿物结壳。某间房内的墙壁被指甲抠出了密密麻麻的文字。",
+      "waypoint_type": "investigation",
+      "depth": 2,
+      "encounters": 2,
+      "next_waypoints": [
+        "crystal_gallery",
+        "the_congregation"
+      ]
+    },
+    "crystal_gallery": {
+      "label": "结晶回廊",
+      "map_blurb": "巨大的透明晶簇从四面八方刺入通道，每一根晶体内部都封存着模糊的人形轮廓。你的倒影在无数晶面上被扭曲成陌生的形状。",
+      "waypoint_type": "encounter",
+      "depth": 3,
+      "encounters": 3,
+      "next_waypoints": [
+        "the_congregation"
+      ]
+    },
+    "the_congregation": {
+      "label": "深层集会所",
+      "map_blurb": "教团的核心聚集地。数十名半矿化的信徒跪在一口深不见底的竖井边，齐声吟唱。他们的声音与地底的震颤完美同频。",
+      "waypoint_type": "ritual",
+      "depth": 4,
+      "encounters": 2,
+      "next_waypoints": [
+        "the_nerve_of_earth"
+      ]
+    },
+    "the_nerve_of_earth": {
+      "label": "地脉神经·终端",
+      "map_blurb": "矿道的尽头不再是岩石——是一面温热的、有脉搏的壁面。它在呼吸。它在等你把手贴上去。",
+      "waypoint_type": "ritual",
+      "depth": 5,
+      "encounters": 3,
+      "next_waypoints": []
+    }
+  },
+  "generation_context": {
+    "theme": "深矿教团：当地底的神明开始说话",
+    "language": "zh",
+    "provider": "anthropic",
+    "model": "claude-opus-4-6",
+    "tone_hint": "幽闭、宗教狂热与地质恐怖的融合；矿工、祭司、异变者在黑暗中争夺神谕；越往深处，人与矿物的边界越模糊",
+    "worldview_hint": "一座工业城市地下存在数百年的采矿教团，他们相信矿脉是神经、地核是意识——现在地核开始有了回应"
+  }
+}

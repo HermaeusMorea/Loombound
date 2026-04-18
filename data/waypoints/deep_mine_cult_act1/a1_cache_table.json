@@ -1,0 +1,1148 @@
+[
+  {
+    "waypoint_id": "shaft_seven_entrance",
+    "waypoint_type": "threshold",
+    "label": "第七竖井·入口",
+    "map_blurb": "生锈的升降梯嘎吱作响地沉入黑暗。井壁上刻满了教团符文，有些符文在你的矿灯下微微发光。",
+    "encounters": [
+      {
+        "scene_type": "threshold_crossing",
+        "scene_concept": "升降梯缓缓下降，井壁上的教团符文在你的矿灯下逐渐明亮，空气变得潮湿而沉重。远处传来一声微弱的低语——像是岩石本身在呼吸。",
+        "sanity_axis": "理性判断与直觉警告",
+        "options": [
+          {
+            "option_id": "shaft_examine_symbols",
+            "intent": "仔细观察符文，试图解读它们的含义",
+            "tags": [
+              "理性",
+              "调查",
+              "知识"
+            ],
+            "effects": {
+              "sanity_delta": -5,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "符文学徒"
+              ]
+            }
+          },
+          {
+            "option_id": "shaft_ignore_symbols",
+            "intent": "无视符文，加快升降梯下降速度离开这片区域",
+            "tags": [
+              "警惕",
+              "逃避",
+              "本能"
+            ],
+            "effects": {
+              "sanity_delta": 0,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "仓促下降"
+              ]
+            }
+          },
+          {
+            "option_id": "shaft_touch_symbols",
+            "intent": "用手指触碰最近的符文，感受其质感",
+            "tags": [
+              "冒险",
+              "肉体接触",
+              "禁忌"
+            ],
+            "effects": {
+              "sanity_delta": -8,
+              "health_delta": -2,
+              "money_delta": 0,
+              "add_marks": [
+                "符文刻痕",
+                "皮肤发痒"
+              ]
+            }
+          },
+          {
+            "option_id": "shaft_listen_whisper",
+            "intent": "停止升降梯，闭眼倾听那些低语的方向",
+            "tags": [
+              "感知",
+              "冥想",
+              "沉溺"
+            ],
+            "effects": {
+              "sanity_delta": -10,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "低语回响"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "discovery",
+        "scene_concept": "升降梯停止。井口处发现三样物品：一本泛黄的矿工日志、一枚刻着螺旋纹的骨质吊坠，以及一瓶装着某种深红色液体的玻璃瓶。日志最后一页用鲜血写下了日期——三周前。",
+        "sanity_axis": "证据与否认",
+        "options": [
+          {
+            "option_id": "entrance_read_journal",
+            "intent": "翻开日志，读完最后几页的记录",
+            "tags": [
+              "调查",
+              "知识",
+              "痛苦真实"
+            ],
+            "effects": {
+              "sanity_delta": -12,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "血色日志",
+                "失踪者名单"
+              ]
+            }
+          },
+          {
+            "option_id": "entrance_take_pendant",
+            "intent": "拿起骨质吊坠，将其放入口袋",
+            "tags": [
+              "收集",
+              "联系",
+              "标记"
+            ],
+            "effects": {
+              "sanity_delta": -6,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "骨坠携带者"
+              ]
+            }
+          },
+          {
+            "option_id": "entrance_examine_liquid",
+            "intent": "打开玻璃瓶，嗅闻其中的液体",
+            "tags": [
+              "危险",
+              "好奇",
+              "化学"
+            ],
+            "effects": {
+              "sanity_delta": -15,
+              "health_delta": -3,
+              "money_delta": 0,
+              "add_marks": [
+                "液体残留",
+                "肺部灼热感"
+              ]
+            }
+          },
+          {
+            "option_id": "entrance_leave_items",
+            "intent": "不触碰任何物品，直接继续下降",
+            "tags": [
+              "谨慎",
+              "拒绝",
+              "自保"
+            ],
+            "effects": {
+              "sanity_delta": 3,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "未被标记"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "waypoint_id": "abandoned_chapel",
+    "waypoint_type": "archive",
+    "label": "废弃矿下礼拜堂",
+    "map_blurb": "一座用矿渣砌成的地下教堂，祭坛上的结晶体仍在缓慢生长。空气中回荡着数十个声音的残响，像是凝固在石壁里的祈祷。",
+    "encounters": [
+      {
+        "scene_type": "ritual_site",
+        "scene_concept": "一座用黑色矿渣与石灰浆砌成的地下教堂展现在你眼前。祭坛上矗立着一块巨大的结晶体，其内部似乎有人形的轮廓在缓慢移动。十几排石凳上还留着跪拜的痕迹，地面上散落着烧尽的骨灰与矿石碎片。",
+        "sanity_axis": "虔诚与厌恶",
+        "options": [
+          {
+            "option_id": "chapel_approach_crystal",
+            "intent": "走向祭坛，靠近那块不断生长的结晶体",
+            "tags": [
+              "吸引",
+              "执着",
+              "献身"
+            ],
+            "effects": {
+              "sanity_delta": -18,
+              "health_delta": -5,
+              "money_delta": 0,
+              "add_marks": [
+                "结晶共鸣",
+                "额头发热"
+              ]
+            }
+          },
+          {
+            "option_id": "chapel_examine_remains",
+            "intent": "检查地面上的骨灰，试图辨认身份",
+            "tags": [
+              "调查",
+              "同情",
+              "死亡"
+            ],
+            "effects": {
+              "sanity_delta": -10,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "遗骨鉴定者",
+                "矿工姓名碎片"
+              ]
+            }
+          },
+          {
+            "option_id": "chapel_read_inscriptions",
+            "intent": "阅读刻在教堂墙壁上的地质经文与教义",
+            "tags": [
+              "学习",
+              "理解",
+              "腐蚀"
+            ],
+            "effects": {
+              "sanity_delta": -14,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "地核之声",
+                "真理碎片"
+              ]
+            }
+          },
+          {
+            "option_id": "chapel_destroy_altar",
+            "intent": "用镐头砸碎祭坛上的结晶体",
+            "tags": [
+              "暴力",
+              "反抗",
+              "救赎"
+            ],
+            "effects": {
+              "sanity_delta": -20,
+              "health_delta": -8,
+              "money_delta": 0,
+              "add_marks": [
+                "晶体破坏者",
+                "反噬灼伤"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "echo_chamber",
+        "scene_concept": "你踏入教堂深处的一个侧室。墙壁被磨光，整个空间如同一只巨大的耳朵。在你的脚步声中，数十个重叠的声音从石壁里回响出来——那些是矿工的声音，但他们在重复同一句话，语调在凝固与松动之间摇晃。",
+        "sanity_axis": "个体与集体",
+        "options": [
+          {
+            "option_id": "chamber_listen_voices",
+            "intent": "闭眼聆听这些声音，试图分辨其中的含义",
+            "tags": [
+              "感知",
+              "联系",
+              "融合"
+            ],
+            "effects": {
+              "sanity_delta": -16,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "声音迷宫",
+                "自我碎片化"
+              ]
+            }
+          },
+          {
+            "option_id": "chamber_shout_back",
+            "intent": "大声呼喊，打破这些重叠的声音",
+            "tags": [
+              "反抗",
+              "打破",
+              "个体"
+            ],
+            "effects": {
+              "sanity_delta": -8,
+              "health_delta": -2,
+              "money_delta": 0,
+              "add_marks": [
+                "声波反噬"
+              ]
+            }
+          },
+          {
+            "option_id": "chamber_record_voices",
+            "intent": "用笔记本记录下你能辨认出的名字与短语",
+            "tags": [
+              "调查",
+              "记录",
+              "证据"
+            ],
+            "effects": {
+              "sanity_delta": -11,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "证言汇编",
+                "名单完成度+1"
+              ]
+            }
+          },
+          {
+            "option_id": "chamber_flee",
+            "intent": "用双手捂住耳朵，迅速离开侧室",
+            "tags": [
+              "逃避",
+              "自保",
+              "否认"
+            ],
+            "effects": {
+              "sanity_delta": -6,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "声音残余"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "waypoint_id": "foreman_quarters",
+    "waypoint_type": "investigation",
+    "label": "工头宿舍·第三层",
+    "map_blurb": "被匆忙遗弃的宿舍区，床铺上长满了灰白色的矿物结壳。某间房内的墙壁被指甲抠出了密密麻麻的文字。",
+    "encounters": [
+      {
+        "scene_type": "contamination_site",
+        "scene_concept": "工头宿舍的四间房间中，每张床铺上都覆盖着厚厚的灰白色矿物结壳。其中一间房的窗户被从内部用尖锐物体砸碎，玻璃散落在布满爪痕的木地板上。另一间房的墙壁被指甲刮出了密密麻麻的文字。",
+        "sanity_axis": "人性保存与蜕变",
+        "options": [
+          {
+            "option_id": "quarters_read_wall_text",
+            "intent": "仔细阅读墙壁上用指甲刮出的文字",
+            "tags": [
+              "调查",
+              "痛苦",
+              "真相"
+            ],
+            "effects": {
+              "sanity_delta": -15,
+              "health_delta": -1,
+              "money_delta": 0,
+              "add_marks": [
+                "绝望日记",
+                "工头遗言"
+              ]
+            }
+          },
+          {
+            "option_id": "quarters_remove_crust",
+            "intent": "用镐尖刮开床铺上的矿物结壳",
+            "tags": [
+              "调查",
+              "肉体",
+              "不敬"
+            ],
+            "effects": {
+              "sanity_delta": -17,
+              "health_delta": -4,
+              "money_delta": 0,
+              "add_marks": [
+                "结壳底下的人形",
+                "矿化加速"
+              ]
+            }
+          },
+          {
+            "option_id": "quarters_examine_window",
+            "intent": "研究被砸碎的窗户与周围的血迹",
+            "tags": [
+              "调查",
+              "暴力",
+              "绝望"
+            ],
+            "effects": {
+              "sanity_delta": -12,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "逃脱企图者",
+                "自杀证据"
+              ]
+            }
+          },
+          {
+            "option_id": "quarters_check_belongings",
+            "intent": "翻查床下和柜子里的个人物品",
+            "tags": [
+              "侵犯",
+              "同情",
+              "证据"
+            ],
+            "effects": {
+              "sanity_delta": -9,
+              "health_delta": 0,
+              "money_delta": 20,
+              "add_marks": [
+                "私物收集者"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "transformation_record",
+        "scene_concept": "在最深的一间房里，你发现了一面镜子——镜面上布满了指甲抓痕。镜前的地板上有一个深陷的坑洞，坑底散落着人类的头发、指甲碎片，以及某种闪闪发光的矿物屑。镜子的边缘用干涸的血液写满了日期，最近的一个是失踪前两天。",
+        "sanity_axis": "镜像自我与现实自我",
+        "options": [
+          {
+            "option_id": "transform_study_mirror",
+            "intent": "站在镜前，观察自己的脸，比对镜面上的血迹日期",
+            "tags": [
+              "自我审视",
+              "恐惧",
+              "预言"
+            ],
+            "effects": {
+              "sanity_delta": -20,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "镜像恐惧",
+                "变化倒计时"
+              ]
+            }
+          },
+          {
+            "option_id": "transform_collect_remains",
+            "intent": "收集坑底的头发、指甲与矿物屑作为证据",
+            "tags": [
+              "取证",
+              "侵犯",
+              "污染"
+            ],
+            "effects": {
+              "sanity_delta": -11,
+              "health_delta": -2,
+              "money_delta": 0,
+              "add_marks": [
+                "变化样本",
+                "皮肤瘙痒"
+              ]
+            }
+          },
+          {
+            "option_id": "transform_destroy_mirror",
+            "intent": "用镐头砸碎这面镜子",
+            "tags": [
+              "暴力",
+              "破坏",
+              "否认"
+            ],
+            "effects": {
+              "sanity_delta": -18,
+              "health_delta": -3,
+              "money_delta": 0,
+              "add_marks": [
+                "镜像破碎者",
+                "玻璃刮伤"
+              ]
+            }
+          },
+          {
+            "option_id": "transform_flee_room",
+            "intent": "立即离开这间房间，不再查看任何东西",
+            "tags": [
+              "逃避",
+              "自保",
+              "未知"
+            ],
+            "effects": {
+              "sanity_delta": -8,
+              "health_delta": 0,
+              "money_delta": 0,
+              "add_marks": [
+                "未知真相"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "waypoint_id": "crystal_gallery",
+    "waypoint_type": "encounter",
+    "label": "结晶回廊",
+    "map_blurb": "巨大的透明晶簇从四面八方刺入通道，每一根晶体内部都封存着模糊的人形轮廓。你的倒影在无数晶面上被扭曲成陌生的形状。",
+    "encounters": [
+      {
+        "scene_type": "discovery",
+        "scene_concept": "你踏入一条被巨大晶簇包围的走廊，每根晶体内都浮现着矿工的残留轮廓。当你靠近时，晶体内的倒影开始微妙地改变——不再完全对应你的动作。",
+        "sanity_axis": "自我认知的瓦解",
+        "options": [
+          {
+            "option_id": "crystal_gallery_1_opt1",
+            "intent": "用镐凿击晶体，试图释放被困的矿工",
+            "tags": [
+              "暴力",
+              "同情",
+              "冲动"
+            ],
+            "effects": {
+              "health_delta": -15,
+              "sanity_delta": -20,
+              "money_delta": 0,
+              "add_marks": [
+                "已破碎晶体",
+                "血晶碎片"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_1_opt2",
+            "intent": "仔细观察倒影的细微变化，试图理解它的逻辑",
+            "tags": [
+              "观察",
+              "理性",
+              "冥想"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -10,
+              "money_delta": 0,
+              "add_marks": [
+                "倒影的秘密"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_1_opt3",
+            "intent": "迅速通过回廊，避免长时间对视倒影",
+            "tags": [
+              "速度",
+              "逃避",
+              "实用主义"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 0,
+              "money_delta": 0,
+              "add_marks": []
+            }
+          },
+          {
+            "option_id": "crystal_gallery_1_opt4",
+            "intent": "用血液或体液去触碰晶体表面，主动融合",
+            "tags": [
+              "献祭",
+              "妥协",
+              "堕落"
+            ],
+            "effects": {
+              "health_delta": -5,
+              "sanity_delta": 15,
+              "money_delta": 0,
+              "add_marks": [
+                "身体的矿化开始",
+                "地底的认可"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "interaction",
+        "scene_concept": "晶体开始发出低频振动，频率与你的心跳逐渐同步。你感到一股吸力试图将你的手臂吸入透明的晶体壁。矿工的面孔在晶体深处睁开眼睛，似乎在恳求什么。",
+        "sanity_axis": "意志与肉体的争夺",
+        "options": [
+          {
+            "option_id": "crystal_gallery_2_opt1",
+            "intent": "用全力抵抗吸力，将手臂强行拽出",
+            "tags": [
+              "抗争",
+              "意志力",
+              "痛苦"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -15,
+              "money_delta": 0,
+              "add_marks": [
+                "手臂灼伤",
+                "晶体碎裂的哭声"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_2_opt2",
+            "intent": "放松身体，允许吸力缓慢将手臂吸入，倾听矿工想说什么",
+            "tags": [
+              "投降",
+              "共鸣",
+              "同情"
+            ],
+            "effects": {
+              "health_delta": -10,
+              "sanity_delta": 5,
+              "money_delta": 0,
+              "add_marks": [
+                "矿工的遗言",
+                "半融合的手臂"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_2_opt3",
+            "intent": "向晶体投入矿石或金属物品，转移吸力的焦点",
+            "tags": [
+              "替代",
+              "聪慧",
+              "算计"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -5,
+              "money_delta": -10,
+              "add_marks": [
+                "晶体的胃口",
+                "代价的开始"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_2_opt4",
+            "intent": "念诵你听见的地底低语，与晶体的频率完全共鸣",
+            "tags": [
+              "祈祷",
+              "同化",
+              "疯狂"
+            ],
+            "effects": {
+              "health_delta": 5,
+              "sanity_delta": 25,
+              "money_delta": 0,
+              "add_marks": [
+                "地底之言刻入脑髓",
+                "你已被选中"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "choice",
+        "scene_concept": "回廊尽头分成两条道路：一条向上倾斜，晶体变得稀疏而昏暗；另一条向下深入，晶体越来越密集、越来越明亮，其中你能看到最近失踪的矿工们，他们的眼睛在闪烁。",
+        "sanity_axis": "救赎与堕落的分岔",
+        "options": [
+          {
+            "option_id": "crystal_gallery_3_opt1",
+            "intent": "选择上升的道路，坚持调查任务，离开晶体的视线",
+            "tags": [
+              "职责",
+              "理性",
+              "抗拒"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -20,
+              "money_delta": 0,
+              "add_marks": [
+                "调查员的骄傲",
+                "遗弃的罪恶感"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_3_opt2",
+            "intent": "下降到晶体最密集之处，试图救出那些矿工",
+            "tags": [
+              "救援",
+              "牺牲",
+              "同情"
+            ],
+            "effects": {
+              "health_delta": -25,
+              "sanity_delta": 10,
+              "money_delta": 0,
+              "add_marks": [
+                "被矿工的手触碰",
+                "承诺的代价"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_3_opt3",
+            "intent": "站在岔路口，尝试与矿工通讯，询问他们为何不离开",
+            "tags": [
+              "对话",
+              "知识欲",
+              "孤立"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 5,
+              "money_delta": 0,
+              "add_marks": [
+                "矿工的真实回答",
+                "真相的碎片"
+              ]
+            }
+          },
+          {
+            "option_id": "crystal_gallery_3_opt4",
+            "intent": "在两条道路的中点破坏晶体，试图摧毁这整个结构",
+            "tags": [
+              "破坏",
+              "绝望",
+              "狂乱"
+            ],
+            "effects": {
+              "health_delta": -30,
+              "sanity_delta": -30,
+              "money_delta": 0,
+              "add_marks": [
+                "塌方的警告",
+                "地底的愤怒"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "waypoint_id": "the_congregation",
+    "waypoint_type": "ritual",
+    "label": "深层集会所",
+    "map_blurb": "教团的核心聚集地。数十名半矿化的信徒跪在一口深不见底的竖井边，齐声吟唱。他们的声音与地底的震颤完美同频。",
+    "encounters": [
+      {
+        "scene_type": "confrontation",
+        "scene_concept": "数十名信徒在深井边齐声吟唱，他们的皮肤呈现出晶莹的矿物质纹理。当你进入这个空间时，吟唱戛然而止，所有头颅同时缓慢转向你。他们的眼睛没有焦点，但似乎能看穿你。",
+        "sanity_axis": "个体与群体的吞没",
+        "options": [
+          {
+            "option_id": "the_congregation_1_opt1",
+            "intent": "亮出督察员证件，以权威命令他们停止集会",
+            "tags": [
+              "权力",
+              "对抗",
+              "理性"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -25,
+              "money_delta": 0,
+              "add_marks": [
+                "权威的失效",
+                "他们在笑"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_1_opt2",
+            "intent": "跪下并加入吟唱，装作已被同化",
+            "tags": [
+              "伪装",
+              "投降",
+              "策略"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 20,
+              "money_delta": 0,
+              "add_marks": [
+                "喉咙里的矿脉之音",
+                "被接纳的感觉"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_1_opt3",
+            "intent": "缓慢后退，试图记住信徒的身份特征供后续调查",
+            "tags": [
+              "观察",
+              "谨慎",
+              "距离"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -10,
+              "money_delta": 0,
+              "add_marks": [
+                "信徒的面孔清单",
+                "逃脱的机会"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_1_opt4",
+            "intent": "走向深井边缘，试图看清井底有什么东西在被召唤",
+            "tags": [
+              "好奇",
+              "鲁莽",
+              "真相"
+            ],
+            "effects": {
+              "health_delta": -10,
+              "sanity_delta": 15,
+              "money_delta": 0,
+              "add_marks": [
+                "井底的回应",
+                "你被看见了"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "ritual",
+        "scene_concept": "一位年长的祭司从信徒群中走出，他的躯体已经半矿化，声带中发出的不是人声，而是地层摩擦的声音。他指向你，开始诵读一份古老的地质经文，你的骨骼开始应声共鸣。",
+        "sanity_axis": "肉身的背叛",
+        "options": [
+          {
+            "option_id": "the_congregation_2_opt1",
+            "intent": "射击或刺杀祭司，企图打断仪式",
+            "tags": [
+              "暴力",
+              "惊恐",
+              "干预"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -20,
+              "money_delta": 0,
+              "add_marks": [
+                "祭司的血是矿物",
+                "仪式的反噬"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_2_opt2",
+            "intent": "闭上眼睛，屏住呼吸，试图隔绝经文的影响",
+            "tags": [
+              "防守",
+              "冥想",
+              "抗争"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -5,
+              "money_delta": 0,
+              "add_marks": [
+                "短暂的安宁",
+                "躲避不会持久"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_2_opt3",
+            "intent": "开口跟随祭司诵读经文，用共鸣的力量取得他的信任",
+            "tags": [
+              "模仿",
+              "投降",
+              "共鸣"
+            ],
+            "effects": {
+              "health_delta": 5,
+              "sanity_delta": 30,
+              "money_delta": 0,
+              "add_marks": [
+                "祭司的认可",
+                "你已融入教团的低语"
+              ]
+            }
+          },
+          {
+            "option_id": "the_congregation_2_opt4",
+            "intent": "用所有意志力抵抗共鸣，冲向祭司并试图触及他的矿化躯体",
+            "tags": [
+              "冲突",
+              "知识欲",
+              "堕落"
+            ],
+            "effects": {
+              "health_delta": -15,
+              "sanity_delta": 10,
+              "money_delta": 0,
+              "add_marks": [
+                "祭司躯体的秘密",
+                "血液中的矿脉"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "waypoint_id": "the_nerve_of_earth",
+    "waypoint_type": "ritual",
+    "label": "地脉神经·终端",
+    "map_blurb": "矿道的尽头不再是岩石——是一面温热的、有脉搏的壁面。它在呼吸。它在等你把手贴上去。",
+    "encounters": [
+      {
+        "scene_type": "discovery",
+        "scene_concept": "你推开最后一道岩石门，眼前不再是矿道的尽头，而是一面柔软的、带着体温的壁面。它缓缓起伏，如同生物的呼吸。在壁面的中央，你能看到一个轮廓——一张人脸，被困在这个有机的岩层内，眼睛在眨动。",
+        "sanity_axis": "自然与生物的界限模糊",
+        "options": [
+          {
+            "option_id": "the_nerve_of_earth_1_opt1",
+            "intent": "用镐凿试图挖开这张脸，解救被困其中的人",
+            "tags": [
+              "救援",
+              "暴力",
+              "同情"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -30,
+              "money_delta": 0,
+              "add_marks": [
+                "那张脸流血了",
+                "它在尖叫",
+                "壁面愤怒地收缩"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_1_opt2",
+            "intent": "用手掌轻轻触碰这张脸，尝试与其沟通",
+            "tags": [
+              "对话",
+              "同情",
+              "妥协"
+            ],
+            "effects": {
+              "health_delta": -5,
+              "sanity_delta": 15,
+              "money_delta": 0,
+              "add_marks": [
+                "脸部的温度传入你的掌心",
+                "被承认的喜悦"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_1_opt3",
+            "intent": "记录这个发现，拍照并后退，试图保持距离和客观性",
+            "tags": [
+              "记录",
+              "理性",
+              "距离"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": -15,
+              "money_delta": 0,
+              "add_marks": [
+                "调查证据",
+                "一个见证者的冷漠"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_1_opt4",
+            "intent": "贴上整个面部，用全身与壁面共鸣，完全投入这个拥抱",
+            "tags": [
+              "融合",
+              "献祭",
+              "堕落"
+            ],
+            "effects": {
+              "health_delta": 10,
+              "sanity_delta": 50,
+              "money_delta": 0,
+              "add_marks": [
+                "你的身体开始融化",
+                "地球心脏的怀抱",
+                "不再是一个个体"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "revelation",
+        "scene_concept": "壁面中的面孔变得清晰——那是矿务局局长的脸。或者说曾经是。现在他的眼睛注视着你，口中呢喃出熟悉的声音，但词汇不是任何人类语言。他试图从壁面中伸出手臂，邀请你进一步靠近。",
+        "sanity_axis": "身份的永久丧失",
+        "options": [
+          {
+            "option_id": "the_nerve_of_earth_2_opt1",
+            "intent": "认出局长，试图唤醒他的理智，将他从这个生物体中救出",
+            "tags": [
+              "救援",
+              "执念",
+              "无望"
+            ],
+            "effects": {
+              "health_delta": -15,
+              "sanity_delta": -25,
+              "money_delta": 0,
+              "add_marks": [
+                "局长的嘲笑",
+                "救赎的错觉"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_2_opt2",
+            "intent": "接住伸出的手，让局长的指尖与你的掌心相接",
+            "tags": [
+              "融合",
+              "投降",
+              "接纳"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 35,
+              "money_delta": 0,
+              "add_marks": [
+                "你与局长的记忆交融",
+                "深矿教团的完整历史"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_2_opt3",
+            "intent": "质问局长为何背叛，为何允许矿工被同化",
+            "tags": [
+              "对抗",
+              "指控",
+              "寻求答案"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 5,
+              "money_delta": 0,
+              "add_marks": [
+                "局长的解释",
+                "不是背叛，而是觉醒"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_2_opt4",
+            "intent": "转身逃离，不回头，冲向来时的通道",
+            "tags": [
+              "逃避",
+              "拒绝",
+              "独立"
+            ],
+            "effects": {
+              "health_delta": -10,
+              "sanity_delta": -20,
+              "money_delta": 0,
+              "add_marks": [
+                "壁面的哭泣",
+                "你被诅咒了"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "scene_type": "apotheosis",
+        "scene_concept": "壁面开始扩张，整个洞窟的岩层都开始脉动。你意识到这不是一个生物被困在石头里——这整个深矿，整个地底，都是一个活着的有机体。你脚下的地面变得温暖而柔软，骨骼中的矿物成分开始共鸣。一个声音从地心深处传来，用你能完美理解的语言对你说话。",
+        "sanity_axis": "宇宙中的渺小与伟大",
+        "options": [
+          {
+            "option_id": "the_nerve_of_earth_3_opt1",
+            "intent": "宣称自己是矿务局的代表，要求这个实体停止对人类的同化",
+            "tags": [
+              "权力",
+              "对抗",
+              "理想主义"
+            ],
+            "effects": {
+              "health_delta": -30,
+              "sanity_delta": -40,
+              "money_delta": 0,
+              "add_marks": [
+                "地心的嘲笑",
+                "你的权力在此失效",
+                "最终的孤独"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_3_opt2",
+            "intent": "跪下，承认自己的渺小，询问这个实体想要什么",
+            "tags": [
+              "投降",
+              "谦卑",
+              "开放"
+            ],
+            "effects": {
+              "health_delta": 5,
+              "sanity_delta": 60,
+              "money_delta": 0,
+              "add_marks": [
+                "地心的目的揭露",
+                "你被赋予了使命",
+                "真正的觉醒"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_3_opt3",
+            "intent": "尝试逃离洞窟，使用你还有的理性思维逃回地表世界",
+            "tags": [
+              "逃生",
+              "执著",
+              "绝望"
+            ],
+            "effects": {
+              "health_delta": -20,
+              "sanity_delta": -30,
+              "money_delta": 0,
+              "add_marks": [
+                "矿道的每一条都指向深处",
+                "你永远无法真正逃离"
+              ]
+            }
+          },
+          {
+            "option_id": "the_nerve_of_earth_3_opt4",
+            "intent": "让自己完全融入这个过程，主动将意识投向地心，成为其有意识的一部分",
+            "tags": [
+              "献祭",
+              "超越",
+              "永恒"
+            ],
+            "effects": {
+              "health_delta": 0,
+              "sanity_delta": 100,
+              "money_delta": 0,
+              "add_marks": [
+                "你不再是一个个体",
+                "你是深矿教团的新祭司",
+                "地球的最深处在你的思维中"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

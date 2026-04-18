@@ -1,0 +1,22 @@
+[
+  {
+    "id": "stable",
+    "description": "净资源变化非负，精神状态维持或改善"
+  },
+  {
+    "id": "destabilizing",
+    "description": "净资源变化明显为负，至少两项属性下降"
+  },
+  {
+    "id": "crystallizing",
+    "description": "精神值下降但获得信息或资源，以理智换取启示"
+  },
+  {
+    "id": "heretical",
+    "description": "违背教团意志的选择，生命值可能下降但精神值保持"
+  },
+  {
+    "id": "assimilated",
+    "description": "顺从地底意志，精神值大幅下降但生命值或金钱上升"
+  }
+]

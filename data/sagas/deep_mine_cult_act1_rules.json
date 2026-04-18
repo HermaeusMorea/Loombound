@@ -1,0 +1,121 @@
+{
+  "rules": [
+    {
+      "id": "rule_never_touch_living_stone",
+      "name": "活石不可触——温热的岩壁是消化道，不是通道",
+      "theme": "mineral_dread",
+      "decision_types": [
+        "encounter",
+        "ritual",
+        "threshold"
+      ],
+      "priority": 110,
+      "sanity_penalty": 3,
+      "preferred_option_tags": [
+        "cautious",
+        "observe",
+        "retreat"
+      ],
+      "forbidden_option_tags": [
+        "touch",
+        "embrace",
+        "merge"
+      ],
+      "match": {
+        "min_sanity": 1
+      }
+    },
+    {
+      "id": "rule_distrust_the_chorus",
+      "name": "当众声齐唱时，堵住你的耳朵",
+      "theme": "religious_ecstasy",
+      "decision_types": [
+        "ritual",
+        "encounter",
+        "archive"
+      ],
+      "priority": 100,
+      "sanity_penalty": 2,
+      "preferred_option_tags": [
+        "resist",
+        "silence",
+        "isolate"
+      ],
+      "forbidden_option_tags": [
+        "join",
+        "chant",
+        "listen_deeply"
+      ]
+    },
+    {
+      "id": "rule_keep_the_lamp_lit",
+      "name": "矿灯是你最后的皮肤——灯灭则人灭",
+      "theme": "claustrophobic_panic",
+      "decision_types": [
+        "crossroads",
+        "encounter",
+        "threshold",
+        "investigation"
+      ],
+      "priority": 90,
+      "sanity_penalty": 2,
+      "preferred_option_tags": [
+        "light",
+        "fuel",
+        "conserve"
+      ],
+      "forbidden_option_tags": [
+        "darkness",
+        "extinguish",
+        "surrender_light"
+      ]
+    },
+    {
+      "id": "rule_do_not_barter_with_the_changed",
+      "name": "半矿化者的馈赠是感染，不是善意",
+      "theme": "contamination_anxiety",
+      "decision_types": [
+        "market",
+        "encounter",
+        "ritual"
+      ],
+      "priority": 85,
+      "sanity_penalty": 1,
+      "preferred_option_tags": [
+        "refuse",
+        "distance",
+        "inspect"
+      ],
+      "forbidden_option_tags": [
+        "accept_gift",
+        "consume",
+        "trade_flesh"
+      ],
+      "match": {
+        "max_sanity": 6
+      }
+    },
+    {
+      "id": "rule_record_everything",
+      "name": "把看到的都写下来——纸上的文字不会长出矿脉",
+      "theme": "desperate_rationality",
+      "decision_types": [
+        "archive",
+        "investigation",
+        "rest"
+      ],
+      "priority": 75,
+      "sanity_penalty": 1,
+      "preferred_option_tags": [
+        "document",
+        "analyze",
+        "remember"
+      ],
+      "forbidden_option_tags": [
+        "ignore",
+        "forget",
+        "destroy_evidence"
+      ]
+    }
+  ]
+}
