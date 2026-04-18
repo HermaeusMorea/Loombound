@@ -17,6 +17,9 @@ dependencies = [
   "httpx>=0.28.1",
 ]
 
+[project.scripts]
+loombound = "src.loombound_main:main"
+
 [tool.setuptools]
 include-package-data = true
 

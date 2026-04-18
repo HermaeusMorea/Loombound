@@ -47,7 +47,16 @@ if [[ -f ".env" ]]; then
     set +a
 fi
 
-PYTHON="$SCRIPT_DIR/.venv/bin/python"
+# Find Python: active venv > repo .venv > system python3
+if [[ -n "${VIRTUAL_ENV:-}" ]] && [[ -x "$VIRTUAL_ENV/bin/python" ]]; then
+    PYTHON="$VIRTUAL_ENV/bin/python"
+elif [[ -x "$SCRIPT_DIR/.venv/bin/python" ]]; then
+    PYTHON="$SCRIPT_DIR/.venv/bin/python"
+elif command -v python3 &>/dev/null; then
+    PYTHON="$(command -v python3)"
+else
+    echo "loombound: No Python found. Set up a virtualenv: python3 -m venv .venv && .venv/bin/pip install -e ." >&2; exit 1
+fi
 DATA_DIR="$SCRIPT_DIR/data"
 
 # ---------------------------------------------------------------------------
