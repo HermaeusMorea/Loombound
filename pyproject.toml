@@ -5,15 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "loombound"
 version = "0.1.0"
-description = "Deterministic-first CLI narrative prototype with sanity pressure, run memory, and arbitration."
+description = "Roguelite narrative engine with a three-layer AI architecture (local C1 + Haiku C2 + Opus C3)."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  { name = "OpenAI Codex" }
+  { name = "xyu" }
 ]
 dependencies = [
   "anthropic>=0.94.1",
-  "openai>=2.31.0",
   "httpx>=0.28.1",
 ]
 

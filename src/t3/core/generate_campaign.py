@@ -27,7 +27,7 @@ from pathlib import Path
 
 import anthropic
 
-from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step, write_t1_cache_table  # noqa: F401
+from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step
 
 REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()

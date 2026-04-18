@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import json
 import logging
 import os
 import sys
@@ -412,7 +413,6 @@ def main() -> None:
     saga_id_str = saga.get("saga_id", "")
     campaigns_dir_rt = REPO_ROOT / "data" / "sagas"
 
-    import json as _json_rt
     _rules_path = campaigns_dir_rt / f"{saga_id_str}_rules.json"
     rules = load_rules(_rules_path) if _rules_path.exists() else []
     if not rules:
@@ -443,19 +443,18 @@ def main() -> None:
     narration_table: dict | None = None
     _narration_path = campaigns_dir_rt / f"{saga_id_str}_narration_table.json"
     if _narration_path.exists():
-        narration_table = _json_rt.loads(_narration_path.read_text(encoding="utf-8"))
+        narration_table = json.loads(_narration_path.read_text(encoding="utf-8"))
         log.info("Loaded narration table: %d theme(s).", len(narration_table))
 
     # Build M2Classifier if A2 cache is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
     if run.memory.a2.a2_cache_table:
-        import json as _json
         saga_id = saga.get("saga_id", "")
         campaigns_dir = REPO_ROOT / "data" / "sagas"
         toll_lexicon_path = campaigns_dir / f"{saga_id}_toll_lexicon.json"
-        toll_lexicon = _json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
-        toll_lexicon_json = _json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
-        rules_json = _json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)
+        toll_lexicon = json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
+        toll_lexicon_json = json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
+        rules_json = json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
