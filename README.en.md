@@ -16,6 +16,27 @@ A roguelite narrative engine driven by a three-layer AI architecture.
 
 → Full writeup: [docs/SEMANTIC_OS.en.md](docs/SEMANTIC_OS.en.md)
 
+## Installation
+
+```bash
+git clone https://github.com/HermaeusMorea/Loombound.git
+cd Loombound
+
+# Create a virtual environment and install dependencies
+python3 -m venv .venv
+.venv/bin/pip install -e .
+
+# Configure API key
+cp .env.example .env   # fill in ANTHROPIC_API_KEY
+
+# Download the local model (used by C1 for scene expansion)
+ollama pull qwen2.5:7b
+```
+
+After installation you can use either `./loombound` or `loombound` (with the venv activated: `source .venv/bin/activate`).
+
+---
+
 ## Quick Start
 
 ```bash

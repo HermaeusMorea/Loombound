@@ -18,6 +18,27 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 → 完整设想：[docs/SEMANTIC_OS.md](docs/SEMANTIC_OS.md)
 
 
+## 安装
+
+```bash
+git clone https://github.com/HermaeusMorea/Loombound.git
+cd Loombound
+
+# 建虚拟环境并安装依赖
+python3 -m venv .venv
+.venv/bin/pip install -e .
+
+# 配置 API key
+cp .env.example .env   # 填入 ANTHROPIC_API_KEY
+
+# 下载本地模型（C1 场景展开用）
+ollama pull qwen2.5:7b
+```
+
+完成后既可以用 `./loombound`，也可以直接用 `loombound`（需激活 venv：`source .venv/bin/activate`）。
+
+---
+
 ## 快速开始
 
 ```bash
