@@ -1,8 +1,6 @@
-"""C1 logic: Fast Core (gemma3), narration."""
+"""C1 logic: Fast Core (gemma3)."""
 
-from .narrator import render_narration
-
-__all__ = ["render_narration", "FastCoreExpander", "FastCoreConfig"]
+__all__ = ["FastCoreExpander", "FastCoreConfig"]
 
 
 def FastCoreExpander(*args, **kwargs):

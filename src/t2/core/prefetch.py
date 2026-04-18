@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.t0.memory.models import CoreStateView, WaypointSummary
+from src.t0.memory.models import CoreStateView, NarrationBlock, WaypointSummary
 from src.t2.memory.a2_store import A2Store
 from src.t0.memory.types import WaypointMemory, RunMemory
 
@@ -224,7 +224,7 @@ class PrefetchCache:
 
         def _run() -> None:
             asyncio.run(
-                self._generate_preloaded(
+                self._generate(
                     target_node_id,
                     state_snapshot,
                     memory_snapshot,
@@ -381,6 +381,46 @@ class PrefetchCache:
                      node_id, arb_idx, len(effects), rule_id)
         return effects, rule_id
 
+    def start_narration_rewrite(
+        self,
+        opening_draft: str,
+        judgement_draft: str,
+        warning_draft: str,
+        scene_summary: str,
+        scene_type: str,
+        rule_theme: str,
+    ) -> tuple[threading.Event, list]:
+        """Start a background T1 narration rewrite.
+
+        Returns (done_event, result_container).
+        result_container is a 1-item list; result_container[0] is the NarrationBlock
+        once done_event is set. Falls back to the draft on failure.
+        """
+        done = threading.Event()
+        result: list = [None]
+
+        def _run() -> None:
+            import asyncio
+            try:
+                block = asyncio.run(self._fast.rewrite_narration(
+                    opening_draft, judgement_draft, warning_draft,
+                    scene_summary, scene_type, rule_theme,
+                ))
+                result[0] = block
+            except Exception as exc:
+                log.warning("Narration rewrite thread failed: %s", exc)
+                result[0] = NarrationBlock(
+                    opening=opening_draft,
+                    judgement=judgement_draft,
+                    warning=warning_draft,
+                )
+            finally:
+                done.set()
+
+        t = threading.Thread(target=_run, name="narration-rewrite", daemon=True)
+        t.start()
+        return done, result
+
     # ------------------------------------------------------------------
     # Internal: Opus arc update
     # ------------------------------------------------------------------
@@ -513,9 +553,9 @@ class PrefetchCache:
             return
 
         # Step 2: T1 cache lookup
-        node_entry = run_memory.a2.lookup_node(target_node_id)
+        node_entry = run_memory.a2.lookup_waypoint(target_node_id)
         if node_entry is None or not node_entry.encounters:
-            reason = f"a1_cache_table missing node_id={target_node_id}"
+            reason = f"a1_cache_table missing waypoint_id={target_node_id}"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -525,7 +565,7 @@ class PrefetchCache:
 
         _md_log([
             f"## [{_ts()}] T1 CACHE LOOKUP — node `{target_node_id}` (arc_id={arc_id_snapshot})",
-            f"node_type: {node_entry.node_type}",
+            f"waypoint_type: {node_entry.waypoint_type}",
             f"label: {node_entry.label}",
             f"encounters: {len(node_entry.encounters)}",
             f"arc_trajectory: {arc_row.arc_trajectory}",

@@ -7,7 +7,7 @@ Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect
 values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 
-Output: data/nodes/<saga_id>/t1_cache_table.json
+Output: data/waypoints/<saga_id>/t1_cache_table.json
 
 Usage (standalone):
     python -m src.t2.core.gen_a1_cache_table data/campaigns/my_campaign.json
@@ -33,7 +33,7 @@ REPO_ROOT = (
     if os.environ.get("LOOMBOUND_ROOT")
     else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
     if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).resolve().parent.parent
+    else Path(__file__).resolve().parents[3]
 )
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 
@@ -190,8 +190,8 @@ def _build_t1_cache_table_user_msg(
         arb_n = int(node.get("encounter_count", 1))
         expected[nid] = arb_n
         node_lines.append(
-            f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
-            f"floor: {node.get('floor', 1)}  arbitrations_required: {arb_n}\n"
+            f"  - waypoint_id: {nid}  waypoint_type: {node.get('waypoint_type', '')}  "
+            f"depth: {node.get('depth', 1)}  encounters_required: {arb_n}\n"
             f"    label: {node.get('label', '')}\n"
             f"    map_blurb: {node.get('map_blurb', '')}"
         )
@@ -273,7 +273,7 @@ async def _generate_t1_cache_table(
     _md_log([
         f"## [{_ts()}] T1 CACHE REQUEST — `{saga_id}` ({len(nodes_raw)} nodes)",
         f"model: {model}",
-        *[f"  {n['node_id']} arb×{n.get('encounter_count', 1)}" for n in nodes_raw],
+        *[f"  {n['waypoint_id']} arb×{n.get('encounter_count', 1)}" for n in nodes_raw],
     ])
 
     for attempt in range(1, max_retries + 1):
@@ -340,7 +340,7 @@ async def _generate_t1_cache_table(
             f"cost: ${haiku_cost:.4f}",
             "summaries:",
             *[
-                f"  {row['node_id']} (arb×{len(row['encounters'])}): "
+                f"  {row['waypoint_id']} (arb×{len(row['encounters'])}): "
                 + (row['encounters'][0].get('scene_concept', '')[:90] if row.get('encounters') else '(empty)')
                 for row in t1_cache_table
             ],
@@ -355,7 +355,7 @@ async def _generate_t1_cache_table(
 # ---------------------------------------------------------------------------
 
 def write_t1_cache_table(t1_cache_table: list[dict], saga_id: str) -> Path:
-    out_dir = REPO_ROOT / "data" / "nodes" / saga_id
+    out_dir = REPO_ROOT / "data" / "waypoints" / saga_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "a1_cache_table.json"
     out_path.write_text(json.dumps(t1_cache_table, ensure_ascii=False, indent=2), encoding="utf-8")

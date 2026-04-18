@@ -403,7 +403,8 @@ class M2Classifier:
                 log.error("M2Classifier: attempt %d failed: %s", attempt + 1, exc)
                 if attempt == _MAX_RETRIES:
                     return _NO_MATCH_ID, "", {}, _empty_usage
-            return _NO_MATCH_ID, "", {}, _empty_usage
+
+        return _NO_MATCH_ID, "", {}, _empty_usage
 
     def update_a2_cache_table(self, a2_cache_table_json: str) -> None:
         """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""

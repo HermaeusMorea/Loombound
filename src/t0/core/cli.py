@@ -454,7 +454,7 @@ def render_map_hud(run: Any, campaign: dict[str, Any], next_nodes: list[str]) ->
     print()
     lines = ["Where do you go next?", ""]
     for idx, next_node_id in enumerate(next_nodes, start=1):
-        next_node = campaign["nodes"][next_node_id]
+        next_node = campaign["waypoints"][next_node_id]
         lines.append(f"{BOLD}{idx}.{RESET} {next_node['label']}")
         lines.append(f"   {next_node['map_blurb']}")
         lines.append("")

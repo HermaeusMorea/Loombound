@@ -34,7 +34,7 @@ REPO_ROOT = (
     if os.environ.get("LOOMBOUND_ROOT")
     else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
     if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).resolve().parent.parent
+    else Path(__file__).resolve().parents[3]
 )
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 
@@ -161,10 +161,10 @@ to any particular aesthetic unless the theme clearly implies one.
 
 ─── CAMPAIGN DESIGN RULES ──────────────────────────────────────────────────
 NODE GRAPH
-- All node_ids referenced in any node's next_nodes MUST appear as a node_id in your nodes list.
-- start_node_id MUST be one of the node_ids you define.
-- At least one node must have next_nodes: [] (the terminal node — campaign's climax).
-- Floors must increase strictly along any path through the graph.
+- All waypoint_ids referenced in any waypoint's next_waypoints MUST appear as a waypoint_id in your waypoints list.
+- start_waypoint_id MUST be one of the waypoint_ids you define.
+- At least one waypoint must have next_waypoints: [] (the terminal node — campaign's climax).
+- Depth must increase strictly along any path through the graph.
 - Prefer branching over linear chains — at least one fork somewhere in the graph.
 
 NODE TYPES  (use exactly one per node)
@@ -197,6 +197,32 @@ Generate 3–6 campaign-specific verdict labels that describe option consequence
 - Add 1–4 theme-specific entries that fit your campaign's tone (e.g. "cursed", "exploitative", "honorable", "corrupting").
 - Each entry needs a one-line description of the numeric constraints it implies for h/m/s values.
 - These labels will be used by the runtime AI to classify options before assigning numbers.
+
+RULES
+Generate 3–5 campaign-specific rules that define the psychological logic of this world. \
+Each rule is a pattern the protagonist should follow to maintain stability — a discipline, \
+a survival heuristic, a moral code forged by this world's specific pressures.
+- id: snake_case, descriptive (e.g. "rule_never_open_unmarked_doors")
+- name: a short, memorable maxim phrased as guidance ("When the fog thickens, trust the cold")
+- theme: one of: self_preservation, composure, clarity, detachment — or invent one that fits
+- decision_types: which scene types trigger this rule (crossroads, market, encounter, archive, ritual, threshold, rest, investigation)
+- priority: 60–120 (higher = checked first)
+- sanity_penalty: integer 0–3 (cost if the rule is violated)
+- preferred_option_tags: tags on options this rule favors
+- forbidden_option_tags: tags on options this rule forbids
+- match (optional): resource bounds or required_context_tags that restrict when the rule fires \
+  (max_health, min_health, max_money, min_money, max_sanity, min_sanity, required_context_tags)
+Make the rules feel like they were written by someone who survived this world, not a game designer.
+
+NARRATION TABLE
+Write atmospheric narration for each of these five rule themes: \
+self_preservation, composure, clarity, detachment, neutral.
+Each entry has three fields shown to the player after a choice:
+- opening  (1–2 sentences, shown BEFORE the choice — sets the psychological frame)
+- judgement (1–2 sentences, shown AFTER the choice — quiet observation on what just happened)
+- warning   (1 sentence — the sanity cost or mental toll the player should expect)
+Ground the text in your specific world: reference its places, factions, imagery, and stakes. \
+Write in second person ("You…" / "你…"). Keep each field under 60 words.
 
 Call create_campaign exactly once.
 """
@@ -286,8 +312,65 @@ _TOOL = {
                     "additionalProperties": False,
                 },
             },
+            "rules": {
+                "type": "array",
+                "description": "3–5 campaign-specific rules defining this world's psychological logic.",
+                "minItems": 3,
+                "maxItems": 5,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id":                    {"type": "string"},
+                        "name":                  {"type": "string"},
+                        "theme":                 {"type": "string"},
+                        "decision_types":        {"type": "array", "items": {"type": "string"}},
+                        "priority":              {"type": "integer"},
+                        "sanity_penalty":        {"type": "integer"},
+                        "preferred_option_tags": {"type": "array", "items": {"type": "string"}},
+                        "forbidden_option_tags": {"type": "array", "items": {"type": "string"}},
+                        "match": {
+                            "type": "object",
+                            "properties": {
+                                "required_context_tags": {"type": "array", "items": {"type": "string"}},
+                                "max_health":  {"type": "integer"},
+                                "min_health":  {"type": "integer"},
+                                "max_money":   {"type": "integer"},
+                                "min_money":   {"type": "integer"},
+                                "max_sanity":  {"type": "integer"},
+                                "min_sanity":  {"type": "integer"},
+                            },
+                            "additionalProperties": False,
+                        },
+                    },
+                    "required": ["id", "name", "theme", "decision_types", "priority",
+                                 "sanity_penalty", "preferred_option_tags", "forbidden_option_tags"],
+                    "additionalProperties": False,
+                },
+            },
+            "narration_table": {
+                "type": "object",
+                "description": (
+                    "Per-theme narration drafts grounded in this campaign's specific world. "
+                    "Keys: self_preservation, composure, clarity, detachment, neutral."
+                ),
+                "properties": {
+                    theme: {
+                        "type": "object",
+                        "properties": {
+                            "opening":   {"type": "string"},
+                            "judgement": {"type": "string"},
+                            "warning":   {"type": "string"},
+                        },
+                        "required": ["opening", "judgement", "warning"],
+                        "additionalProperties": False,
+                    }
+                    for theme in ("self_preservation", "composure", "clarity", "detachment", "neutral")
+                },
+                "required": ["self_preservation", "composure", "clarity", "detachment", "neutral"],
+                "additionalProperties": False,
+            },
         },
-        "required": ["saga_id", "title", "intro", "tone", "initial_core_state", "start_waypoint_id", "nodes", "toll_lexicon"],
+        "required": ["saga_id", "title", "intro", "tone", "initial_core_state", "start_waypoint_id", "waypoints", "toll_lexicon", "rules", "narration_table"],
         "additionalProperties": False,
     },
 }
@@ -467,13 +550,13 @@ def _build_user_msg(
         )
     parts.append(
         "Use a branching graph structure with at least one fork. "
-        "Make sure every node_id in next_nodes actually exists in your nodes list. "
-        f"The final nodes list must contain exactly {node_count} unique nodes."
+        "Make sure every waypoint_id in next_waypoints actually exists in your waypoints list. "
+        f"The final waypoints list must contain exactly {node_count} unique waypoints."
     )
     if lang == "zh":
         parts.append(
             "Write all narrative text (title, intro, tone, label, map_blurb) in Chinese (中文). "
-            "node_id and node_type remain in English snake_case."
+            "waypoint_id and waypoint_type remain in English snake_case."
         )
     return "\n".join(parts)
 
@@ -483,7 +566,7 @@ def _build_user_msg(
 # ---------------------------------------------------------------------------
 
 def _normalise(data: dict) -> dict:
-    nodes = data.get("nodes", [])
+    nodes = data.get("waypoints", data.get("nodes", []))
     data = dict(data)
     if isinstance(nodes, dict):
         normalised: list[dict] = []
@@ -492,9 +575,10 @@ def _normalise(data: dict) -> dict:
                 spec = dict(spec)
                 spec.setdefault("waypoint_id", node_id)
                 normalised.append(spec)
-        data["nodes"] = normalised
+        data["waypoints"] = normalised
     elif isinstance(nodes, list):
-        data["nodes"] = [n for n in nodes if isinstance(n, dict)]
+        data["waypoints"] = [n for n in nodes if isinstance(n, dict)]
+    data.pop("nodes", None)
     return data
 
 
@@ -529,7 +613,7 @@ def validate_graph(
         for ref in node.get("next_waypoints", []):
             if ref not in node_ids:
                 errors.append(
-                    f"'{node['node_id']}' → '{ref}': referenced node does not exist"
+                    f"'{node['waypoint_id']}' → '{ref}': referenced node does not exist"
                 )
 
     if not any(not n.get("next_waypoints") for n in nodes):
@@ -544,10 +628,10 @@ def validate_graph(
 
 def write_campaign(data: dict, out_name: str, generation_context: dict | None = None) -> tuple[Path, int]:
     saga_id = data["saga_id"]
-    nodes_raw: list[dict] = data["nodes"]
+    nodes_raw: list[dict] = data["waypoints"]
 
-    campaigns_dir = REPO_ROOT / "data" / "campaigns"
-    nodes_dir = REPO_ROOT / "data" / "nodes" / saga_id
+    campaigns_dir = REPO_ROOT / "data" / "sagas"
+    nodes_dir = REPO_ROOT / "data" / "waypoints" / saga_id
     campaigns_dir.mkdir(parents=True, exist_ok=True)
     nodes_dir.mkdir(parents=True, exist_ok=True)  # for t1_cache_table.json
 
@@ -591,6 +675,20 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
             json.dumps(toll_lexicon, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
+    rules = data.get("rules", [])
+    if rules:
+        rules_path = campaigns_dir / f"{out_name}_rules.json"
+        rules_path.write_text(
+            json.dumps({"rules": rules}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    narration_table = data.get("narration_table")
+    if narration_table:
+        narration_path = campaigns_dir / f"{out_name}_narration_table.json"
+        narration_path.write_text(
+            json.dumps(narration_table, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
     return out_path, len(nodes_raw)
 
 
@@ -599,7 +697,7 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
 # ---------------------------------------------------------------------------
 
 def print_graph(data: dict) -> None:
-    nodes = {n["waypoint_id"]: n for n in data["nodes"]}
+    nodes = {n["waypoint_id"]: n for n in data["waypoints"]}
     start = data["start_waypoint_id"]
     visited: set[str] = set()
 
@@ -613,7 +711,7 @@ def print_graph(data: dict) -> None:
         connector = "└─" if is_last else "├─"
         tag = " ←START" if nid == start else ""
         arbs = n["encounter_count"]
-        print(f"{prefix}{connector} [{n['node_type']}] {nid}  (arb×{arbs}){tag}")
+        print(f"{prefix}{connector} [{n['waypoint_type']}] {nid}  (arb×{arbs}){tag}")
         if nid in visited:
             child_prefix = prefix + ("   " if is_last else "│  ")
             print(f"{child_prefix}  (already shown above)")
@@ -625,9 +723,9 @@ def print_graph(data: dict) -> None:
             _print_node(child, child_prefix, i == len(children) - 1)
 
     _print_node(start, "  ", True)
-    terminal = [n["waypoint_id"] for n in data["nodes"] if not n.get("next_waypoints")]
+    terminal = [n["waypoint_id"] for n in data["waypoints"] if not n.get("next_waypoints")]
     print(f"\n  Terminal node(s): {terminal}")
-    total_arbs = sum(n["encounter_count"] for n in data["nodes"])
+    total_arbs = sum(n["encounter_count"] for n in data["waypoints"])
     print(f"  Total encounters: {total_arbs}")
 
 
@@ -665,7 +763,7 @@ def _step1_generate_graph(
                 sys.exit(1)
             continue
 
-        errors = validate_graph(data["nodes"], data["start_waypoint_id"], expected_node_count=args.nodes)
+        errors = validate_graph(data["waypoints"], data["start_waypoint_id"], expected_node_count=args.nodes)
         if errors:
             print(f"\nGraph validation failed (attempt {attempt}):")
             for e in errors:

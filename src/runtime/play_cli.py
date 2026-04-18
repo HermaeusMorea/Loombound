@@ -9,14 +9,13 @@ import os
 import sys
 from pathlib import Path
 
-from src.t2.core import load_rules, load_templates
 from src.t0.memory import EncounterResult
 from src.t0.core import apply_option_effects, enforce_rule
 from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
 from src.t2.core.collector import build_classifier_input, build_a1_entry
 from src.t1.core.fast_core import FastCoreConfig
 from src.t0.memory import append_node_event, record_choice, update_after_node
-from src.t1.core import render_narration
+from src.t0.memory.models import NarrationBlock
 from src.t0.core import (
     pause,
     render_arbitration_view,
@@ -32,6 +31,7 @@ from src.t0.core import build_selection_trace, evaluate_rules, select_rule
 from src.runtime.campaign import (
     REPO_ROOT,
     choose_index,
+    load_rules,
     make_run,
     resolve_asset_path,
     sync_encounter_resources,
@@ -46,9 +46,9 @@ from src.t0.core import (
 
 log = logging.getLogger(__name__)
 
-RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
-TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
 T2_CACHE_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
+
+_NARRATION_REWRITE_TIMEOUT = 6.0  # seconds to wait for T1 rewrite before showing draft
 
 
 # ---------------------------------------------------------------------------
@@ -109,12 +109,12 @@ def _play_encounter(
     run,
     waypoint,
     payload: dict[str, object],
-    templates: dict[str, list[str]],
     rules,
     prefetch: PrefetchCache | None,
     arb_idx: int,
     saga_waypoint_id: str,
     total_arbs: int,
+    narration_table: dict | None = None,
 ) -> None:
     # Consume M2-assigned effects and rule selection (may be empty on cache miss)
     m2_effects: dict[str, dict] = {}
@@ -163,12 +163,27 @@ def _play_encounter(
     )
 
     option_results = enforce_rule(encounter, selected.rule if selected else None)
-    narration = render_narration(
-        encounter=encounter,
-        rule=selected.rule if selected else None,
-        templates=templates,
-        enabled=True,
+
+    # Start narration rewrite in background — player will take several seconds to choose,
+    # so the gemma3 rewrite (~300ms) should finish well before render_result.
+    narration_event = None
+    narration_result: list = [None]
+    rule_theme = selected.rule.theme if selected else "neutral"
+    scene_summary = (
+        encounter.context.metadata.get("scene_summary", "")
+        if hasattr(encounter.context, "metadata") else ""
     )
+    if prefetch is not None and narration_table is not None:
+        draft = narration_table.get(rule_theme) or narration_table.get("neutral") or {}
+        if draft:
+            narration_event, narration_result = prefetch.start_narration_rewrite(
+                opening_draft=draft.get("opening", ""),
+                judgement_draft=draft.get("judgement", ""),
+                warning_draft=draft.get("warning", ""),
+                scene_summary=scene_summary,
+                scene_type=encounter.context.scene_type,
+                rule_theme=rule_theme,
+            )
 
     render_arbitration_view(run, encounter, selected.rule if selected else None)
     render_choices(option_results)
@@ -209,6 +224,13 @@ def _play_encounter(
         )
         prefetch.update_arc_state(quasi, _next_node, _next_idx)
 
+    # Resolve narration: wait for T1 rewrite (usually already done) or use empty block.
+    if narration_event is not None:
+        narration_event.wait(timeout=_NARRATION_REWRITE_TIMEOUT)
+        narration = narration_result[0] or NarrationBlock()
+    else:
+        narration = NarrationBlock()
+
     applied_notes = apply_option_effects(run, selected_option, chosen_result)
     encounter.set_result(
         EncounterResult(
@@ -239,9 +261,9 @@ def _play_node(
     saga: dict[str, object],
     saga_waypoint: dict[str, object],
     rules,
-    templates: dict[str, list[str]],
     prefetch: PrefetchCache | None = None,
     saga_waypoint_id: str | None = None,
+    narration_table: dict | None = None,
 ) -> object | None:
     depth: int = saga_waypoint["depth"]
     waypoint_type: str = saga_waypoint["waypoint_type"]
@@ -279,8 +301,9 @@ def _play_node(
 
     for idx, payload in enumerate(payloads):
         _play_encounter(
-            run, waypoint, payload, templates, rules,
+            run, waypoint, payload, rules,
             prefetch, idx, saga_waypoint_id or waypoint_id, len(payloads),
+            narration_table=narration_table,
         )
 
     waypoint.memory.node_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_arbitrations:sanity={waypoint.memory.sanity_lost_in_node}"
@@ -401,9 +424,16 @@ def main() -> None:
     )
 
     saga = load_json_asset(args.saga)
-    rules = load_rules(RULES_PATH)
-    templates = load_templates(TEXT_PATH)
-    run = make_run(campaign)
+    saga_id_str = saga.get("saga_id", "")
+    campaigns_dir_rt = REPO_ROOT / "data" / "sagas"
+
+    import json as _json_rt
+    _rules_path = campaigns_dir_rt / f"{saga_id_str}_rules.json"
+    rules = load_rules(_rules_path) if _rules_path.exists() else []
+    if not rules:
+        log.warning("No rules found for saga '%s' — rule selection disabled.", saga_id_str)
+
+    run = make_run(saga)
     run.rule_system.set_templates(rules)
 
     fast_model = (
@@ -417,7 +447,7 @@ def main() -> None:
     )
 
     # Load T2 cache (arc palette) and T1 cache (node skeletons) if available
-    saga_dir = REPO_ROOT / "data" / "nodes" / saga.get("saga_id", "")
+    saga_dir = REPO_ROOT / "data" / "waypoints" / saga_id_str
     a1_cache_table_path = saga_dir / "a1_cache_table.json"
 
     if T2_CACHE_PATH.exists():
@@ -425,12 +455,18 @@ def main() -> None:
     if a1_cache_table_path.exists():
         run.memory.a2.load_a1_cache_table(a1_cache_table_path)
 
+    narration_table: dict | None = None
+    _narration_path = campaigns_dir_rt / f"{saga_id_str}_narration_table.json"
+    if _narration_path.exists():
+        narration_table = _json_rt.loads(_narration_path.read_text(encoding="utf-8"))
+        log.info("Loaded narration table: %d theme(s).", len(narration_table))
+
     # Build M2Classifier if A2 cache is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
     if run.memory.a2.a2_cache_table:
         import json as _json
         saga_id = saga.get("saga_id", "")
-        campaigns_dir = REPO_ROOT / "data" / "campaigns"
+        campaigns_dir = REPO_ROOT / "data" / "sagas"
         toll_lexicon_path = campaigns_dir / f"{saga_id}_toll_lexicon.json"
         toll_lexicon = _json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
         toll_lexicon_json = _json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
@@ -454,7 +490,7 @@ def main() -> None:
     # LLM-mode node would always have empty encounters.
     _prefetch_targets(
         prefetch=prefetch,
-        campaign=saga,
+        saga=saga,
         target_ids=[current_node_id],
         run=run,
     )
@@ -473,19 +509,19 @@ def main() -> None:
             if next_nodes:
                 _prefetch_targets(
                     prefetch=prefetch,
-                    campaign=saga,
+                    saga=saga,
                     target_ids=next_nodes,
                     run=run,
                 )
 
             completed_node_memory = _play_node(
                 run,
-                campaign,
+                saga,
                 saga_waypoint,
                 rules,
-                templates,
                 prefetch=prefetch,
                 saga_waypoint_id=current_node_id,
+                narration_table=narration_table,
             )
             nodes_played += 1
 
@@ -493,7 +529,7 @@ def main() -> None:
                 lookahead_targets = _collect_lookahead_targets(saga, next_nodes)
                 _prefetch_targets(
                     prefetch=prefetch,
-                    campaign=saga,
+                    saga=saga,
                     target_ids=lookahead_targets,
                     run=run,
                     current_waypoint_memory=completed_node_memory,

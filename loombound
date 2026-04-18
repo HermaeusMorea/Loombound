@@ -67,10 +67,10 @@ _resolve_campaign() {
     local id="$1"
     if [[ "$id" == /* ]] || [[ "$id" == ./* ]]; then
         echo "$id"
-    elif [[ "$id" == data/campaigns/* ]]; then
+    elif [[ "$id" == data/sagas/* ]]; then
         echo "$SCRIPT_DIR/$id"
     else
-        echo "$DATA_DIR/campaigns/${id%.json}.json"
+        echo "$DATA_DIR/sagas/${id%.json}.json"
     fi
 }
 
@@ -184,7 +184,7 @@ case "$subcmd" in
             campaign_file="$(_resolve_campaign "$saga_id")"
             saga_stem="${saga_id%.json}"
             saga_stem="${saga_stem##*/}"           # basename without .json
-            nodes_dir="$DATA_DIR/nodes/$saga_stem"
+            nodes_dir="$DATA_DIR/waypoints/$saga_stem"
             removed=0
 
             if [[ -f "$campaign_file" ]]; then
@@ -204,14 +204,14 @@ case "$subcmd" in
             echo "Cleaning all saga data (keeping data/a2_cache_table.json)..."
             removed=0
 
-            for f in "$DATA_DIR/campaigns/"*.json; do
+            for f in "$DATA_DIR/sagas/"*.json; do
                 [[ -f "$f" ]] || continue
                 rm "$f"
                 echo "  Removed $f"
                 removed=1
             done
 
-            for d in "$DATA_DIR/nodes/"/*/; do
+            for d in "$DATA_DIR/waypoints/"/*/; do
                 [[ -d "$d" ]] || continue
                 rm -rf "$d"
                 echo "  Removed $d"

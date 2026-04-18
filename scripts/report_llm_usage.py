@@ -102,7 +102,7 @@ ROOT = (
     else Path(__file__).resolve().parent.parent
 )
 DEFAULT_LOG       = ROOT / "logs" / "llm.md"
-DEFAULT_CAMPAIGNS = ROOT / "data" / "campaigns"
+DEFAULT_CAMPAIGNS = ROOT / "data" / "sagas"
 
 
 # ---------------------------------------------------------------------------
@@ -357,8 +357,9 @@ def load_campaign_metadata(
             continue
         saga_id = data.get("saga_id", path.stem)
         titles[saga_id] = data.get("title", saga_id)
-        campaign_nodes[saga_id] = set(data.get("nodes", {}))
-        for node_id in data.get("nodes", {}):
+        waypoints = data.get("waypoints", data.get("nodes", {}))
+        campaign_nodes[saga_id] = set(waypoints)
+        for node_id in waypoints:
             node_index.setdefault(node_id, set()).add(saga_id)
     return node_index, titles, campaign_nodes
 
@@ -964,7 +965,7 @@ def main() -> None:
     with args.log.open(encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh]
 
-    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.saga_dir)
+    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.campaign_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
     campaign_core_events = parse_campaign_core_events(lines)
     t1_cache_table_events       = parse_t1_cache_table_events(lines, node_index)

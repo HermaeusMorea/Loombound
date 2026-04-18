@@ -4,7 +4,7 @@ Two caches:
   A2 cache  (data/a2_cache_table.json): saga-agnostic bearing catalogue.
             Loaded at game startup and cached into every C2 (Haiku) call.
 
-  A1 cache  (data/nodes/<saga_id>/a1_cache_table.json): per-saga waypoint skeletons.
+  A1 cache  (data/waypoints/<saga_id>/a1_cache_table.json): per-saga waypoint skeletons.
             Each row is keyed by saga waypoint_id and stores one or more encounter
             skeletons for that waypoint. These skeletons are later modulated by the
             runtime bearing selected by C2.

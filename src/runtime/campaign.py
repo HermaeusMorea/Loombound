@@ -7,7 +7,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from src.t0.memory import CoreStateView, MetaStateView
+from src.t0.memory import CoreStateView, MetaStateView, RuleTemplate
+from src.t0.core import load_json_asset
 from src.runtime.session import Run
 
 
@@ -18,6 +19,12 @@ REPO_ROOT = (
     if os.environ.get("BLACK_ARCHIVE_ROOT")
     else Path(__file__).resolve().parents[3]
 )
+
+
+def load_rules(path: Path) -> list[RuleTemplate]:
+    """Load per-saga rule data into deterministic rule templates."""
+    payload = load_json_asset(path)
+    return [RuleTemplate.from_dict(item) for item in payload["rules"]]
 
 
 def resolve_asset_path(raw_path: str) -> Path:
@@ -33,7 +40,7 @@ def make_run(saga: dict[str, Any]) -> Run:
     """Build the initial runtime run object from a campaign spec."""
 
     initial_core = saga["initial_core_state"]
-    initial_meta = campaign.get("initial_meta_state", {})
+    initial_meta = saga.get("initial_meta_state", {})
     meta_metadata = initial_meta.get("metadata", {})
     return Run(
         run_id=saga["saga_id"],

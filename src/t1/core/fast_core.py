@@ -28,7 +28,7 @@ from typing import Any
 import httpx
 
 from src.t2.core.types import EncounterOptionSeed, EncounterSeed
-from src.t0.memory.models import CoreStateView
+from src.t0.memory.models import CoreStateView, NarrationBlock
 
 log = logging.getLogger(__name__)
 
@@ -375,6 +375,62 @@ class FastCoreExpander:
             expanded = _template_fallback(seed)
 
         return _assemble(seed, expanded, core_state, arb_id), usage
+
+    async def rewrite_narration(
+        self,
+        opening_draft: str,
+        judgement_draft: str,
+        warning_draft: str,
+        scene_summary: str,
+        scene_type: str,
+        rule_theme: str,
+    ) -> NarrationBlock:
+        """Rewrite a saga narration draft to fit the specific scene.
+
+        Small generation (~200 in / ~120 out tokens). Falls back to the draft
+        unchanged if ollama is unavailable or returns malformed JSON.
+        """
+        lang = self._cfg.lang
+        if lang == "zh":
+            prompt = (
+                f"场景类型：{scene_type}\n"
+                f"规则主题：{rule_theme}\n"
+                f"场景描述：{scene_summary}\n\n"
+                f"请将以下叙述草稿改写为贴合上述场景的版本。保持语气与风格，只改写细节使其具体化。\n"
+                f"草稿——\n"
+                f"  opening: {opening_draft}\n"
+                f"  judgement: {judgement_draft}\n"
+                f"  warning: {warning_draft}\n\n"
+                f'只输出合法JSON：{{"opening":"...","judgement":"...","warning":"..."}}'
+            )
+        else:
+            prompt = (
+                f"Scene type: {scene_type}\n"
+                f"Rule theme: {rule_theme}\n"
+                f"Scene: {scene_summary}\n\n"
+                f"Rewrite the narration draft below to fit this specific scene. "
+                f"Keep the same tone and structure; only sharpen the details.\n"
+                f"Draft —\n"
+                f"  opening: {opening_draft}\n"
+                f"  judgement: {judgement_draft}\n"
+                f"  warning: {warning_draft}\n\n"
+                f'Output valid JSON only: {{"opening":"...","judgement":"...","warning":"..."}}'
+            )
+
+        try:
+            raw, _ = await _call_ollama(prompt, self._cfg, num_predict=300)
+            return NarrationBlock(
+                opening=str(raw.get("opening", opening_draft)),
+                judgement=str(raw.get("judgement", judgement_draft)),
+                warning=str(raw.get("warning", warning_draft)),
+            )
+        except Exception as exc:
+            log.warning("FastCore narration rewrite failed, using draft: %s", exc)
+            return NarrationBlock(
+                opening=opening_draft,
+                judgement=judgement_draft,
+                warning=warning_draft,
+            )
 
     async def warmup(self) -> None:
         """Send a minimal request to load the model into VRAM."""
