@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gen_t1_cache_table import _validate_t1_cache_table_response as _validate_table_b_response
+from src.t2.core.gen_a1_cache_table import _validate_t1_cache_table_response as _validate_table_b_response
 
 
 def _valid_arb(waypoint_id: str = "node_a", n_opts: int = 2) -> dict:

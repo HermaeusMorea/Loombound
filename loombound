@@ -3,25 +3,25 @@
 #
 # SUBCOMMANDS
 #   arc-palette  [--count N] [--output PATH]
-#       Generate the T2 cache (global arc-state palette). One-time setup.
+#       Generate the A2 cache (global arc-state palette). One-time setup.
 #
 #   clean-palette
-#       Delete data/t2_cache_table.json.
+#       Delete data/a2_cache_table.json.
 #
 #   gen "theme" [--nodes N] [--lang zh] [--tone "..."] [--worldview "..."]
 #               [--model PROVIDER[:MODEL]] [--skip-t1-cache]
-#       Generate a campaign graph (Opus) + T1 cache skeletons (Haiku).
+#       Generate a saga graph (Opus) + A1 cache skeletons (Haiku).
 #
-#   run [--campaign ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
+#   run [--saga ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
 #       Launch the game. Requires ANTHROPIC_API_KEY (Claude API only).
 #
 #   report [--campaign ID]
 #       Print LLM usage / cost report for the last run.
 #
-#   clean [--campaign ID_OR_PATH] [--all]
-#       Remove campaign JSON and node files. Keeps data/t2_cache_table.json.
-#       --campaign : remove only that campaign's files
-#       --all (or no flag) : remove ALL campaigns and node directories
+#   clean [--saga ID_OR_PATH] [--all]
+#       Remove saga JSON and node files. Keeps data/a2_cache_table.json.
+#       --saga : remove only that saga's files
+#       --all (or no flag) : remove ALL sagas and node directories
 #
 #   clean-logs
 #       Truncate logs/llm.md to empty.
@@ -30,9 +30,9 @@
 #   ./loombound arc-palette
 #   ./loombound gen "亚南猎人之夜" --nodes 4 --lang zh --tone "哥特克苏鲁"
 #   ./loombound run --lang zh
-#   ./loombound run --campaign hunters_night_yharnam_last_lucid --lang zh
+#   ./loombound run --saga hunters_night_yharnam_last_lucid --lang zh
 #   ./loombound report
-#   ./loombound clean --campaign wall_street_undercurrent_act1
+#   ./loombound clean --saga wall_street_undercurrent_act1
 #   ./loombound clean --all
 #   ./loombound clean-logs
 
@@ -86,12 +86,12 @@ case "$subcmd" in
 
     # ── arc-palette ─────────────────────────────────────────────────────────
     arc-palette)
-        exec "$PYTHON" scripts/gen_t2_cache_table.py "$@"
+        exec "$PYTHON" -m src.t3.core.gen_a2_cache_table "$@"
         ;;
 
     # ── clean-palette ────────────────────────────────────────────────────────
     clean-palette)
-        target="$DATA_DIR/t2_cache_table.json"
+        target="$DATA_DIR/a2_cache_table.json"
         if [[ -f "$target" ]]; then
             rm "$target"
             echo "Deleted $target"
@@ -135,7 +135,7 @@ case "$subcmd" in
         [[ -n "$provider" ]]       && passthrough+=(--provider "$provider")
         [[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
 
-        exec "$PYTHON" scripts/generate_campaign.py "${passthrough[@]+"${passthrough[@]}"}"
+        exec "$PYTHON" -m src.t3.core.generate_campaign "${passthrough[@]+"${passthrough[@]}"}"
         ;;
 
     # ── run ─────────────────────────────────────────────────────────────────
@@ -148,8 +148,8 @@ case "$subcmd" in
                 --fast)
                     fast_model="$2"; shift 2
                     ;;
-                --campaign)
-                    passthrough+=(--campaign "$(_resolve_campaign "$2")"); shift 2
+                --saga)
+                    passthrough+=(--saga "$(_resolve_campaign "$2")"); shift 2
                     ;;
                 *) passthrough+=("$1"); shift ;;
             esac
@@ -158,7 +158,7 @@ case "$subcmd" in
         py_args=("${passthrough[@]+"${passthrough[@]}"}")
         [[ -n "$fast_model" ]] && py_args+=(--fast "$fast_model")
 
-        exec "$PYTHON" -m src.core.runtime.play_cli "${py_args[@]+"${py_args[@]}"}"
+        exec "$PYTHON" -m src.runtime.play_cli "${py_args[@]+"${py_args[@]}"}"
         ;;
 
     # ── report ───────────────────────────────────────────────────────────────
@@ -168,23 +168,23 @@ case "$subcmd" in
 
     # ── clean ────────────────────────────────────────────────────────────────
     clean)
-        campaign_id=""
+        saga_id=""
         clean_all=0
 
         while [[ $# -gt 0 ]]; do
             case "$1" in
-                --campaign) campaign_id="$2"; shift 2 ;;
-                --all)      clean_all=1; shift ;;
+                --saga) saga_id="$2"; shift 2 ;;
+                --all)  clean_all=1; shift ;;
                 *) _die "clean: unknown flag '$1'" ;;
             esac
         done
 
-        if [[ -n "$campaign_id" ]]; then
-            # Remove a single campaign
-            campaign_file="$(_resolve_campaign "$campaign_id")"
-            campaign_stem="${campaign_id%.json}"
-            campaign_stem="${campaign_stem##*/}"           # basename without .json
-            nodes_dir="$DATA_DIR/nodes/$campaign_stem"
+        if [[ -n "$saga_id" ]]; then
+            # Remove a single saga
+            campaign_file="$(_resolve_campaign "$saga_id")"
+            saga_stem="${saga_id%.json}"
+            saga_stem="${saga_stem##*/}"           # basename without .json
+            nodes_dir="$DATA_DIR/nodes/$saga_stem"
             removed=0
 
             if [[ -f "$campaign_file" ]]; then
@@ -197,11 +197,11 @@ case "$subcmd" in
                 echo "Removed $nodes_dir/"
                 removed=1
             fi
-            [[ $removed -eq 0 ]] && echo "Nothing to clean for campaign '$campaign_stem'."
+            [[ $removed -eq 0 ]] && echo "Nothing to clean for saga '$saga_stem'."
 
         else
-            # Remove all campaigns and node directories (keep T2 cache + rules/text/arbitrations)
-            echo "Cleaning all campaign data (keeping data/t2_cache_table.json)..."
+            # Remove all sagas and node directories (keep A2 cache + rules/text)
+            echo "Cleaning all saga data (keeping data/a2_cache_table.json)..."
             removed=0
 
             for f in "$DATA_DIR/campaigns/"*.json; do

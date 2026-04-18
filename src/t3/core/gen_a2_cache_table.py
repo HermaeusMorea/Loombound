@@ -4,11 +4,11 @@ One-time setup. Calls Claude Opus once to produce ~50 entries covering the full
 space of dramatic arc combinations. The result is loaded into Claude's prompt
 cache at runtime so the M2 arc classifier (Haiku) can pick from it cheaply.
 
-Output: data/t2_cache_table.json
+Output: data/a2_cache_table.json
 
 Usage:
-    python gen_t2_cache_table.py
-    python gen_t2_cache_table.py --count 50 --output data/t2_cache_table.json
+    python -m src.t3.core.gen_a2_cache_table
+    python -m src.t3.core.gen_a2_cache_table --count 50 --output data/t2_cache_table.json
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """

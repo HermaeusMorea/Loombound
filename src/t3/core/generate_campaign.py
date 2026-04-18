@@ -7,12 +7,12 @@ Step 2: Claude Haiku generates T1 cache — scene skeletons for every node (batc
 Both steps run automatically. Use --skip-t1-cache to stop after Step 1.
 
 Usage:
-    python generate_campaign.py "drowned city cult investigation"
-    python generate_campaign.py "lighthouse keeper's descent" --nodes 8
-    python generate_campaign.py "渔村诅咒" --lang zh --nodes 6
-    python generate_campaign.py "solar archaeology" --tone "dirty political thriller"
-    python generate_campaign.py "theme" --provider deepseek
-    python generate_campaign.py "theme" --skip-t1-cache
+    python -m src.t3.core.generate_campaign "drowned city cult investigation"
+    python -m src.t3.core.generate_campaign "lighthouse keeper's descent" --nodes 8
+    python -m src.t3.core.generate_campaign "渔村诅咒" --lang zh --nodes 6
+    python -m src.t3.core.generate_campaign "solar archaeology" --tone "dirty political thriller"
+    python -m src.t3.core.generate_campaign "theme" --provider deepseek
+    python -m src.t3.core.generate_campaign "theme" --skip-t1-cache
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import anthropic
 
-from gen_t1_cache_table import generate_t1_cache_table_step, write_t1_cache_table  # noqa: F401
+from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step, write_t1_cache_table  # noqa: F401
 
 REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()
