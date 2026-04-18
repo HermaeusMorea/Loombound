@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from src.t0.memory import NarrationBlock, RuleTemplate
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
 def render_narration(
-    arbitration: Arbitration,
+    encounter: Encounter,
     rule: RuleTemplate | None,
     templates: dict[str, list[str]] | None,
     enabled: bool = True,
@@ -20,7 +20,7 @@ def render_narration(
     if rule is None:
         opening = _pick(templates, "opening_neutral")
         return NarrationBlock(
-            opening=opening.format(decision_type=arbitration.context.scene_type),
+            opening=opening.format(decision_type=encounter.context.scene_type),
             judgement="The scene is logged, but no stabilizing pattern has been locked in yet.",
             warning="No sanity risk has been marked.",
         )
@@ -32,7 +32,7 @@ def render_narration(
     # The current prototype always picks the first template for deterministic
     # output. Randomization or LLM rewriting can be layered on later.
     return NarrationBlock(
-        opening=_pick(templates, opening_key).format(decision_type=arbitration.context.scene_type),
+        opening=_pick(templates, opening_key).format(decision_type=encounter.context.scene_type),
         judgement=_pick(templates, judgement_key).format(rule_name=rule.name, theme=rule.theme),
         warning=_pick(templates, warning_key).format(penalty=rule.sanity_penalty),
     )

@@ -11,9 +11,9 @@ Slow Core never sees exact numbers — only bands and narrative signals.
 
 from __future__ import annotations
 
-from src.t0.memory.models import CoreStateView, NodeSummary
-from src.t1.memory.m1_store import M1Entry
-from src.t0.memory.types import NodeMemory, RunMemory
+from src.t0.memory.models import CoreStateView, WaypointSummary
+from src.t1.memory.a1_store import A1Entry
+from src.t0.memory.types import WaypointMemory, RunMemory
 
 
 # ---------------------------------------------------------------------------
@@ -53,12 +53,12 @@ def _direction(value: int | None, previous: int | None) -> str:
 # M1 entry builder (deterministic — no LLM)
 # ---------------------------------------------------------------------------
 
-def build_m1_entry(
+def build_a1_entry(
     core_state: CoreStateView,
     run_memory: RunMemory,
-    node_memory: NodeMemory,
-) -> M1Entry:
-    """Translate completed node M0 data into a quasi-precise M1Entry.
+    waypoint_memory: WaypointMemory,
+) -> A1Entry:
+    """Translate completed waypoint A0 data into a tendency-level A1Entry.
 
     All logic is deterministic; no LLM is involved.
     Called from play_cli immediately after update_after_node().
@@ -76,7 +76,7 @@ def build_m1_entry(
     pressure_level = pressure_map.get(pressure_level, "moderate")
 
     # resource_trajectory: sanity lost this node + cumulative mood
-    sanity_lost = node_memory.sanity_lost_in_node
+    sanity_lost = waypoint_memory.sanity_lost_in_node
     severity = run_memory.narrator_mood.severity
     if sanity_lost >= 3 or severity >= 4:
         resource_trajectory = "critical"
@@ -88,9 +88,9 @@ def build_m1_entry(
         resource_trajectory = "stable"
 
     # outcome_class
-    if node_memory.shocks_in_node:
+    if waypoint_memory.shocks_in_node:
         outcome_class = "turbulent"
-    elif node_memory.important_flags:
+    elif waypoint_memory.important_flags:
         outcome_class = "deepened"
     else:
         outcome_class = "stable"
@@ -102,14 +102,14 @@ def build_m1_entry(
     else:
         narrative_thread = ""
 
-    return M1Entry(
-        node_id=node_memory.node_id,
-        scene_type=node_memory.node_type,
+    return A1Entry(
+        node_id=waypoint_memory.waypoint_id,
+        scene_type=waypoint_memory.waypoint_type,
         pressure_level=pressure_level,
         resource_trajectory=resource_trajectory,
         outcome_class=outcome_class,
         narrative_thread=narrative_thread,
-        floor=node_memory.floor,
+        depth=waypoint_memory.depth,
     )
 
 
@@ -120,9 +120,9 @@ def build_m1_entry(
 def _build_state_sections(
     core_state: CoreStateView,
     run_memory: RunMemory,
-    node_history: list[NodeSummary],
+    waypoint_history: list[WaypointSummary],
     previous_core_state: CoreStateView | None = None,
-    current_node_memory: NodeMemory | None = None,
+    current_waypoint_memory: WaypointMemory | None = None,
 ) -> list[str]:
     """Build the shared state sections used by both classifier and planner."""
     sections: list[str] = []
@@ -140,7 +140,7 @@ def _build_state_sections(
     sections.append(f"  health:  {h_band} ({h_dir})")
     sections.append(f"  money:   {m_band} ({m_dir})")
     sections.append(f"  sanity:  {s_band} ({s_dir})")
-    sections.append(f"  floor:   {core_state.floor},  act: {core_state.act}")
+    sections.append(f"  depth:   {core_state.depth},  act: {core_state.act}")
 
     mood = run_memory.narrator_mood
     mood_parts = []
@@ -174,42 +174,42 @@ def _build_state_sections(
                 f"  sanity={shock.sanity_delta}"
             )
 
-    if node_history:
-        sections.append(f"\n## Node trajectory ({len(node_history)} completed)")
-        for summary in node_history[-4:]:
+    if waypoint_history:
+        sections.append(f"\n## Node trajectory ({len(waypoint_history)} completed)")
+        for summary in waypoint_history[-4:]:
             flags = ", ".join(summary.important_flags) if summary.important_flags else "none"
             sections.append(
-                f"  [{summary.node_type}] floor={summary.floor}"
+                f"  [{summary.waypoint_type}] depth={summary.depth}"
                 f"  sanity_delta={summary.sanity_delta}  flags={flags}"
             )
     else:
         sections.append("\n## Node trajectory\n  Run just started — no nodes completed yet.")
 
-    if current_node_memory is not None and current_node_memory.choices_made:
+    if current_waypoint_memory is not None and current_waypoint_memory.choices_made:
         sections.append("\n## Active node so far (partial)")
         sections.append(
-            f"  node={current_node_memory.node_id} type={current_node_memory.node_type}"
-            f" floor={current_node_memory.floor}"
+            f"  node={current_waypoint_memory.waypoint_id} type={current_waypoint_memory.waypoint_type}"
+            f" depth={current_waypoint_memory.depth}"
         )
         sections.append(
-            f"  arbitrations_resolved={len(current_node_memory.choices_made)}"
-            f" sanity_lost={current_node_memory.sanity_lost_in_node}"
+            f"  arbitrations_resolved={len(current_waypoint_memory.choices_made)}"
+            f" sanity_lost={current_waypoint_memory.sanity_lost_in_node}"
         )
-        if current_node_memory.important_flags:
+        if current_waypoint_memory.important_flags:
             sections.append(
                 "  active flags: "
-                + ", ".join(current_node_memory.important_flags[-4:])
+                + ", ".join(current_waypoint_memory.important_flags[-4:])
             )
-        for choice in current_node_memory.choices_made[-2:]:
+        for choice in current_waypoint_memory.choices_made[-2:]:
             flags = ", ".join(choice.local_flags) if choice.local_flags else "none"
             sections.append(
                 f"  - [{choice.scene_type}] option={choice.player_choice or 'unknown'}"
                 f" sanity={choice.sanity_delta} flags={flags}"
             )
 
-    if run_memory.m1.entries:
+    if run_memory.a1.entries:
         sections.append("\n## Scene history (M1 — last 3 nodes)")
-        for line in run_memory.m1.to_prompt_lines(n=3):
+        for line in run_memory.a1.to_prompt_lines(n=3):
             sections.append(line)
 
     return sections
@@ -218,9 +218,9 @@ def _build_state_sections(
 def build_classifier_input(
     core_state: CoreStateView,
     run_memory: RunMemory,
-    node_history: list[NodeSummary],
+    waypoint_history: list[WaypointSummary],
     previous_core_state: CoreStateView | None = None,
-    current_node_memory: NodeMemory | None = None,
+    current_waypoint_memory: WaypointMemory | None = None,
 ) -> str:
     """Build the input sent to the M2 arc-state classifier (Claude).
 
@@ -230,9 +230,9 @@ def build_classifier_input(
     sections = _build_state_sections(
         core_state,
         run_memory,
-        node_history,
+        waypoint_history,
         previous_core_state,
-        current_node_memory=current_node_memory,
+        current_waypoint_memory=current_waypoint_memory,
     )
     sections.append("\nClassify the arc state that best matches the current game state above.")
     return "\n".join(sections)
@@ -241,36 +241,36 @@ def build_classifier_input(
 def build_quasi_description(
     core_state: CoreStateView,
     run_memory: RunMemory,
-    node_history: list[NodeSummary],
+    waypoint_history: list[WaypointSummary],
     *,
     target_node_id: str,
-    arbitration_count: int,
+    encounter_count: int,
     previous_core_state: CoreStateView | None = None,
-    current_node_memory: NodeMemory | None = None,
+    current_waypoint_memory: WaypointMemory | None = None,
 ) -> str:
     """Build the user-message payload sent to Slow Core (dynamic path).
 
     Args:
         core_state:           Current precise state after the last node.
         run_memory:           Long-lived run memory (shocks, themes, mood).
-        node_history:         Ordered list of NodeSummary from completed nodes.
+        waypoint_history:         Ordered list of WaypointSummary from completed nodes.
         target_node_id:       The node ID Slow Core should plan content for.
-        arbitration_count:    How many arbitrations to generate for that node.
+        encounter_count:    How many encounters to generate for that node.
         previous_core_state:  State before the last node — used for direction signals.
     """
     sections = _build_state_sections(
         core_state,
         run_memory,
-        node_history,
+        waypoint_history,
         previous_core_state,
-        current_node_memory=current_node_memory,
+        current_waypoint_memory=current_waypoint_memory,
     )
 
     sections.append(
         f"\n## Your task\n"
         f"Plan content for node '{target_node_id}'.\n"
-        f"Generate exactly {arbitration_count} arbitration(s).\n"
-        f"Each arbitration must fit the current state and narrative trajectory above.\n"
+        f"Generate exactly {encounter_count} encounter(s).\n"
+        f"Each encounter must fit the current state and narrative trajectory above.\n"
         f"Use tendency language only — no exact numbers in scene_concept or sanity_axis.\n"
         f"Call plan_node_content with your plan."
     )

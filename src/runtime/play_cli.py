@@ -9,10 +9,10 @@ import sys
 from pathlib import Path
 
 from src.t2.core import load_rules, load_templates
-from src.t0.memory import ArbitrationResult
+from src.t0.memory import EncounterResult
 from src.t0.core import apply_option_effects, enforce_rule
 from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
-from src.t2.core.collector import build_classifier_input, build_m1_entry
+from src.t2.core.collector import build_classifier_input, build_a1_entry
 from src.t1.core.fast_core import FastCoreConfig
 from src.t0.memory import append_node_event, record_choice, update_after_node
 from src.t1.core import render_narration
@@ -33,7 +33,7 @@ from src.runtime.campaign import (
     choose_index,
     make_run,
     resolve_asset_path,
-    sync_arbitration_resources,
+    sync_encounter_resources,
 )
 from src.t0.core import build_signals, score_themes
 from src.t0.core import (
@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 
 RULES_PATH = REPO_ROOT / "data" / "rules" / "rules.small.json"
 TEXT_PATH = REPO_ROOT / "data" / "text" / "narration_templates.json"
-T2_CACHE_PATH = REPO_ROOT / "data" / "t2_cache_table.json"
+T2_CACHE_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
 
 
 # ---------------------------------------------------------------------------
@@ -74,14 +74,14 @@ def _load_dotenv() -> None:
 
 
 
-def _parse_arbitrations(node_spec: dict) -> tuple[int, list[dict]]:
-    """Return (llm_count, authored_specs) from a node spec's 'arbitrations' field.
+def _parse_encounters(node_spec: dict) -> tuple[int, list[dict]]:
+    """Return (llm_count, authored_specs) from a node spec's 'encounters' field.
 
     Two formats are supported:
       int   → LLM-generated mode; llm_count = that integer, authored_specs = []
       list  → Authored mode;      llm_count = 0, authored_specs = the list
     """
-    field = node_spec.get("arbitrations", [])
+    field = node_spec.get("encounters", [])
     if isinstance(field, int):
         return field, []
     return 0, field
@@ -90,7 +90,7 @@ def _parse_arbitrations(node_spec: dict) -> tuple[int, list[dict]]:
 def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
     """Patch Opus-assigned numeric effect values into a payload's option metadata in-place.
 
-    Only the three stat keys are touched; add_events / add_conditions written by
+    Only the three stat keys are touched; add_events / add_marks written by
     gemma3 are preserved. The payload dict is mutated directly.
     """
     for opt in payload.get("options", []):
@@ -99,107 +99,107 @@ def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
             eff = opt.setdefault("metadata", {}).setdefault("effects", {})
             for key in ("health_delta", "money_delta", "sanity_delta"):
                 eff[key] = opus_effects[opt_id].get(key, 0)
-            verdict = opus_effects[opt_id].get("verdict", "")
-            if verdict:
-                opt["verdict"] = verdict
+            toll = opus_effects[opt_id].get("toll", "")
+            if toll:
+                opt["toll"] = toll
 
 
-def _play_arbitration(
+def _play_encounter(
     run,
-    node,
+    waypoint,
     payload: dict[str, object],
     templates: dict[str, list[str]],
     rules,
     prefetch: PrefetchCache | None,
     arb_idx: int,
-    campaign_node_id: str,
+    saga_waypoint_id: str,
     total_arbs: int,
 ) -> None:
     # Overlay Opus-assigned effects before loading (may be empty dict on cache miss)
     if prefetch is not None:
-        opus_effects = prefetch.consume_arb_effects(campaign_node_id, arb_idx)
+        opus_effects = prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
         if opus_effects:
             _overlay_effects(payload, opus_effects)
 
-    arbitration = node.load_current_arbitration(payload)
-    sync_arbitration_resources(run, arbitration)
+    encounter = waypoint.load_current_encounter(payload)
+    sync_encounter_resources(run, encounter)
     append_node_event(
-        node.memory,
+        waypoint.memory,
         "arbitration_loaded",
-        arbitration_id=arbitration.arbitration_id,
-        scene_type=arbitration.context.scene_type,
-        context_id=arbitration.context.context_id,
+        encounter_id=encounter.encounter_id,
+        scene_type=encounter.context.scene_type,
+        context_id=encounter.context.context_id,
     )
 
-    signals = build_signals(arbitration)
-    theme_scores = score_themes(arbitration, signals)
-    evaluations = evaluate_rules(arbitration, rules, theme_scores)
-    node.rule_state.reset_for_arbitration()
-    node.rule_state.record_evaluations(evaluations)
+    signals = build_signals(encounter)
+    theme_scores = score_themes(encounter, signals)
+    evaluations = evaluate_rules(encounter, rules, theme_scores)
+    waypoint.rule_state.reset_for_arbitration()
+    waypoint.rule_state.record_evaluations(evaluations)
     selected = select_rule(evaluations, rule_system=run.rule_system, run_memory=run.memory)
-    node.rule_state.record_selected_rule(selected.rule.id if selected else None)
-    node.rule_state.record_selection_trace(
+    waypoint.rule_state.record_selected_rule(selected.rule.id if selected else None)
+    waypoint.rule_state.record_selection_trace(
         build_selection_trace(evaluations, rule_system=run.rule_system, run_memory=run.memory)
     )
     run.rule_system.record_selected_rule(selected.rule.id if selected else None)
     append_node_event(
-        node.memory,
+        waypoint.memory,
         "rule_selected",
-        arbitration_id=arbitration.arbitration_id,
+        encounter_id=encounter.encounter_id,
         selected_rule_id=selected.rule.id if selected else None,
         matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
     )
 
-    option_results = enforce_rule(arbitration, selected.rule if selected else None)
+    option_results = enforce_rule(encounter, selected.rule if selected else None)
     narration = render_narration(
-        arbitration=arbitration,
+        encounter=encounter,
         rule=selected.rule if selected else None,
         templates=templates,
         enabled=True,
     )
 
-    render_arbitration_view(run, arbitration, selected.rule if selected else None)
+    render_arbitration_view(run, encounter, selected.rule if selected else None)
     render_choices(option_results)
     render_input_panel("Choose an option")
 
     choice_index = choose_index("> ", len(option_results))
     chosen_result = option_results[choice_index]
-    arbitration.select_option(chosen_result.option_id)
-    selected_option = arbitration.get_option(chosen_result.option_id) or {}
+    encounter.select_option(chosen_result.option_id)
+    selected_option = encounter.get_option(chosen_result.option_id) or {}
 
     record_choice(
-        node.memory,
-        arbitration=arbitration,
+        waypoint.memory,
+        encounter=encounter,
         selected_rule_id=selected.rule.id if selected else None,
         selected_rule_theme=selected.rule.theme if selected else None,
         selected_result=chosen_result,
     )
     append_node_event(
-        node.memory,
+        waypoint.memory,
         "option_chosen",
-        arbitration_id=arbitration.arbitration_id,
+        encounter_id=encounter.encounter_id,
         option_id=chosen_result.option_id,
-        verdict=chosen_result.verdict,
+        toll=chosen_result.toll,
         sanity_delta=chosen_result.sanity_cost,
     )
 
     # Fire-and-forget Opus call: updates arc entry_id + assigns effects for next arb.
-    # Within a node: next_node_id = campaign_node_id, next_arb_idx = arb_idx + 1.
+    # Within a node: next_node_id = saga_waypoint_id, next_arb_idx = arb_idx + 1.
     # Last arb of a node: pass None/None — only entry_id is updated; the main loop
     # triggers the Opus call for the first arb of the chosen next node.
     if prefetch is not None:
         _is_last = arb_idx >= total_arbs - 1
-        _next_node = campaign_node_id if not _is_last else None
+        _next_node = saga_waypoint_id if not _is_last else None
         _next_idx  = arb_idx + 1       if not _is_last else None
         quasi = build_classifier_input(
-            run.core_state, run.memory, list(run.node_history),
-            current_node_memory=node.memory,
+            run.core_state, run.memory, list(run.waypoint_history),
+            current_waypoint_memory=waypoint.memory,
         )
         prefetch.update_arc_state(quasi, _next_node, _next_idx)
 
     applied_notes = apply_option_effects(run, selected_option, chosen_result)
-    arbitration.set_result(
-        ArbitrationResult(
+    encounter.set_result(
+        EncounterResult(
             selected_rule_id=selected.rule.id if selected else None,
             matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
             option_results=option_results,
@@ -208,12 +208,12 @@ def _play_arbitration(
             narration=narration,
         )
     )
-    arbitration.mark_applied()
-    node.close_current_arbitration()
+    encounter.mark_applied()
+    waypoint.close_current_encounter()
     append_node_event(
-        node.memory,
+        waypoint.memory,
         "arbitration_finalized",
-        arbitration_id=arbitration.arbitration_id,
+        encounter_id=encounter.encounter_id,
         selected_rule_id=selected.rule.id if selected else None,
         player_choice=chosen_result.option_id,
     )
@@ -224,30 +224,30 @@ def _play_arbitration(
 
 def _play_node(
     run,
-    campaign: dict[str, object],
-    campaign_node: dict[str, object],
+    saga: dict[str, object],
+    saga_waypoint: dict[str, object],
     rules,
     templates: dict[str, list[str]],
     prefetch: PrefetchCache | None = None,
-    campaign_node_id: str | None = None,
+    saga_waypoint_id: str | None = None,
 ) -> object | None:
-    floor: int = campaign_node["floor"]
-    node_type: str = campaign_node["node_type"]
-    node_id = f"{campaign_node_id}:floor_{floor:02d}"
+    depth: int = saga_waypoint["depth"]
+    waypoint_type: str = saga_waypoint["waypoint_type"]
+    waypoint_id = f"{saga_waypoint_id}:depth_{depth:02d}"
 
-    run.core_state.floor = floor
-    run.core_state.scene_type = node_type
+    run.core_state.depth = depth
+    run.core_state.scene_type = waypoint_type
 
-    node = run.start_node(node_id=node_id, node_type=node_type, floor=floor)
-    append_node_event(node.memory, "node_entered", node_id=node.node_id, node_type=node.node_type, floor=node.floor)
+    waypoint = run.start_waypoint(waypoint_id=waypoint_id, waypoint_type=waypoint_type, depth=depth)
+    append_node_event(waypoint.memory, "node_entered", waypoint_id=waypoint.waypoint_id, waypoint_type=waypoint.waypoint_type, depth=waypoint.depth)
 
-    render_node_header(run, campaign_node)
+    render_node_header(run, saga_waypoint)
 
-    llm_count, authored_specs = _parse_arbitrations(campaign_node)
+    llm_count, authored_specs = _parse_encounters(saga_waypoint)
     total_arbs = llm_count or len(authored_specs)
 
     # Prefetch cache is keyed by campaign node ID (e.g. "night_market").
-    cache_key = campaign_node_id or node_id
+    cache_key = saga_waypoint_id or waypoint_id
     if prefetch:
         prefetch.wait_for(cache_key)
     prefetched = prefetch.consume(cache_key) if prefetch else None
@@ -266,33 +266,33 @@ def _play_node(
         ]
 
     for idx, payload in enumerate(payloads):
-        _play_arbitration(
-            run, node, payload, templates, rules,
-            prefetch, idx, campaign_node_id or node_id, len(payloads),
+        _play_encounter(
+            run, waypoint, payload, templates, rules,
+            prefetch, idx, saga_waypoint_id or waypoint_id, len(payloads),
         )
 
-    node.memory.node_summary = f"{node.node_type}:{len(node.memory.choices_made)}_arbitrations:sanity={node.memory.sanity_lost_in_node}"
+    waypoint.memory.node_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_arbitrations:sanity={waypoint.memory.sanity_lost_in_node}"
     append_node_event(
-        node.memory,
+        waypoint.memory,
         "node_finalized",
-        node_id=node.node_id,
-        arbitration_count=len(node.memory.choices_made),
-        sanity_lost=node.memory.sanity_lost_in_node,
+        waypoint_id=waypoint.waypoint_id,
+        encounter_count=len(waypoint.memory.choices_made),
+        sanity_lost=waypoint.memory.sanity_lost_in_node,
     )
-    update_after_node(run.memory, node.memory)
-    run.memory.m1.push(build_m1_entry(run.core_state, run.memory, node.memory))
-    summary = node.build_summary(sanity_delta=node.memory.sanity_lost_in_node)
-    run.close_current_node(summary=summary)
-    return node.memory
+    update_after_node(run.memory, waypoint.memory)
+    run.memory.a1.push(build_a1_entry(run.core_state, run.memory, waypoint.memory))
+    summary = waypoint.build_summary(sanity_delta=waypoint.memory.sanity_lost_in_node)
+    run.close_current_waypoint(summary=summary)
+    return waypoint.memory
 
 
 def _prefetch_targets(
     *,
     prefetch: PrefetchCache | None,
-    campaign: dict[str, object],
+    saga: dict[str, object],
     target_ids: list[str],
     run,
-    current_node_memory=None,
+    current_waypoint_memory=None,
 ) -> None:
     """Trigger prefetch for a list of campaign node IDs."""
 
@@ -304,32 +304,32 @@ def _prefetch_targets(
         if target_id in seen:
             continue
         seen.add(target_id)
-        next_campaign_node = campaign["nodes"].get(target_id, {})
+        next_saga_waypoint = saga["waypoints"].get(target_id, {})
         try:
-            llm_c, authored = _parse_arbitrations(next_campaign_node)
+            llm_c, authored = _parse_encounters(next_saga_waypoint)
             arb_count = llm_c or len(authored)
             if arb_count:
                 prefetch.trigger(
                     target_node_id=target_id,
                     core_state=run.core_state,
                     run_memory=run.memory,
-                    node_history=list(run.node_history),
-                    arbitration_count=arb_count,
-                    current_node_memory=current_node_memory,
+                    waypoint_history=list(run.waypoint_history),
+                    encounter_count=arb_count,
+                    current_waypoint_memory=current_waypoint_memory,
                 )
         except (AssetValidationError, ValueError) as exc:
             log.warning("Prefetch: skipping '%s' — node spec invalid: %s", target_id, exc)
 
 
-def _collect_lookahead_targets(campaign: dict[str, object], next_nodes: list[str]) -> list[str]:
+def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -> list[str]:
     """Return unique grandchild campaign node IDs in stable order."""
 
     targets: list[str] = []
     seen: set[str] = set()
-    nodes = campaign.get("nodes", {})
+    nodes = saga.get("waypoints", {})
     for next_id in next_nodes:
-        next_campaign_node = nodes.get(next_id, {})
-        for lookahead_id in next_campaign_node.get("next_nodes", []):
+        next_saga_waypoint = nodes.get(next_id, {})
+        for lookahead_id in next_saga_waypoint.get("next_waypoints", []):
             if lookahead_id in seen:
                 continue
             seen.add(lookahead_id)
@@ -341,7 +341,7 @@ def main() -> None:
     _load_dotenv()
 
     parser = argparse.ArgumentParser(description="Play a Loombound campaign. Requires ANTHROPIC_API_KEY and ollama (gemma3:4b).")
-    parser.add_argument("--campaign", type=Path, default=None, help="Path to a campaign JSON file.")
+    parser.add_argument("--saga", type=Path, default=None, help="Path to a campaign JSON file.")
     parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
     parser.add_argument(
@@ -354,7 +354,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.campaign is None:
+    if args.saga is None:
         print(
             "No campaign found. Generate one first:\n"
             "\n"
@@ -388,7 +388,7 @@ def main() -> None:
         format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
     )
 
-    campaign = load_json_asset(args.campaign)
+    saga = load_json_asset(args.saga)
     rules = load_rules(RULES_PATH)
     templates = load_templates(TEXT_PATH)
     run = make_run(campaign)
@@ -401,63 +401,63 @@ def main() -> None:
     fast_cfg = FastCoreConfig(
         model=fast_model,
         lang=args.lang,
-        tone=campaign.get("tone") or None,
+        tone=saga.get("tone") or None,
     )
 
     # Load T2 cache (arc palette) and T1 cache (node skeletons) if available
-    campaign_dir = REPO_ROOT / "data" / "nodes" / campaign.get("campaign_id", "")
-    t1_cache_table_path = campaign_dir / "t1_cache_table.json"
+    saga_dir = REPO_ROOT / "data" / "nodes" / saga.get("saga_id", "")
+    a1_cache_table_path = saga_dir / "a1_cache_table.json"
 
     if T2_CACHE_PATH.exists():
-        run.memory.m2.load_t2_cache_table(T2_CACHE_PATH)
-    if t1_cache_table_path.exists():
-        run.memory.m2.load_t1_cache_table(t1_cache_table_path)
+        run.memory.a2.load_a2_cache_table(T2_CACHE_PATH)
+    if a1_cache_table_path.exists():
+        run.memory.a2.load_a1_cache_table(a1_cache_table_path)
 
-    # Build M2Classifier if T2 cache is loaded (provides the cached prefix)
+    # Build M2Classifier if A2 cache is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
-    if run.memory.m2.t2_cache_table:
+    if run.memory.a2.a2_cache_table:
         import json as _json
-        verdict_dict_path = REPO_ROOT / "data" / "campaigns" / f"{campaign.get('campaign_id', '')}_verdict_dict.json"
-        verdict_dict = _json.loads(verdict_dict_path.read_text(encoding="utf-8")) if verdict_dict_path.exists() else []
-        verdict_dict_json = _json.dumps(verdict_dict, ensure_ascii=False) if verdict_dict else ""
+        toll_lexicon_path = REPO_ROOT / "data" / "campaigns" / f"{saga.get('saga_id', '')}_toll_lexicon.json"
+        toll_lexicon = _json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
+        toll_lexicon_json = _json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
-            t2_cache_table_json=run.memory.m2.t2_cache_table_prompt_json(),
-            t1_cache_table_index_json=run.memory.m2.t1_cache_table_index_json() if run.memory.m2.t1_cache_table else "",
-            verdict_dict_json=verdict_dict_json,
+            a2_cache_table_json=run.memory.a2.a2_cache_table_prompt_json(),
+            a1_cache_table_index_json=run.memory.a2.a1_cache_table_index_json() if run.memory.a2.a1_cache_table else "",
+            toll_lexicon_json=toll_lexicon_json,
         )
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
     prefetch.warmup()
 
-    current_node_id = campaign["start_node_id"]
+    current_node_id = saga["start_waypoint_id"]
 
     # Prefetch the start node while the player reads the intro.
     # The main loop only prefetches next_nodes, so without this the first
-    # LLM-mode node would always have empty arbitrations.
+    # LLM-mode node would always have empty encounters.
     _prefetch_targets(
         prefetch=prefetch,
-        campaign=campaign,
+        campaign=saga,
         target_ids=[current_node_id],
         run=run,
     )
 
-    render_run_intro(campaign)
+    render_run_intro(saga)
     pause("Press Enter to step onto the road...")
     nodes_played = 0
     try:
         while current_node_id:
-            campaign_node = campaign["nodes"][current_node_id]
+            saga_waypoint = saga["waypoints"][current_node_id]
 
             # Determine next nodes now so we can trigger prefetch for all of them
-            next_nodes = campaign_node.get("next_nodes", [])
+            next_nodes = saga_waypoint.get("next_waypoints", [])
 
             # Trigger background generation for each candidate next node
             if next_nodes:
                 _prefetch_targets(
                     prefetch=prefetch,
-                    campaign=campaign,
+                    campaign=saga,
                     target_ids=next_nodes,
                     run=run,
                 )
@@ -465,22 +465,22 @@ def main() -> None:
             completed_node_memory = _play_node(
                 run,
                 campaign,
-                campaign_node,
+                saga_waypoint,
                 rules,
                 templates,
                 prefetch=prefetch,
-                campaign_node_id=current_node_id,
+                saga_waypoint_id=current_node_id,
             )
             nodes_played += 1
 
             if next_nodes:
-                lookahead_targets = _collect_lookahead_targets(campaign, next_nodes)
+                lookahead_targets = _collect_lookahead_targets(saga, next_nodes)
                 _prefetch_targets(
                     prefetch=prefetch,
-                    campaign=campaign,
+                    campaign=saga,
                     target_ids=lookahead_targets,
                     run=run,
-                    current_node_memory=completed_node_memory,
+                    current_waypoint_memory=completed_node_memory,
                 )
 
             if not next_nodes:
@@ -488,14 +488,14 @@ def main() -> None:
             if args.nodes is not None and nodes_played >= args.nodes:
                 break
 
-            render_map_hud(run, campaign, next_nodes)
+            render_map_hud(run, saga, next_nodes)
             render_input_panel("Choose your next destination")
             next_index = choose_index("> ", len(next_nodes))
             current_node_id = next_nodes[next_index]
 
             # Trigger Opus for arb 0 of the chosen next node.
             # Runs in background while the player reads the node header + waits for gemma3.
-            quasi = build_classifier_input(run.core_state, run.memory, list(run.node_history))
+            quasi = build_classifier_input(run.core_state, run.memory, list(run.waypoint_history))
             prefetch.update_arc_state(quasi, current_node_id, 0)
 
     except KeyboardInterrupt:

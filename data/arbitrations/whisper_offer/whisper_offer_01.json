@@ -3,7 +3,7 @@
   "context": {
     "context_id": "whisper_offer_01",
     "scene_type": "whisper_offer",
-    "floor": 4,
+    "depth": 4,
     "act": 1,
     "resources": {
       "health": 6,
@@ -36,7 +36,7 @@
       "metadata": {
         "effects": {
           "sanity_delta": -2,
-          "add_conditions": ["heard_answering_voice"],
+          "add_marks": ["heard_answering_voice"],
           "add_events": ["The archive answered in your own voice, one heartbeat late."]
         }
       }

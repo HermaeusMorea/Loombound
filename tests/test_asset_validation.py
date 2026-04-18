@@ -12,8 +12,8 @@ def test_validate_node_asset_requires_arbitration_file() -> None:
             {
                 "node_id": "node_01",
                 "node_type": "crossroads",
-                "floor": 1,
-                "arbitrations": [{}],
+                "depth": 1,
+                "encounters": [{}],
             },
             source=Path("data/nodes/bad.json"),
         )
@@ -26,11 +26,11 @@ def test_validate_arbitration_asset_rejects_empty_options() -> None:
                 "context": {
                     "context_id": "crossroads_01",
                     "scene_type": "crossroads",
-                    "floor": 2,
+                    "depth": 2,
                 },
                 "options": [],
             },
-            source=Path("data/arbitrations/bad.json"),
+            source=Path("data/encounters/bad.json"),
         )
 
 

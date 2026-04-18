@@ -3,23 +3,23 @@
 from __future__ import annotations
 
 from src.t0.memory import OptionResult, RuleTemplate
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
-def enforce_rule(arbitration: Arbitration, rule: RuleTemplate | None) -> list[OptionResult]:
+def enforce_rule(encounter: Encounter, rule: RuleTemplate | None) -> list[OptionResult]:
     # Apply M2-assigned verdict to each option. sanity_penalty comes from the
     # selected rule (if any); non-stable verdict always incurs the penalty.
     results: list[OptionResult] = []
-    for option in arbitration.options:
-        m2_verdict = option.get("verdict", "")
-        verdict = m2_verdict if m2_verdict else "stable"
-        penalty = (rule.sanity_penalty if rule else 1) if verdict != "stable" else 0
+    for option in encounter.options:
+        m2_toll = option.get("toll", "")
+        toll = m2_toll if m2_toll else "stable"
+        penalty = (rule.sanity_penalty if rule else 1) if toll != "stable" else 0
         results.append(
             OptionResult(
                 option_id=option["option_id"],
                 label=option["label"],
-                verdict=verdict,
-                reasons=[f"m2_verdict:{verdict}" if m2_verdict else "no_m2_verdict"],
+                toll=toll,
+                reasons=[f"m2_toll:{toll}" if m2_toll else "no_m2_toll"],
                 sanity_cost=penalty,
             )
         )

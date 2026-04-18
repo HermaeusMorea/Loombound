@@ -24,7 +24,7 @@ import anthropic
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = REPO_ROOT / ".env"
-OUTPUT_PATH = REPO_ROOT / "data" / "t2_cache_table.json"
+OUTPUT_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 _OPUS_INPUT_COST  = 5.0  / 1_000_000
 _OPUS_OUTPUT_COST = 25.0 / 1_000_000

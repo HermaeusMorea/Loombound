@@ -73,7 +73,7 @@ RE_M2_UPDATE_RESPONSE = re.compile(
 )
 RE_COMPLETE = re.compile(
     r"^## \[(?P<ts>[^\]]+)\] COMPLETE(?: \(preloaded\))? — `(?P<node>[^`]+)` "
-    r"\((?P<count>\d+) arbitration\(s\)"
+    r"\((?P<count>\d+) encounter\(s\)"
 )
 
 # Offline events
@@ -91,7 +91,7 @@ RE_M2_TOKENS    = re.compile(
 )
 RE_FAST_TOKENS  = re.compile(r"^tokens — prompt: (?P<prompt>\d+)  eval: (?P<eval>\d+)")
 RE_COST         = re.compile(r"^cost: \$(?P<cost>[\d.]+)")
-RE_ARB_COUNT    = re.compile(r"^arbitration_count: (?P<count>\d+)$")
+RE_ARB_COUNT    = re.compile(r"^encounter_count: (?P<count>\d+)$")
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S UTC"
 ROOT = (
@@ -125,7 +125,7 @@ class ArcPaletteEvent:
 class CampaignCoreEvent:
     line_no: int
     timestamp: datetime
-    campaign_id: str
+    saga_id: str
     provider: str | None = None
     model: str | None = None
     theme: str | None = None
@@ -143,7 +143,7 @@ class CampaignCoreEvent:
 class T1CacheEvent:
     line_no: int
     timestamp: datetime
-    campaign_id: str
+    saga_id: str
     node_id: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
@@ -227,7 +227,7 @@ class RunReport:
     end_line: int
     start_timestamp: datetime
     end_timestamp: datetime
-    campaign_id: str | None
+    saga_id: str | None
     campaign_title: str | None
     node_order: list[str]
     arc_palette: ArcPaletteEvent | None = None
@@ -343,23 +343,23 @@ def parse_timestamp(raw: str) -> datetime:
 
 
 def load_campaign_metadata(
-    campaign_dir: Path,
+    saga_dir: Path,
 ) -> tuple[dict[str, set[str]], dict[str, str], dict[str, set[str]]]:
     node_index: dict[str, set[str]] = {}
     titles: dict[str, str] = {}
     campaign_nodes: dict[str, set[str]] = {}
-    for path in sorted(campaign_dir.glob("*.json")):
+    for path in sorted(saga_dir.glob("*.json")):
         try:
             with path.open(encoding="utf-8") as fh:
                 data = json.load(fh)
         except Exception as exc:
             print(f"warning: skipping {path.name} — {exc}", file=sys.stderr)
             continue
-        campaign_id = data.get("campaign_id", path.stem)
-        titles[campaign_id] = data.get("title", campaign_id)
-        campaign_nodes[campaign_id] = set(data.get("nodes", {}))
+        saga_id = data.get("saga_id", path.stem)
+        titles[saga_id] = data.get("title", saga_id)
+        campaign_nodes[saga_id] = set(data.get("nodes", {}))
         for node_id in data.get("nodes", {}):
-            node_index.setdefault(node_id, set()).add(campaign_id)
+            node_index.setdefault(node_id, set()).add(saga_id)
     return node_index, titles, campaign_nodes
 
 
@@ -393,7 +393,7 @@ def parse_campaign_core_events(lines: list[str]) -> list[CampaignCoreEvent]:
             pending = CampaignCoreEvent(
                 line_no=idx,
                 timestamp=parse_timestamp(m.group("ts")),
-                campaign_id=m.group("campaign"),
+                saga_id=m.group("campaign"),
             )
             events.append(pending)
             continue
@@ -431,7 +431,7 @@ def parse_t1_cache_table_events(
             pending = T1CacheEvent(
                 line_no=idx,
                 timestamp=parse_timestamp(m.group("ts")),
-                campaign_id=m.group("campaign"),
+                saga_id=m.group("campaign"),
             )
             continue
         mn = RE_T1_CACHE_NODE.match(line)
@@ -441,7 +441,7 @@ def parse_t1_cache_table_events(
             pending = T1CacheEvent(
                 line_no=idx,
                 timestamp=parse_timestamp(mn.group("ts")),
-                campaign_id=campaign,
+                saga_id=campaign,
                 node_id=node,
             )
             continue
@@ -665,7 +665,7 @@ def analyze_run(
             continue
 
     # Build RunReport
-    campaign_id = (
+    saga_id = (
         next(iter(run.campaign_candidates))
         if len(run.campaign_candidates) == 1
         else None
@@ -675,8 +675,8 @@ def analyze_run(
         end_line=run.end_line,
         start_timestamp=start_ts,
         end_timestamp=end_ts,
-        campaign_id=campaign_id,
-        campaign_title=campaign_titles.get(campaign_id, campaign_id) if campaign_id else None,
+        saga_id=saga_id,
+        campaign_title=campaign_titles.get(saga_id, saga_id) if saga_id else None,
         node_order=node_order,
         node_usage=node_usage,
     )
@@ -687,18 +687,18 @@ def analyze_run(
         if eligible:
             report.arc_palette = eligible[-1]
 
-    if campaign_core_events and campaign_id:
+    if campaign_core_events and saga_id:
         eligible_cc = [
             e for e in campaign_core_events
-            if e.campaign_id == campaign_id and e.timestamp <= start_ts
+            if e.saga_id == saga_id and e.timestamp <= start_ts
         ]
         if eligible_cc:
             report.campaign_core = eligible_cc[-1]
 
-    if t1_cache_table_events and campaign_id:
+    if t1_cache_table_events and saga_id:
         eligible_tb = [
             e for e in t1_cache_table_events
-            if e.campaign_id == campaign_id and e.timestamp <= start_ts
+            if e.saga_id == saga_id and e.timestamp <= start_ts
         ]
         if eligible_tb:
             node_events = [e for e in eligible_tb if e.node_id]
@@ -730,7 +730,7 @@ def _has_runtime_usage(report: RunReport) -> bool:
 
 def select_run(
     runs: list[RunGroup],
-    campaign_id: str | None,
+    saga_id: str | None,
     *,
     lines: list[str] | None = None,
     campaign_titles: dict[str, str] | None = None,
@@ -738,11 +738,11 @@ def select_run(
 ) -> RunGroup:
     if not runs:
         raise SystemExit("No runtime generation requests found in the log.")
-    candidates = runs if campaign_id is None else [
-        r for r in runs if campaign_id in r.campaign_candidates
+    candidates = runs if saga_id is None else [
+        r for r in runs if saga_id in r.campaign_candidates
     ]
     if not candidates:
-        raise SystemExit(f"No runs matched campaign '{campaign_id}'.")
+        raise SystemExit(f"No runs matched campaign '{saga_id}'.")
     if lines is not None and campaign_titles is not None:
         for run in reversed(candidates):
             report = analyze_run(lines, run, campaign_titles)
@@ -777,8 +777,8 @@ def _row(label: str, model: str, inp: int, out: int, cost: float, extra: str = "
 
 def render_report(report: RunReport) -> str:
     title = report.campaign_title or "(unresolved)"
-    if report.campaign_id:
-        title = f"{title}  [{report.campaign_id}]"
+    if report.saga_id:
+        title = f"{title}  [{report.saga_id}]"
     dur = int((report.end_timestamp - report.start_timestamp).total_seconds())
 
     lines = [
@@ -964,7 +964,7 @@ def main() -> None:
     with args.log.open(encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh]
 
-    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.campaign_dir)
+    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.saga_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
     campaign_core_events = parse_campaign_core_events(lines)
     t1_cache_table_events       = parse_t1_cache_table_events(lines, node_index)

@@ -5,15 +5,15 @@ from dataclasses import asdict
 from .types import (
     NarratorMood,
     JudgePersonaState,
-    NodeChoiceRecord,
+    WaypointChoiceRecord,
     NodeEvent,
-    NodeMemory,
+    WaypointMemory,
     RunMemory,
     ShockRecord,
 )
 
 
-def update_after_node(run_memory: RunMemory, node_memory: NodeMemory) -> RunMemory:
+def update_after_node(run_memory: RunMemory, node_memory: WaypointMemory) -> RunMemory:
     """Promote the important outcome of one finished node into run memory."""
 
     run_memory.sanity += node_memory.sanity_lost_in_node
@@ -57,9 +57,9 @@ def run_memory_to_dict(run_memory: RunMemory) -> dict:
 __all__ = [
     "NarratorMood",
     "JudgePersonaState",
-    "NodeChoiceRecord",
+    "WaypointChoiceRecord",
     "NodeEvent",
-    "NodeMemory",
+    "WaypointMemory",
     "RunMemory",
     "ShockRecord",
     "update_after_node",

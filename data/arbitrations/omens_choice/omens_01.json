@@ -3,7 +3,7 @@
   "context": {
     "context_id": "omens_01",
     "scene_type": "omens_choice",
-    "floor": 6,
+    "depth": 6,
     "act": 1,
     "resources": {
       "health": 5,
@@ -37,7 +37,7 @@
         "effects": {
           "health_delta": -1,
           "sanity_delta": -2,
-          "add_conditions": ["marsh_bells"],
+          "add_marks": ["marsh_bells"],
           "add_events": ["You found the bells. You still do not know who was ringing them."]
         }
       }

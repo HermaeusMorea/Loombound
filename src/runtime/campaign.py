@@ -29,16 +29,16 @@ def resolve_asset_path(raw_path: str) -> Path:
     return REPO_ROOT / path
 
 
-def make_run(campaign: dict[str, Any]) -> Run:
+def make_run(saga: dict[str, Any]) -> Run:
     """Build the initial runtime run object from a campaign spec."""
 
-    initial_core = campaign["initial_core_state"]
+    initial_core = saga["initial_core_state"]
     initial_meta = campaign.get("initial_meta_state", {})
     meta_metadata = initial_meta.get("metadata", {})
     return Run(
-        run_id=campaign["campaign_id"],
+        run_id=saga["saga_id"],
         core_state=CoreStateView(
-            floor=initial_core.get("floor", 1),
+            depth=initial_core.get("depth", 1),
             act=initial_core.get("act", 1),
             health=initial_core.get("health"),
             max_health=initial_core.get("max_health"),
@@ -48,7 +48,7 @@ def make_run(campaign: dict[str, Any]) -> Run:
         ),
         meta_state=MetaStateView(
             sanity=initial_core.get("sanity", 0),
-            active_conditions=list(initial_meta.get("active_conditions", [])),
+            active_marks=list(initial_meta.get("active_marks", [])),
             narrator_tone=dict(initial_meta.get("narrator_tone", {})),
             theme_bias=dict(initial_meta.get("theme_bias", {})),
             metadata={
@@ -76,10 +76,10 @@ def choose_index(prompt: str, count: int) -> int:
         print("Enter a valid number or q to quit.")
 
 
-def sync_arbitration_resources(run: Run, arbitration: Any) -> None:
-    """Refresh arbitration resource fields from the live run state."""
+def sync_encounter_resources(run: Run, encounter: Any) -> None:
+    """Refresh encounter resource fields from the live run state."""
 
-    resources = dict(arbitration.context.resources)
+    resources = dict(encounter.context.resources)
     resources.update(
         {
             "health": run.core_state.health,
@@ -88,6 +88,6 @@ def sync_arbitration_resources(run: Run, arbitration: Any) -> None:
             "sanity": run.core_state.sanity,
         }
     )
-    arbitration.update_context(resources=resources)
-    arbitration.context.core_state_view = replace(run.core_state)
-    arbitration.context.meta_state_view = replace(run.meta_state)
+    encounter.update_context(resources=resources)
+    encounter.context.core_state_view = replace(run.core_state)
+    encounter.context.meta_state_view = replace(run.meta_state)

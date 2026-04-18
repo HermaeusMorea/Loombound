@@ -1,24 +1,24 @@
-"""Deterministic signal extraction from arbitration input."""
+"""Deterministic signal extraction from encounter input."""
 
 from __future__ import annotations
 
 from collections import Counter
 
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
-def build_signals(arbitration: Arbitration) -> dict[str, object]:
+def build_signals(encounter: Encounter) -> dict[str, object]:
     # Collapse raw context into a small set of reusable, deterministic facts.
     # Later stages should mostly consume these signals rather than repeatedly
     # re-reading raw option data.
-    option_tags = Counter(tag for option in arbitration.options for tag in option.get("tags", []))
-    health = int(arbitration.context.resources.get("health") or 0)
-    money = int(arbitration.context.resources.get("money") or 0)
-    sanity = int(arbitration.context.resources.get("sanity") or 0)
+    option_tags = Counter(tag for option in encounter.options for tag in option.get("tags", []))
+    health = int(encounter.context.resources.get("health") or 0)
+    money = int(encounter.context.resources.get("money") or 0)
+    sanity = int(encounter.context.resources.get("sanity") or 0)
 
     return {
-        "scene_type": arbitration.context.scene_type,
-        "context_tags": set(arbitration.context.tags),
+        "scene_type": encounter.context.scene_type,
+        "context_tags": set(encounter.context.tags),
         "option_tag_counts": dict(option_tags),
         "has_safe_option": option_tags.get("safe", 0) > 0,
         "has_greedy_option": option_tags.get("greedy", 0) > 0,

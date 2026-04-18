@@ -1,5 +1,5 @@
 """A1 data models: scene skeletons, option structures."""
 
-from .m1_store import M1Entry, M1Store
+from .a1_store import A1Entry, A1Store
 
-__all__ = ["M1Entry", "M1Store"]
+__all__ = ["A1Entry", "A1Store"]

@@ -7,7 +7,7 @@ Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect
 values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 
-Output: data/nodes/<campaign_id>/t1_cache_table.json
+Output: data/nodes/<saga_id>/t1_cache_table.json
 
 Usage (standalone):
     python gen_t1_cache_table.py data/campaigns/my_campaign.json
@@ -113,7 +113,7 @@ _SKELETON_ITEM = {
                             "health_delta":    {"type": "integer"},
                             "money_delta":     {"type": "integer"},
                             "sanity_delta":    {"type": "integer"},
-                            "add_conditions":  {"type": "array", "items": {"type": "string"}},
+                            "add_marks":  {"type": "array", "items": {"type": "string"}},
                         },
                         "additionalProperties": False,
                     },
@@ -133,24 +133,24 @@ _T1_CACHE_TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "nodes": {
+            "waypoints": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "node_id": {"type": "string"},
-                        "arbitrations": {
+                        "waypoint_id": {"type": "string"},
+                        "encounters": {
                             "type": "array",
                             "minItems": 1,
                             "items": _SKELETON_ITEM,
                         },
                     },
-                    "required": ["node_id", "arbitrations"],
+                    "required": ["waypoint_id", "encounters"],
                     "additionalProperties": False,
                 },
             },
         },
-        "required": ["nodes"],
+        "required": ["waypoints"],
         "additionalProperties": False,
     },
 }
@@ -161,7 +161,7 @@ Your task: generate stable, tendency-flexible scene skeletons for the nodes list
 
 Rules:
 - Call generate_t1_cache_table exactly once with ALL the nodes given to you in this message.
-- Each node must have EXACTLY the number of arbitrations specified.
+- Each node must have EXACTLY the number of encounters specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
 - sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
 - Do not hardcode a single dramatic tendency; runtime arc state will modulate these later.
@@ -181,13 +181,13 @@ def _build_t1_cache_table_user_msg(
 ) -> tuple[str, dict[str, int]]:
     """Build the user message for a T1 cache batch call.
 
-    Returns (user_msg, expected) where expected maps node_id → arbitration count.
+    Returns (user_msg, expected) where expected maps node_id → encounter count.
     """
     node_lines = []
     expected: dict[str, int] = {}
     for node in nodes_raw:
-        nid = node["node_id"]
-        arb_n = int(node.get("arbitration_count", 1))
+        nid = node["waypoint_id"]
+        arb_n = int(node.get("encounter_count", 1))
         expected[nid] = arb_n
         node_lines.append(
             f"  - node_id: {nid}  node_type: {node.get('node_type', '')}  "
@@ -206,7 +206,7 @@ def _build_t1_cache_table_user_msg(
         f"Premise: {intro}\n\n"
         f"{lang_note}"
         f"Generate T1 cache skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
-        f"Each node must have EXACTLY the specified number of arbitrations.\n\n"
+        f"Each node must have EXACTLY the specified number of encounters.\n\n"
         + "\n".join(node_lines)
     )
     return user_msg, expected
@@ -215,21 +215,21 @@ def _build_t1_cache_table_user_msg(
 def _validate_t1_cache_table_response(raw: dict, expected: dict[str, int]) -> list[str]:
     """Return a list of validation error strings (empty = valid).
 
-    Checks both structure (node presence, arbitration count) and content
+    Checks both structure (node presence, encounter count) and content
     (non-empty scene_concept, sanity_axis, and option intents/ids).
     """
-    result_nodes = raw.get("nodes", [])
-    result_by_id = {n["node_id"]: n for n in result_nodes if isinstance(n, dict)}
+    result_nodes = raw.get("waypoints", [])
+    result_by_id = {n["waypoint_id"]: n for n in result_nodes if isinstance(n, dict)}
     errors: list[str] = []
     for nid, want in expected.items():
         got_node = result_by_id.get(nid)
         if got_node is None:
-            errors.append(f"missing node_id={nid}")
+            errors.append(f"missing waypoint_id={nid}")
             continue
-        arbs = got_node.get("arbitrations", [])
+        arbs = got_node.get("encounters", [])
         got = len(arbs)
         if got != want:
-            errors.append(f"{nid}: expected {want} arbitrations, got {got}")
+            errors.append(f"{nid}: expected {want} encounters, got {got}")
             continue
         for arb_idx, arb in enumerate(arbs):
             prefix = f"{nid}[{arb_idx}]"
@@ -254,7 +254,7 @@ def _validate_t1_cache_table_response(raw: dict, expected: dict[str, int]) -> li
 
 async def _generate_t1_cache_table(
     nodes_raw: list[dict],
-    campaign_id: str,
+    saga_id: str,
     tone: str,
     title: str,
     intro: str,
@@ -271,9 +271,9 @@ async def _generate_t1_cache_table(
     user_msg, expected = _build_t1_cache_table_user_msg(nodes_raw, title, tone, intro, lang)
 
     _md_log([
-        f"## [{_ts()}] T1 CACHE REQUEST — `{campaign_id}` ({len(nodes_raw)} nodes)",
+        f"## [{_ts()}] T1 CACHE REQUEST — `{saga_id}` ({len(nodes_raw)} nodes)",
         f"model: {model}",
-        *[f"  {n['node_id']} arb×{n.get('arbitration_count', 1)}" for n in nodes_raw],
+        *[f"  {n['node_id']} arb×{n.get('encounter_count', 1)}" for n in nodes_raw],
     ])
 
     for attempt in range(1, max_retries + 1):
@@ -304,12 +304,12 @@ async def _generate_t1_cache_table(
             continue
 
         errors = _validate_t1_cache_table_response(raw, expected)
-        result_nodes = raw.get("nodes", [])
+        result_nodes = raw.get("waypoints", [])
 
         if errors:
             print(f"  [T1 cache attempt {attempt}] validation errors: {errors}")
             _md_log([
-                f"## [{_ts()}] T1 CACHE RETRY — `{campaign_id}` attempt={attempt}",
+                f"## [{_ts()}] T1 CACHE RETRY — `{saga_id}` attempt={attempt}",
                 *errors,
             ])
             if attempt == max_retries:
@@ -317,31 +317,31 @@ async def _generate_t1_cache_table(
             continue
 
         # Stamp node metadata client-side (keeps T1 cache self-contained)
-        node_meta = {n["node_id"]: n for n in nodes_raw}
+        node_meta = {n["waypoint_id"]: n for n in nodes_raw}
         t1_cache_table: list[dict] = []
         for n in result_nodes:
-            nid = n["node_id"]
+            nid = n["waypoint_id"]
             meta = node_meta.get(nid, {})
             t1_cache_table.append({
-                "node_id":    nid,
-                "node_type":  meta.get("node_type", ""),
+                "waypoint_id":    nid,
+                "waypoint_type":  meta.get("waypoint_type", ""),
                 "label":      meta.get("label", ""),
                 "map_blurb":  meta.get("map_blurb", ""),
-                "arbitrations": n["arbitrations"],
+                "encounters": n["encounters"],
             })
 
         haiku_cost = _haiku_cost(u.input_tokens, u.output_tokens)
         print(f"  T1 cache: input={u.input_tokens}  output={u.output_tokens}  "
               f"(~${haiku_cost:.4f})")
         _md_log([
-            f"## [{_ts()}] T1 CACHE RESPONSE — `{campaign_id}` attempt={attempt}",
+            f"## [{_ts()}] T1 CACHE RESPONSE — `{saga_id}` attempt={attempt}",
             f"model: {model}",
             f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
             f"cost: ${haiku_cost:.4f}",
             "summaries:",
             *[
-                f"  {row['node_id']} (arb×{len(row['arbitrations'])}): "
-                + (row['arbitrations'][0].get('scene_concept', '')[:90] if row.get('arbitrations') else '(empty)')
+                f"  {row['node_id']} (arb×{len(row['encounters'])}): "
+                + (row['encounters'][0].get('scene_concept', '')[:90] if row.get('encounters') else '(empty)')
                 for row in t1_cache_table
             ],
         ])
@@ -354,10 +354,10 @@ async def _generate_t1_cache_table(
 # File writer
 # ---------------------------------------------------------------------------
 
-def write_t1_cache_table(t1_cache_table: list[dict], campaign_id: str) -> Path:
-    out_dir = REPO_ROOT / "data" / "nodes" / campaign_id
+def write_t1_cache_table(t1_cache_table: list[dict], saga_id: str) -> Path:
+    out_dir = REPO_ROOT / "data" / "nodes" / saga_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "t1_cache_table.json"
+    out_path = out_dir / "a1_cache_table.json"
     out_path.write_text(json.dumps(t1_cache_table, ensure_ascii=False, indent=2), encoding="utf-8")
     return out_path
 
@@ -373,7 +373,7 @@ def generate_t1_cache_table_step(
     anthropic_key: str,
 ) -> None:
     """Generate T1 cache skeletons for all nodes (batched) and write to disk."""
-    nodes_list = data["nodes"]
+    nodes_list = data["waypoints"]
     batch_size = _T1_CACHE_BATCH_SIZE
     batches = [nodes_list[i:i + batch_size] for i in range(0, len(nodes_list), batch_size)]
     print(f"\nGenerating T1 cache via claude-haiku ({node_count} nodes, {len(batches)} batch(es) of ≤{batch_size})...")
@@ -382,11 +382,11 @@ def generate_t1_cache_table_step(
         results: list[dict] = []
         failed = False
         for b_idx, batch in enumerate(batches, start=1):
-            batch_ids = [n["node_id"] for n in batch]
+            batch_ids = [n["waypoint_id"] for n in batch]
             print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
             result = await _generate_t1_cache_table(
                 nodes_raw=batch,
-                campaign_id=data["campaign_id"],
+                saga_id=data["saga_id"],
                 tone=data.get("tone", ""),
                 title=data.get("title", ""),
                 intro=data.get("intro", ""),
@@ -403,7 +403,7 @@ def generate_t1_cache_table_step(
     t1_cache_table_all, any_failed = asyncio.run(_run_batches())
 
     if t1_cache_table_all:
-        t1_path = write_t1_cache_table(t1_cache_table_all, data["campaign_id"])
+        t1_path = write_t1_cache_table(t1_cache_table_all, data["saga_id"])
         print(f"  Written: {t1_path} ({len(t1_cache_table_all)} nodes)")
     if any_failed:
         print("  Some batches failed — re-run gen to regenerate T1 cache.", file=sys.stderr)
@@ -427,13 +427,13 @@ def main() -> None:
         sys.exit(1)
 
     campaign = json.loads(args.campaign.read_text(encoding="utf-8"))
-    nodes_list = list(campaign.get("nodes", {}).values()) if isinstance(campaign["nodes"], dict) \
+    nodes_list = list(campaign.get("waypoints", {}).values()) if isinstance(campaign["waypoints"], dict) \
         else campaign.get("nodes", [])
 
     for node in nodes_list:
-        if "arbitration_count" not in node:
-            node["arbitration_count"] = node.get("arbitrations", 1) if isinstance(
-                node.get("arbitrations"), int) else 1
+        if "encounter_count" not in node:
+            node["encounter_count"] = node.get("encounters", 1) if isinstance(
+                node.get("encounters"), int) else 1
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -441,11 +441,11 @@ def main() -> None:
         sys.exit(1)
 
     data = {
-        "campaign_id": campaign["campaign_id"],
+        "saga_id": campaign["saga_id"],
         "title":       campaign.get("title", ""),
         "tone":        campaign.get("tone", ""),
         "intro":       campaign.get("intro", ""),
-        "nodes":       nodes_list,
+        "waypoints":       nodes_list,
     }
     generate_t1_cache_table_step(data, len(nodes_list), args.lang, api_key)
 

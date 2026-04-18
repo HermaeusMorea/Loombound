@@ -1,29 +1,29 @@
 from src.t0.memory.models import CoreStateView
 from src.t2.core.collector import build_classifier_input
-from src.t0.memory.types import NodeChoiceRecord, NodeMemory, RunMemory
+from src.t0.memory.types import WaypointChoiceRecord, WaypointMemory, RunMemory
 from src.runtime.play_cli import _collect_lookahead_targets
 
 
 def test_collect_lookahead_targets_returns_unique_grandchildren_in_order() -> None:
-    campaign = {
-        "nodes": {
-            "node_b": {"next_nodes": ["node_d", "node_e"]},
-            "node_c": {"next_nodes": ["node_e", "node_f"]},
+    saga = {
+        "waypoints": {
+            "node_b": {"next_waypoints": ["node_d", "node_e"]},
+            "node_c": {"next_waypoints": ["node_e", "node_f"]},
         }
     }
 
-    result = _collect_lookahead_targets(campaign, ["node_b", "node_c"])
+    result = _collect_lookahead_targets(saga, ["node_b", "node_c"])
 
     assert result == ["node_d", "node_e", "node_f"]
 
 
 def test_build_classifier_input_includes_partial_active_node_snapshot() -> None:
-    node_memory = NodeMemory(
-        node_id="ruined_market:floor_02",
-        node_type="market",
-        floor=2,
+    waypoint_memory = WaypointMemory(
+        waypoint_id="ruined_market:floor_02",
+        waypoint_type="market",
+        depth=2,
         choices_made=[
-            NodeChoiceRecord(
+            WaypointChoiceRecord(
                 context_id="arb_01",
                 scene_type="market",
                 player_choice="buy_ashes",
@@ -41,13 +41,13 @@ def test_build_classifier_input_includes_partial_active_node_snapshot() -> None:
             max_health=10,
             money=3,
             sanity=6,
-            floor=2,
+            depth=2,
             act=1,
             scene_type="market",
         ),
         run_memory=RunMemory(),
-        node_history=[],
-        current_node_memory=node_memory,
+        waypoint_history=[],
+        current_waypoint_memory=waypoint_memory,
     )
 
     assert "## Active node so far (partial)" in msg

@@ -1,4 +1,4 @@
-"""State application helpers for selected arbitration options."""
+"""State application helpers for selected encounter options."""
 
 from __future__ import annotations
 
@@ -45,9 +45,9 @@ def apply_option_effects(run: Run, option: dict[str, Any], selected_result: Any)
         if net_sanity:
             notes.append(f"Sanity {'+' if net_sanity > 0 else ''}{net_sanity}")
 
-    for condition in effects.get("add_conditions", []):
-        if condition not in run.meta_state.active_conditions:
-            run.meta_state.active_conditions.append(condition)
+    for condition in effects.get("add_marks", []):
+        if condition not in run.meta_state.active_marks:
+            run.meta_state.active_marks.append(condition)
             notes.append(f"Gained condition: {condition}")
 
     major_events = run.meta_state.metadata.setdefault("major_events", [])

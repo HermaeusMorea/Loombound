@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.t1.memory.m1_store import M1Store
-from src.t2.memory.m2_store import M2Store
+from src.t1.memory.a1_store import A1Store
+from src.t2.memory.a2_store import A2Store
 
 
 @dataclass(slots=True)
@@ -18,8 +18,8 @@ class NodeEvent:
 
 
 @dataclass(slots=True)
-class NodeChoiceRecord:
-    """One arbitration-level choice recorded inside a node."""
+class WaypointChoiceRecord:
+    """One encounter-level choice recorded inside a node."""
 
     context_id: str
     scene_type: str
@@ -62,14 +62,14 @@ class JudgePersonaState:
 
 
 @dataclass(slots=True)
-class NodeMemory:
+class WaypointMemory:
     """Short-lived memory for one full node lifecycle."""
 
-    node_id: str
-    node_type: str
-    floor: int
+    waypoint_id: str
+    waypoint_type: str
+    depth: int
     events: list[NodeEvent] = field(default_factory=list)
-    choices_made: list[NodeChoiceRecord] = field(default_factory=list)
+    choices_made: list[WaypointChoiceRecord] = field(default_factory=list)
     shocks_in_node: list[ShockRecord] = field(default_factory=list)
     sanity_lost_in_node: int = 0
     important_flags: list[str] = field(default_factory=list)
@@ -89,6 +89,6 @@ class RunMemory:
     narrator_mood: NarratorMood = field(default_factory=NarratorMood)
     persona_summary: str = ""
     persona: JudgePersonaState = field(default_factory=JudgePersonaState)
-    # IRIS layers
-    m1: M1Store = field(default_factory=M1Store)
-    m2: M2Store = field(default_factory=M2Store)
+    # cache stores
+    a1: A1Store = field(default_factory=A1Store)
+    a2: A2Store = field(default_factory=A2Store)

@@ -3,7 +3,7 @@
   "context": {
     "context_id": "crossroads_01",
     "scene_type": "crossroads",
-    "floor": 2,
+    "depth": 2,
     "act": 1,
     "resources": {
       "health": 3,
@@ -39,7 +39,7 @@
         "effects": {
           "health_delta": -1,
           "sanity_delta": -1,
-          "add_conditions": ["reed_whispers"],
+          "add_marks": ["reed_whispers"],
           "add_events": ["Something moved beside you in the reeds and never showed itself."]
         }
       }

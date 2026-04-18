@@ -4,7 +4,7 @@ Strategy (PRISM timing pattern adapted for Loombound):
   - When player enters Node N, trigger background generation of Node N+1 content.
   - Generation runs in a daemon thread while the player plays through Node N.
   - When _play_node loads Node N+1, it checks the cache first.
-  - Cache hit  → use LLM-generated arbitration payloads instead of authored JSON.
+  - Cache hit  → use LLM-generated encounter payloads instead of authored JSON.
   - Cache miss → fall back to authored JSON as before (no regression).
 
 Arc state tracking (per-choice Opus calls):
@@ -13,7 +13,7 @@ Arc state tracking (per-choice Opus calls):
   - Opus returns entry_id (current arc state) + per-option effects for the next arb.
   - _current_arc_id is updated immediately when Opus responds.
   - Effects are stored keyed by "node_id:arb_idx" and consumed by play_cli just
-    before displaying the target arbitration.
+    before displaying the target encounter.
   - gemma3 prefetch reads _current_arc_id directly — no Opus call needed.
 
 Thread model:
@@ -36,15 +36,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.t0.memory.models import CoreStateView, NodeSummary
-from src.t2.memory.m2_store import M2Store
-from src.t0.memory.types import NodeMemory, RunMemory
+from src.t0.memory.models import CoreStateView, WaypointSummary
+from src.t2.memory.a2_store import A2Store
+from src.t0.memory.types import WaypointMemory, RunMemory
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.t1.core.fast_core import FastCoreExpander, FastCoreConfig
 from .m2_classifier import M2Classifier
-from .types import ArbitrationSeed, ArbitrationOptionSeed, NodeSeedPack, PrefetchEntry
+from .types import EncounterSeed, EncounterOptionSeed, NodeSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
 def _merge_preloaded_seed(
     skeleton: Any,
     arc_row: Any,
-) -> ArbitrationSeed:
+) -> EncounterSeed:
     """Blend a T1 cache node skeleton with the runtime T2 cache tendency.
 
     Effects in the seed come from the T1 cache (Haiku-generated placeholders).
@@ -101,7 +101,7 @@ def _merge_preloaded_seed(
     """
     raw_options = skeleton.options or []
     arb_options = [
-        ArbitrationOptionSeed(
+        EncounterOptionSeed(
             option_id=o.get("option_id", f"opt_{i}"),
             intent=o.get("intent", ""),
             tags=o.get("tags", []),
@@ -118,7 +118,7 @@ def _merge_preloaded_seed(
         f"pending_intent={tendency['pending_intent']}"
     )
 
-    return ArbitrationSeed(
+    return EncounterSeed(
         scene_type=skeleton.scene_type,
         scene_concept=(
             f"{skeleton.scene_concept}\n"
@@ -144,7 +144,7 @@ class PrefetchCache:
     Two independent subsystems:
 
     1. Node content prefetch (gemma3):
-       trigger() → background thread generates arbitration payloads for a future node.
+       trigger() → background thread generates encounter payloads for a future node.
        consume() → returns payloads (or None on cache miss/failure).
 
     2. Per-choice arc updates (Opus M2):
@@ -192,9 +192,9 @@ class PrefetchCache:
         target_node_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
-        node_history: list[NodeSummary],
-        arbitration_count: int,
-        current_node_memory: NodeMemory | None = None,
+        waypoint_history: list[WaypointSummary],
+        encounter_count: int,
+        current_waypoint_memory: WaypointMemory | None = None,
     ) -> None:
         """Start background generation for target_node_id if not already running.
 
@@ -211,8 +211,8 @@ class PrefetchCache:
             entry = PrefetchEntry(node_id=target_node_id, status="pending")
             self._cache[target_node_id] = entry
 
-        log.info("Prefetch: triggering background generation for '%s' (%d arbitration(s)).",
-                 target_node_id, arbitration_count)
+        log.info("Prefetch: triggering background generation for '%s' (%d encounter(s)).",
+                 target_node_id, encounter_count)
 
         # Snapshot the arc_id at trigger time — gemma3 uses this for tendency
         arc_id_snapshot = self._current_arc_id
@@ -227,7 +227,7 @@ class PrefetchCache:
                     target_node_id,
                     state_snapshot,
                     memory_snapshot,
-                    arbitration_count,
+                    encounter_count,
                     arc_id_snapshot,
                 )
             )
@@ -264,7 +264,7 @@ class PrefetchCache:
             print(f"\r\033[0m\033[K", end="", file=sys.stderr, flush=True)
 
     def consume(self, node_id: str) -> list[dict[str, Any]] | None:
-        """Return resolved arbitration payloads if generation succeeded."""
+        """Return resolved encounter payloads if generation succeeded."""
         with self._lock:
             entry = self._cache.get(node_id)
             if entry is None:
@@ -292,7 +292,7 @@ class PrefetchCache:
             log.info("Prefetch: '%s' is stale — authored fallback.", node_id)
             return None
 
-        log.info("Prefetch: '%s' ready — using %d LLM-generated arbitration(s).",
+        log.info("Prefetch: '%s' ready — using %d LLM-generated encounter(s).",
                  node_id, arb_count)
         return resolved
 
@@ -317,9 +317,9 @@ class PrefetchCache:
 
         Args:
             quasi:         Current game state description (build_classifier_input output).
-            next_node_id:  Node the next arbitration belongs to.
+            next_node_id:  Node the next encounter belongs to.
                            None = last arb of a node transition (effects not needed yet).
-            next_arb_idx:  0-based index of the next arbitration in next_node_id.
+            next_arb_idx:  0-based index of the next encounter in next_node_id.
                            None = no next arb in same node (only update entry_id).
 
         Both must be non-None to produce effects. If either is None, Opus still
@@ -353,7 +353,7 @@ class PrefetchCache:
         arb_idx: int,
         timeout: float = 8.0,
     ) -> dict[str, dict]:
-        """Wait for and consume Opus-assigned effects for a specific arbitration.
+        """Wait for and consume Opus-assigned effects for a specific encounter.
 
         Returns {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}.
         Returns empty dict if no effects were requested or Opus timed out.
@@ -445,12 +445,12 @@ class PrefetchCache:
         target_node_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
-        arbitration_count: int,
+        encounter_count: int,
         arc_id_snapshot: int,
     ) -> None:
         try:
-            if not run_memory.m2.has_caches():
-                reason = "t2_cache_table/t1_cache_table not loaded"
+            if not run_memory.a2.has_caches():
+                reason = "a2_cache_table/a1_cache_table not loaded"
                 log.warning("Prefetch: '%s' skipped — %s.", target_node_id, reason)
                 with self._lock:
                     entry = self._cache.get(target_node_id)
@@ -461,7 +461,7 @@ class PrefetchCache:
                 target_node_id,
                 core_state,
                 run_memory,
-                arbitration_count,
+                encounter_count,
                 arc_id_snapshot,
             )
         except Exception as exc:
@@ -484,7 +484,7 @@ class PrefetchCache:
         target_node_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
-        arbitration_count: int,
+        encounter_count: int,
         arc_id_snapshot: int,
     ) -> None:
         """Preloaded path: look up T2 cache + T1 cache, expand with Fast Core.
@@ -493,12 +493,12 @@ class PrefetchCache:
         captured at trigger() time from _current_arc_id.
         """
         # Step 1: T2 cache lookup for arc tendency
-        arc_row = run_memory.m2.lookup_arc(arc_id_snapshot)
+        arc_row = run_memory.a2.lookup_arc(arc_id_snapshot)
         if arc_row is None:
             # Fallback to entry 0 if snapshot id is missing
-            arc_row = run_memory.m2.lookup_arc(0)
+            arc_row = run_memory.a2.lookup_arc(0)
         if arc_row is None:
-            reason = f"t2_cache_table missing entry_id={arc_id_snapshot} and no entry 0"
+            reason = f"a2_cache_table missing entry_id={arc_id_snapshot} and no entry 0"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -507,9 +507,9 @@ class PrefetchCache:
             return
 
         # Step 2: T1 cache lookup
-        node_entry = run_memory.m2.lookup_node(target_node_id)
-        if node_entry is None or not node_entry.arbitrations:
-            reason = f"t1_cache_table missing node_id={target_node_id}"
+        node_entry = run_memory.a2.lookup_node(target_node_id)
+        if node_entry is None or not node_entry.encounters:
+            reason = f"a1_cache_table missing node_id={target_node_id}"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_node_id, reason)
             with self._lock:
                 entry = self._cache.get(target_node_id)
@@ -521,15 +521,15 @@ class PrefetchCache:
             f"## [{_ts()}] T1 CACHE LOOKUP — node `{target_node_id}` (arc_id={arc_id_snapshot})",
             f"node_type: {node_entry.node_type}",
             f"label: {node_entry.label}",
-            f"arbitrations: {len(node_entry.arbitrations)}",
+            f"encounters: {len(node_entry.encounters)}",
             f"arc_trajectory: {arc_row.arc_trajectory}",
             f"world_pressure: {arc_row.world_pressure}",
         ])
 
         # Step 3: Merge T1 cache skeletons with arc tendency
-        merged_seeds: list[ArbitrationSeed] = []
-        for idx in range(arbitration_count):
-            skeleton = node_entry.arbitrations[min(idx, len(node_entry.arbitrations) - 1)]
+        merged_seeds: list[EncounterSeed] = []
+        for idx in range(encounter_count):
+            skeleton = node_entry.encounters[min(idx, len(node_entry.encounters) - 1)]
             arb_seed = _merge_preloaded_seed(skeleton, arc_row)
             merged_seeds.append(arb_seed)
             arb_id = f"{target_node_id}_t1_{idx:02d}"
@@ -540,7 +540,7 @@ class PrefetchCache:
                 f"tendency: {arb_seed.tendency}",
             ])
 
-        # Step 4: Fast Core expands each arbitration
+        # Step 4: Fast Core expands each encounter
         resolved = await self._expand_arbitrations(merged_seeds, target_node_id, "t1", core_state)
 
         # Step 5: Assemble seed_pack and store in cache
@@ -548,7 +548,7 @@ class PrefetchCache:
             target_node_id=target_node_id,
             node_theme=arc_row.arc_trajectory,
             narrative_direction=arc_row.pending_intent,
-            arbitrations=merged_seeds,
+            encounters=merged_seeds,
         )
 
         with self._lock:
@@ -558,7 +558,7 @@ class PrefetchCache:
 
         _md_log([
             f"## [{_ts()}] COMPLETE (preloaded) — `{target_node_id}` "
-            f"({len(resolved)} arbitration(s), arc_id={arc_id_snapshot})",
+            f"({len(resolved)} encounter(s), arc_id={arc_id_snapshot})",
         ])
         log.info(
             "Prefetch[preloaded]: '%s' complete (%d arb(s), arc_id=%d).",
@@ -567,12 +567,12 @@ class PrefetchCache:
 
     async def _expand_arbitrations(
         self,
-        seeds: list[ArbitrationSeed],
+        seeds: list[EncounterSeed],
         node_id: str,
         id_prefix: str,
         core_state: CoreStateView,
     ) -> list[dict[str, Any]]:
-        """Expand a list of ArbitrationSeeds via Fast Core; log each call."""
+        """Expand a list of EncounterSeeds via Fast Core; log each call."""
         resolved: list[dict[str, Any]] = []
         for idx, arb_seed in enumerate(seeds):
             arb_id = f"{node_id}_{id_prefix}_{idx:02d}"

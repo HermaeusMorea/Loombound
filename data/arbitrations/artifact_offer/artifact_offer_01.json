@@ -3,7 +3,7 @@
   "context": {
     "context_id": "artifact_offer_01",
     "scene_type": "artifact_offer",
-    "floor": 4,
+    "depth": 4,
     "act": 1,
     "resources": {
       "health": 6,
@@ -24,7 +24,7 @@
       "tags": ["safe", "practical", "grounded"],
       "metadata": {
         "effects": {
-          "add_conditions": ["warding_tools"],
+          "add_marks": ["warding_tools"],
           "add_events": ["You pocketed the warding tools and felt a little less exposed."]
         }
       }
@@ -36,7 +36,7 @@
       "metadata": {
         "effects": {
           "sanity_delta": -1,
-          "add_conditions": ["glass_eye"],
+          "add_marks": ["glass_eye"],
           "add_events": ["The glass eye warms whenever you stop looking directly at it."]
         }
       }

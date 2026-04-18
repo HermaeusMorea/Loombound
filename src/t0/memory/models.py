@@ -10,7 +10,7 @@ from typing import Any
 class CoreStateView:
     """Structured view of the current deterministic gameplay state."""
 
-    floor: int
+    depth: int
     act: int = 1
     health: int | None = None
     max_health: int | None = None
@@ -26,19 +26,19 @@ class MetaStateView:
     """Overlay-owned state view used by the sanity-pressure system."""
 
     sanity: int = 0
-    active_conditions: list[str] = field(default_factory=list)
+    active_marks: list[str] = field(default_factory=list)
     narrator_tone: dict[str, int] = field(default_factory=dict)
     theme_bias: dict[str, int] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
-class ArbitrationContext:
-    """Judgeable scene input for one arbitration."""
+class EncounterContext:
+    """Judgeable scene input for one encounter."""
 
     context_id: str
     scene_type: str
-    floor: int
+    depth: int
     act: int = 1
     resources: dict[str, Any] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
@@ -52,17 +52,17 @@ class ArbitrationContext:
         *,
         context_id: str,
         scene_type: str,
-        floor: int,
+        depth: int,
         act: int = 1,
         core_state_view: CoreStateView | None = None,
         meta_state_view: MetaStateView | None = None,
-    ) -> "ArbitrationContext":
+    ) -> "EncounterContext":
         """Create an empty context shell for a newly-entered owner."""
 
         context = cls(
             context_id=context_id,
             scene_type=scene_type,
-            floor=floor,
+            depth=depth,
             act=act,
             core_state_view=core_state_view,
             meta_state_view=meta_state_view,
@@ -71,8 +71,8 @@ class ArbitrationContext:
         return context
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "ArbitrationContext":
-        """Build an arbitration context from flat or nested JSON payloads."""
+    def from_dict(cls, payload: dict[str, Any]) -> "EncounterContext":
+        """Build an encounter context from flat or nested JSON payloads."""
 
         if "context" in payload:
             payload = payload["context"]
@@ -81,7 +81,7 @@ class ArbitrationContext:
         context = cls(
             context_id=payload["context_id"],
             scene_type=scene_type,
-            floor=payload["floor"],
+            depth=payload["depth"],
             act=payload.get("act", 1),
             resources=payload.get("resources", {}),
             tags=payload.get("tags", []),
@@ -95,7 +95,7 @@ class ArbitrationContext:
 
         if self.core_state_view is None:
             self.core_state_view = CoreStateView(
-                floor=self.floor,
+                depth=self.depth,
                 act=self.act,
                 health=self.resources.get("health"),
                 max_health=self.resources.get("max_health"),
@@ -115,10 +115,10 @@ class ArbitrationContext:
         metadata: dict[str, Any] | None = None,
         scene_type: str | None = None,
     ) -> None:
-        """Update the live arbitration context in place.
+        """Update the live encounter context in place.
 
         State views are not refreshed here — callers that need an updated
-        core_state_view (e.g. sync_arbitration_resources) must assign it
+        core_state_view (e.g. sync_encounter_resources) must assign it
         directly after calling update().
         """
 
@@ -180,7 +180,7 @@ class RuleTemplate:
 
 @dataclass(slots=True)
 class RuleEvaluation:
-    """Runtime evaluation result for one rule against one arbitration context."""
+    """Runtime evaluation result for one rule against one encounter context."""
 
     rule: RuleTemplate
     matched: bool
@@ -194,7 +194,7 @@ class OptionResult:
 
     option_id: str
     label: str
-    verdict: str
+    toll: str
     reasons: list[str]
     sanity_cost: int
 
@@ -209,8 +209,8 @@ class NarrationBlock:
 
 
 @dataclass(slots=True)
-class ArbitrationResult:
-    """Structured output of one arbitration pass before parent state updates."""
+class EncounterResult:
+    """Structured output of one encounter pass before parent state updates."""
 
     selected_rule_id: str | None
     matched_rule_ids: list[str]
@@ -221,12 +221,12 @@ class ArbitrationResult:
 
 
 @dataclass(slots=True)
-class NodeSummary:
+class WaypointSummary:
     """Compact result promoted from a finished Node back into the Run."""
 
-    node_id: str
-    node_type: str
-    floor: int
+    waypoint_id: str
+    waypoint_type: str
+    depth: int
     sanity_delta: int = 0
     important_flags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -234,9 +234,9 @@ class NodeSummary:
 
 @dataclass(slots=True)
 class RunSnapshot:
-    """Serializable output of one full arbitration pass."""
+    """Serializable output of one full encounter pass."""
 
-    arbitration_id: str
+    encounter_id: str
     selected_rule_id: str | None
     matched_rule_ids: list[str]
     theme_scores: dict[str, float]
@@ -248,7 +248,7 @@ class RunSnapshot:
         """Convert snapshot output into a stable JSON-friendly structure."""
 
         return {
-            "arbitration_id": self.arbitration_id,
+            "encounter_id": self.encounter_id,
             "selected_rule_id": self.selected_rule_id,
             "matched_rule_ids": self.matched_rule_ids,
             "theme_scores": self.theme_scores,
@@ -256,7 +256,7 @@ class RunSnapshot:
                 {
                     "option_id": item.option_id,
                     "label": item.label,
-                    "verdict": item.verdict,
+                    "toll": item.toll,
                     "reasons": item.reasons,
                     "sanity_cost": item.sanity_cost,
                 }

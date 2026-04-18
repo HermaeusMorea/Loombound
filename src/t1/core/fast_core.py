@@ -1,19 +1,19 @@
 """Fast Core — local gemma3:4b expansion via ollama.
 
-Takes an ArbitrationSeed (Slow Core output) and expands it into a complete
-arbitration JSON dict that passes validate_arbitration_asset.
+Takes an EncounterSeed (Slow Core output) and expands it into a complete
+encounter JSON dict that passes validate_arbitration_asset.
 
-Expansion targets per arbitration:
+Expansion targets per encounter:
   context.metadata.scene_summary   — 3-5 atmospheric sentences
   context.metadata.sanity_question — 1 sentence evoking the choice tension
   options[].label                  — 5-10 word display label
   options[].metadata.effects.add_events — 1-2 sentences, causally tied to effects
 
-All other fields (scene_type, floor, tags, numeric effects, add_conditions)
+All other fields (scene_type, floor, tags, numeric effects, add_marks)
 are filled deterministically from the seed — no LLM needed for those.
 
 Ollama is called via its native /api/chat endpoint with JSON mode for reliable
-structured output. One HTTP call per arbitration keeps prompts short and failures
+structured output. One HTTP call per encounter keeps prompts short and failures
 isolated.
 """
 
@@ -27,7 +27,7 @@ from typing import Any
 
 import httpx
 
-from src.t2.core.types import ArbitrationOptionSeed, ArbitrationSeed
+from src.t2.core.types import EncounterOptionSeed, EncounterSeed
 from src.t0.memory.models import CoreStateView
 
 log = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 class FastCoreConfig:
     model: str = "gemma3:4b"
     base_url: str = "http://localhost:11434"
-    # Per-arbitration generation timeout (seconds)
+    # Per-encounter generation timeout (seconds)
     timeout: float = 60.0
     # Max retries on malformed JSON
     max_retries: int = 2
@@ -101,7 +101,7 @@ def _system_prompt(cfg: FastCoreConfig) -> str:
 # Prompt builder
 # ---------------------------------------------------------------------------
 
-def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
+def _build_prompt(seed: EncounterSeed, core_state: CoreStateView) -> str:
     option_lines: list[str] = []
     for opt in seed.options:
         eff = opt.effects
@@ -118,8 +118,8 @@ def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
             parts.append("sanity harm")
         elif eff.get("sanity_delta", 0) > 0:
             parts.append("sanity recovery")
-        if eff.get("add_conditions"):
-            parts.append(f"gains: {', '.join(eff['add_conditions'])}")
+        if eff.get("add_marks"):
+            parts.append(f"gains: {', '.join(eff['add_marks'])}")
         eff_str = ", ".join(parts) if parts else "no stat effect"
 
         option_lines.append(
@@ -159,7 +159,7 @@ def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
     return (
         f"Scene concept: {seed.scene_concept}\n"
         f"Sanity axis: {seed.sanity_axis}\n"
-        f"Floor: {core_state.floor}, Act: {core_state.act}\n\n"
+        f"Depth: {core_state.depth}, Act: {core_state.act}\n\n"
         f"{tendency_block}"
         f"Options:\n{options_block}\n\n"
         f"Return this JSON structure exactly:\n"
@@ -171,7 +171,7 @@ def _build_prompt(seed: ArbitrationSeed, core_state: CoreStateView) -> str:
     )
 
 
-def _effects_hint(opt: ArbitrationOptionSeed) -> str:
+def _effects_hint(opt: EncounterOptionSeed) -> str:
     """Build a causal constraint hint for the add_events prompt."""
     eff = opt.effects
     parts = []
@@ -185,8 +185,8 @@ def _effects_hint(opt: ArbitrationOptionSeed) -> str:
         parts.append("explain gain")
     if eff.get("sanity_delta", 0) < 0:
         parts.append("explain psychological harm")
-    if eff.get("add_conditions"):
-        conds = ", ".join(eff["add_conditions"])
+    if eff.get("add_marks"):
+        conds = ", ".join(eff["add_marks"])
         parts.append(f"explain why condition '{conds}' was acquired")
     return "; ".join(parts) if parts else "describe what happened"
 
@@ -251,14 +251,14 @@ async def _call_ollama(
 
 
 # ---------------------------------------------------------------------------
-# Assembler — seed + LLM text → full arbitration dict
+# Assembler — seed + LLM text → full encounter dict
 # ---------------------------------------------------------------------------
 
 def _assemble(
-    seed: ArbitrationSeed,
+    seed: EncounterSeed,
     expanded: dict[str, Any],
     core_state: CoreStateView,
-    arbitration_id: str,
+    encounter_id: str,
 ) -> dict[str, Any]:
     """Merge deterministic seed fields with LLM-generated text."""
     option_text: dict[str, dict] = {
@@ -281,8 +281,8 @@ def _assemble(
             val = opt_seed.effects.get(key)
             if val is not None and val != 0:
                 effects[key] = val
-        if opt_seed.effects.get("add_conditions"):
-            effects["add_conditions"] = list(opt_seed.effects["add_conditions"])
+        if opt_seed.effects.get("add_marks"):
+            effects["add_marks"] = list(opt_seed.effects["add_marks"])
         if add_events:
             effects["add_events"] = add_events
 
@@ -294,11 +294,11 @@ def _assemble(
         })
 
     return {
-        "arbitration_id": arbitration_id,
+        "encounter_id": encounter_id,
         "context": {
-            "context_id": arbitration_id,
+            "context_id": encounter_id,
             "scene_type": seed.scene_type,
-            "floor": core_state.floor,
+            "depth": core_state.depth,
             "act": core_state.act,
             "resources": {
                 "health": core_state.health,
@@ -323,11 +323,11 @@ def _assemble(
 # ---------------------------------------------------------------------------
 
 class FastCoreExpander:
-    """Expands ArbitrationSeeds into full arbitration JSON dicts via ollama.
+    """Expands EncounterSeeds into full encounter JSON dicts via ollama.
 
     Usage:
         expander = FastCoreExpander()
-        payload = await expander.expand(seed, core_state, arbitration_id="gen_01")
+        payload = await expander.expand(seed, core_state, encounter_id="gen_01")
         # payload passes validate_arbitration_asset
     """
 
@@ -336,16 +336,16 @@ class FastCoreExpander:
 
     async def expand(
         self,
-        seed: ArbitrationSeed,
+        seed: EncounterSeed,
         core_state: CoreStateView,
-        arbitration_id: str | None = None,
+        encounter_id: str | None = None,
     ) -> tuple[dict[str, Any], dict[str, int]]:
-        """Expand one ArbitrationSeed into a complete arbitration JSON dict.
+        """Expand one EncounterSeed into a complete encounter JSON dict.
 
         Returns (payload, usage) where usage has keys prompt_tokens / eval_tokens.
         Falls back to a deterministic template if ollama fails after retries.
         """
-        arb_id = arbitration_id or f"gen_{uuid.uuid4().hex[:8]}"
+        arb_id = encounter_id or f"gen_{uuid.uuid4().hex[:8]}"
         prompt = _build_prompt(seed, core_state)
 
         expanded: dict[str, Any] = {}
@@ -397,7 +397,7 @@ class FastCoreExpander:
 # Template fallback (no LLM)
 # ---------------------------------------------------------------------------
 
-def _template_fallback(seed: ArbitrationSeed) -> dict[str, Any]:
+def _template_fallback(seed: EncounterSeed) -> dict[str, Any]:
     """Minimal deterministic expansion used when ollama is unavailable."""
     return {
         "scene_summary": seed.scene_concept,

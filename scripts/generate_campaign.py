@@ -129,7 +129,7 @@ def _log_campaign_core_usage(
     lang: str,
     tone_hint: str | None,
     worldview_hint: str | None,
-    campaign_id: str,
+    saga_id: str,
     title: str,
     usage_input: int,
     usage_output: int,
@@ -137,7 +137,7 @@ def _log_campaign_core_usage(
     is_opus = "opus" in model.lower()
     cost = _opus_cost(usage_input, usage_output) if is_opus else _haiku_cost(usage_input, usage_output)
     _md_log([
-        f"## [{_ts()}] CAMPAIGN CORE RESPONSE — `{campaign_id}`",
+        f"## [{_ts()}] CAMPAIGN CORE RESPONSE — `{saga_id}`",
         f"provider: {provider}",
         f"model: {model}",
         f"theme: {theme}",
@@ -168,13 +168,13 @@ NODE GRAPH
 - Prefer branching over linear chains — at least one fork somewhere in the graph.
 
 NODE TYPES  (use exactly one per node)
-  crossroads   — pure navigation choice, minimal arbitration
+  crossroads   — pure navigation choice, minimal encounter
   market       — commerce, trade, dubious vendors
   encounter    — something dangerous or ambiguous in the environment
   archive      — information, forbidden knowledge, documents
   ritual       — ceremony, transformation, a turning point
   threshold    — a boundary crossing, a point of no return
-  rest         — brief respite (keep arbitrations low: 1)
+  rest         — brief respite (keep encounters low: 1)
   investigation — detective work, evidence, secrets
 
 ARBITRATION COUNT (integer, 1–3 per node)
@@ -207,7 +207,7 @@ _TOOL = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "campaign_id": {
+            "saga_id": {
                 "type": "string",
                 "description": "Unique snake_case ID, e.g. 'drowned_district_act1'",
             },
@@ -220,10 +220,10 @@ _TOOL = {
                     "max_health": {"type": "integer"},
                     "money":      {"type": "integer"},
                     "sanity":     {"type": "integer"},
-                    "floor":      {"type": "integer"},
+                    "depth":      {"type": "integer"},
                     "act":        {"type": "integer"},
                 },
-                "required": ["health", "max_health", "money", "sanity", "floor", "act"],
+                "required": ["health", "max_health", "money", "sanity", "depth", "act"],
                 "additionalProperties": False,
             },
             "tone": {
@@ -233,43 +233,43 @@ _TOOL = {
                     "Used by the runtime content generator for every node. Be specific."
                 ),
             },
-            "start_node_id": {
+            "start_waypoint_id": {
                 "type": "string",
                 "description": "Must match one of the node_ids you define.",
             },
-            "nodes": {
+            "waypoints": {
                 "type": "array",
                 "minItems": 4,
                 "items": {
                     "type": "object",
                     "properties": {
-                        "node_id": {
+                        "waypoint_id": {
                             "type": "string",
                             "description": "snake_case, unique within campaign",
                         },
                         "label":      {"type": "string", "description": "Short display name"},
                         "map_blurb":  {"type": "string", "description": "1–2 atmospheric sentences for map screen"},
-                        "node_type":  {"type": "string"},
-                        "floor":      {"type": "integer", "minimum": 1},
-                        "arbitration_count": {
+                        "waypoint_type":  {"type": "string"},
+                        "depth":      {"type": "integer", "minimum": 1},
+                        "encounter_count": {
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 3,
                         },
-                        "next_nodes": {
+                        "next_waypoints": {
                             "type": "array",
                             "items": {"type": "string"},
                             "description": "node_ids this node leads to. Empty list = terminal.",
                         },
                     },
                     "required": [
-                        "node_id", "label", "map_blurb", "node_type",
-                        "floor", "arbitration_count", "next_nodes",
+                        "waypoint_id", "label", "map_blurb", "waypoint_type",
+                        "depth", "encounter_count", "next_waypoints",
                     ],
                     "additionalProperties": False,
                 },
             },
-            "verdict_dict": {
+            "toll_lexicon": {
                 "type": "array",
                 "description": (
                     "3–6 campaign-specific verdict labels. "
@@ -287,7 +287,7 @@ _TOOL = {
                 },
             },
         },
-        "required": ["campaign_id", "title", "intro", "tone", "initial_core_state", "start_node_id", "nodes", "verdict_dict"],
+        "required": ["saga_id", "title", "intro", "tone", "initial_core_state", "start_waypoint_id", "nodes", "toll_lexicon"],
         "additionalProperties": False,
     },
 }
@@ -340,8 +340,8 @@ async def _generate_anthropic(
                 provider=provider, model=model, theme=theme,
                 node_count=node_count, lang=lang,
                 tone_hint=tone_hint, worldview_hint=worldview_hint,
-                campaign_id=raw["campaign_id"],
-                title=raw.get("title", raw["campaign_id"]),
+                saga_id=raw["saga_id"],
+                title=raw.get("title", raw["saga_id"]),
                 usage_input=u.input_tokens,
                 usage_output=u.output_tokens,
             )
@@ -405,8 +405,8 @@ async def _generate_openai_compat(
                     provider=provider, model=model, theme=theme,
                     node_count=node_count, lang=lang,
                     tone_hint=tone_hint, worldview_hint=worldview_hint,
-                    campaign_id=raw["campaign_id"],
-                    title=raw.get("title", raw["campaign_id"]),
+                    saga_id=raw["saga_id"],
+                    title=raw.get("title", raw["saga_id"]),
                     usage_input=usage.prompt_tokens if usage else 0,
                     usage_output=usage.completion_tokens if usage else 0,
                 )
@@ -490,7 +490,7 @@ def _normalise(data: dict) -> dict:
         for node_id, spec in nodes.items():
             if isinstance(spec, dict):
                 spec = dict(spec)
-                spec.setdefault("node_id", node_id)
+                spec.setdefault("waypoint_id", node_id)
                 normalised.append(spec)
         data["nodes"] = normalised
     elif isinstance(nodes, list):
@@ -515,7 +515,7 @@ def validate_graph(
     if bad:
         errors.append(f"nodes[{bad}] are not objects — malformed response from model")
         return errors
-    node_ids = {n["node_id"] for n in nodes}
+    node_ids = {n["waypoint_id"] for n in nodes}
 
     if start_node_id not in node_ids:
         errors.append(f"start_node_id '{start_node_id}' not found in nodes")
@@ -526,13 +526,13 @@ def validate_graph(
         )
 
     for node in nodes:
-        for ref in node.get("next_nodes", []):
+        for ref in node.get("next_waypoints", []):
             if ref not in node_ids:
                 errors.append(
                     f"'{node['node_id']}' → '{ref}': referenced node does not exist"
                 )
 
-    if not any(not n.get("next_nodes") for n in nodes):
+    if not any(not n.get("next_waypoints") for n in nodes):
         errors.append("No terminal nodes (next_nodes: []) — campaign has no ending")
 
     return errors
@@ -543,38 +543,38 @@ def validate_graph(
 # ---------------------------------------------------------------------------
 
 def write_campaign(data: dict, out_name: str, generation_context: dict | None = None) -> tuple[Path, int]:
-    campaign_id = data["campaign_id"]
+    saga_id = data["saga_id"]
     nodes_raw: list[dict] = data["nodes"]
 
     campaigns_dir = REPO_ROOT / "data" / "campaigns"
-    nodes_dir = REPO_ROOT / "data" / "nodes" / campaign_id
+    nodes_dir = REPO_ROOT / "data" / "nodes" / saga_id
     campaigns_dir.mkdir(parents=True, exist_ok=True)
     nodes_dir.mkdir(parents=True, exist_ok=True)  # for t1_cache_table.json
 
     campaign_nodes: dict = {}
     for node in nodes_raw:
-        nid = node["node_id"]
+        nid = node["waypoint_id"]
         campaign_nodes[nid] = {
             "label":        node["label"],
             "map_blurb":    node["map_blurb"],
-            "node_type":    node["node_type"],
-            "floor":        node["floor"],
-            "arbitrations": node["arbitration_count"],
-            "next_nodes":   node["next_nodes"],
+            "waypoint_type":    node["waypoint_type"],
+            "depth":        node["depth"],
+            "encounters": node["encounter_count"],
+            "next_waypoints":   node["next_waypoints"],
         }
 
     campaign_json = {
-        "campaign_id":        campaign_id,
+        "saga_id":        saga_id,
         "title":              data["title"],
         "intro":              data["intro"],
         "tone":               data.get("tone", ""),
         "initial_core_state": data["initial_core_state"],
         "initial_meta_state": {
-            "active_conditions": [],
+            "active_marks": [],
             "metadata": {"major_events": [], "traumas": []},
         },
-        "start_node_id": data["start_node_id"],
-        "nodes":         campaign_nodes,
+        "start_waypoint_id": data["start_waypoint_id"],
+        "waypoints":         campaign_nodes,
     }
     if generation_context:
         campaign_json["generation_context"] = generation_context
@@ -584,11 +584,11 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
         json.dumps(campaign_json, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    verdict_dict = data.get("verdict_dict", [])
-    if verdict_dict:
-        verdict_dict_path = campaigns_dir / f"{out_name}_verdict_dict.json"
-        verdict_dict_path.write_text(
-            json.dumps(verdict_dict, ensure_ascii=False, indent=2), encoding="utf-8"
+    toll_lexicon = data.get("toll_lexicon", [])
+    if toll_lexicon:
+        toll_lexicon_path = campaigns_dir / f"{out_name}_toll_lexicon.json"
+        toll_lexicon_path.write_text(
+            json.dumps(toll_lexicon, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
     return out_path, len(nodes_raw)
@@ -599,8 +599,8 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
 # ---------------------------------------------------------------------------
 
 def print_graph(data: dict) -> None:
-    nodes = {n["node_id"]: n for n in data["nodes"]}
-    start = data["start_node_id"]
+    nodes = {n["waypoint_id"]: n for n in data["nodes"]}
+    start = data["start_waypoint_id"]
     visited: set[str] = set()
 
     print("\n  Campaign graph:")
@@ -612,23 +612,23 @@ def print_graph(data: dict) -> None:
         n = nodes[nid]
         connector = "└─" if is_last else "├─"
         tag = " ←START" if nid == start else ""
-        arbs = n["arbitration_count"]
+        arbs = n["encounter_count"]
         print(f"{prefix}{connector} [{n['node_type']}] {nid}  (arb×{arbs}){tag}")
         if nid in visited:
             child_prefix = prefix + ("   " if is_last else "│  ")
             print(f"{child_prefix}  (already shown above)")
             return
         visited.add(nid)
-        children = n.get("next_nodes", [])
+        children = n.get("next_waypoints", [])
         child_prefix = prefix + ("   " if is_last else "│  ")
         for i, child in enumerate(children):
             _print_node(child, child_prefix, i == len(children) - 1)
 
     _print_node(start, "  ", True)
-    terminal = [n["node_id"] for n in data["nodes"] if not n.get("next_nodes")]
+    terminal = [n["waypoint_id"] for n in data["nodes"] if not n.get("next_waypoints")]
     print(f"\n  Terminal node(s): {terminal}")
-    total_arbs = sum(n["arbitration_count"] for n in data["nodes"])
-    print(f"  Total arbitrations: {total_arbs}")
+    total_arbs = sum(n["encounter_count"] for n in data["nodes"])
+    print(f"  Total encounters: {total_arbs}")
 
 
 # ---------------------------------------------------------------------------
@@ -665,7 +665,7 @@ def _step1_generate_graph(
                 sys.exit(1)
             continue
 
-        errors = validate_graph(data["nodes"], data["start_node_id"], expected_node_count=args.nodes)
+        errors = validate_graph(data["nodes"], data["start_waypoint_id"], expected_node_count=args.nodes)
         if errors:
             print(f"\nGraph validation failed (attempt {attempt}):")
             for e in errors:
@@ -700,7 +700,7 @@ def main() -> None:
     parser.add_argument("--nodes", type=int, default=6, metavar="N",
                         help="Exact number of nodes to generate (default: 6)")
     parser.add_argument("--out", default=None, metavar="NAME",
-                        help="Output filename stem (default: campaign_id from model)")
+                        help="Output filename stem (default: saga_id from model)")
     parser.add_argument("--lang", choices=["en", "zh"], default="en",
                         help="Language for narrative text (default: en)")
     parser.add_argument(
@@ -775,7 +775,7 @@ def main() -> None:
 
     print_graph(data)
 
-    out_name = args.out or data["campaign_id"]
+    out_name = args.out or data["saga_id"]
     generation_context = {
         "theme":          args.theme,
         "language":       args.lang,
@@ -793,11 +793,11 @@ def main() -> None:
     if not args.skip_t1_cache:
         generate_t1_cache_table_step(data, node_count, args.lang, anthropic_key)
 
-    print(f"\nCAMPAIGN_ID={data['campaign_id']}")
+    print(f"\nCAMPAIGN_ID={data['saga_id']}")
     print(f"CAMPAIGN_PATH={out_path}")
-    campaign_id = data['campaign_id']
+    saga_id = data['saga_id']
     print(f"\nTo play:")
-    print(f"  ./loombound run --campaign {campaign_id} --lang {args.lang}")
+    print(f"  ./loombound run --campaign {saga_id} --lang {args.lang}")
 
 
 if __name__ == "__main__":

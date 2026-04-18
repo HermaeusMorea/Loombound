@@ -1,19 +1,19 @@
 import json
 
-from src.t2.memory.m2_store import M2Store
+from src.t2.memory.a2_store import A2Store
 
 
-def test_m2_store_loads_node_keyed_t1_cache_table(tmp_path) -> None:
-    path = tmp_path / "t1_cache_table.json"
+def test_m2_store_loads_node_keyed_a1_cache_table(tmp_path) -> None:
+    path = tmp_path / "a1_cache_table.json"
     path.write_text(
         json.dumps(
             [
                 {
-                    "node_id": "ruined_market",
-                    "node_type": "market",
+                    "waypoint_id": "ruined_market",
+                    "waypoint_type": "market",
                     "label": "Ruined Market",
                     "map_blurb": "Ash merchants linger under torn awnings.",
-                    "arbitrations": [
+                    "encounters": [
                         {
                             "scene_type": "market",
                             "scene_concept": "A half-collapsed bazaar still trades in embers.",
@@ -34,11 +34,11 @@ def test_m2_store_loads_node_keyed_t1_cache_table(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    store = M2Store()
-    store.load_t1_cache_table(path)
+    store = A2Store()
+    store.load_a1_cache_table(path)
 
-    node = store.lookup_node("ruined_market")
+    node = store.lookup_waypoint("ruined_market")
     assert node is not None
-    assert node.node_type == "market"
-    assert node.arbitrations[0].scene_type == "market"
-    assert node.arbitrations[0].options[0]["option_id"] == "buy_ember_salt"
+    assert node.waypoint_type == "market"
+    assert node.encounters[0].scene_type == "market"
+    assert node.encounters[0].options[0]["option_id"] == "buy_ember_salt"

@@ -1,13 +1,13 @@
-"""Evaluate which rule templates are eligible for one arbitration."""
+"""Evaluate which rule templates are eligible for one encounter."""
 
 from __future__ import annotations
 
 from src.t0.memory import RuleEvaluation, RuleTemplate
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
 def evaluate_rule(
-    arbitration: Arbitration,
+    encounter: Encounter,
     rule: RuleTemplate,
     theme_scores: dict[str, float],
 ) -> RuleEvaluation:
@@ -15,13 +15,13 @@ def evaluate_rule(
     # the explanation of why it matched or failed.
     reasons: list[str] = []
 
-    if arbitration.context.scene_type not in rule.decision_types:
+    if encounter.context.scene_type not in rule.decision_types:
         return RuleEvaluation(rule=rule, matched=False, reasons=["decision_type_mismatch"], theme_score=0.0)
 
     if rule.required_context_tags:
         # Context tags act as coarse scene markers, e.g. "branching_path" or
         # "temptation". They let rules say "I only belong in this sort of room".
-        missing_tags = [tag for tag in rule.required_context_tags if tag not in arbitration.context.tags]
+        missing_tags = [tag for tag in rule.required_context_tags if tag not in encounter.context.tags]
         if missing_tags:
             return RuleEvaluation(
                 rule=rule,
@@ -31,9 +31,9 @@ def evaluate_rule(
             )
         reasons.append("context_tags_matched")
 
-    health = int(arbitration.context.resources.get("health") or 0)
-    money = int(arbitration.context.resources.get("money") or 0)
-    sanity = int(arbitration.context.resources.get("sanity") or 0)
+    health = int(encounter.context.resources.get("health") or 0)
+    money = int(encounter.context.resources.get("money") or 0)
+    sanity = int(encounter.context.resources.get("sanity") or 0)
 
     # Numeric bounds are the first prototype's main trigger language.
     if rule.min_health is not None and health < rule.min_health:
@@ -59,13 +59,13 @@ def evaluate_rule(
 
 
 def evaluate_rules(
-    arbitration: Arbitration,
+    encounter: Encounter,
     rules: list[RuleTemplate],
     theme_scores: dict[str, float],
 ) -> list[RuleEvaluation]:
     # Keep evaluation and selection separate: first ask "what is eligible?",
     # then ask "which eligible rule should win?"
-    return [evaluate_rule(arbitration=arbitration, rule=rule, theme_scores=theme_scores) for rule in rules]
+    return [evaluate_rule(encounter=encounter, rule=rule, theme_scores=theme_scores) for rule in rules]
 
 
 # TODO: Support explicit exception clauses and conflict metadata on rules.

@@ -4,28 +4,28 @@ from __future__ import annotations
 
 from typing import Any
 
-from .types import NodeChoiceRecord, NodeEvent, NodeMemory, ShockRecord
+from .types import WaypointChoiceRecord, NodeEvent, WaypointMemory, ShockRecord
 
 
-def append_node_event(node_memory: NodeMemory, event_type: str, **payload: Any) -> None:
+def append_node_event(node_memory: WaypointMemory, event_type: str, **payload: Any) -> None:
     """Append one structured lifecycle event to the active node memory."""
 
     node_memory.events.append(NodeEvent(event_type=event_type, payload=payload))
 
 
 def record_choice(
-    node_memory: NodeMemory,
+    node_memory: WaypointMemory,
     *,
-    arbitration: Any,
+    encounter: Any,
     selected_rule_id: str | None,
     selected_rule_theme: str | None,
     selected_result: Any,
 ) -> None:
-    """Persist one resolved arbitration choice into node-local memory."""
+    """Persist one resolved encounter choice into node-local memory."""
 
     local_flags: list[str] = []
     joined_reasons = " ".join(selected_result.reasons)
-    if selected_result.verdict == "destabilizing":
+    if selected_result.toll == "destabilizing":
         local_flags.append("took_destabilizing_option")
     if "safe" in joined_reasons:
         local_flags.append("chose_safe_option")
@@ -33,24 +33,24 @@ def record_choice(
         local_flags.append("chose_greedy_option")
 
     node_memory.choices_made.append(
-        NodeChoiceRecord(
-            context_id=arbitration.context.context_id,
-            scene_type=arbitration.context.scene_type,
+        WaypointChoiceRecord(
+            context_id=encounter.context.context_id,
+            scene_type=encounter.context.scene_type,
             active_rule_id=selected_rule_id,
             active_rule_theme=selected_rule_theme,
             player_choice=selected_result.option_id,
-            destabilized=selected_result.verdict == "destabilizing",
+            destabilized=selected_result.toll == "destabilizing",
             sanity_delta=selected_result.sanity_cost,
             local_flags=local_flags,
         )
     )
 
-    if selected_result.verdict == "destabilizing":
+    if selected_result.toll == "destabilizing":
         node_memory.shocks_in_node.append(
             ShockRecord(
-                context_id=arbitration.context.context_id,
+                context_id=encounter.context.context_id,
                 rule_id=selected_rule_id,
-                scene_type=arbitration.context.scene_type,
+                scene_type=encounter.context.scene_type,
                 option_id=selected_result.option_id,
                 flags=local_flags.copy(),
                 sanity_delta=selected_result.sanity_cost,

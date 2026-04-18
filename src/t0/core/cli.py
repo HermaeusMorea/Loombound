@@ -287,28 +287,28 @@ def render_run_intro(campaign: dict[str, Any]) -> None:
     )
 
 
-def render_node_header(run: Any, campaign_node: dict[str, Any]) -> None:
+def render_node_header(run: Any, saga_waypoint: dict[str, Any]) -> None:
     """Render the active node header and map blurb."""
 
     _clear_screen()
     width = min(_screen_width(), 110)
-    print(_hud_bar(run, "Entering Node", campaign_node["label"]))
+    print(_hud_bar(run, "Entering Node", saga_waypoint["label"]))
     print()
-    print(_box(campaign_node["label"], [campaign_node["map_blurb"]], width=width, color=FG_BLUE))
+    print(_box(saga_waypoint["label"], [saga_waypoint["map_blurb"]], width=width, color=FG_BLUE))
 
 
 def render_state_panel(run: Any) -> None:
     """Render the current visible state block for the player."""
 
     width = min(44, max(34, _screen_width() // 3))
-    conditions = ", ".join(run.meta_state.active_conditions) or "none"
+    conditions = ", ".join(run.meta_state.active_marks) or "none"
     major_events = run.meta_state.metadata.get("major_events", [])
     lines = [
         f"{FG_GREEN}Health{RESET}: {run.core_state.health}/{run.core_state.max_health}",
         f"{FG_YELLOW}Money{RESET}: {run.core_state.money}",
         f"{FG_MAGENTA}Sanity{RESET}: {run.core_state.sanity}",
         "",
-        f"{FG_CYAN}Conditions{RESET}: {conditions}",
+        f"{FG_CYAN}Marks{RESET}: {conditions}",
     ]
     if major_events:
         lines.extend(["", f"{FG_WHITE}Recent Events{RESET}:"])
@@ -316,15 +316,15 @@ def render_state_panel(run: Any) -> None:
     print(_box("State", lines, width=width, color=FG_CYAN))
 
 
-def render_arbitration_view(run: Any, arbitration: Any, selected_rule: Any) -> None:
-    """Render the current arbitration scene and the state panel."""
+def render_arbitration_view(run: Any, encounter: Any, selected_rule: Any) -> None:
+    """Render the current encounter scene and the state panel."""
 
     _clear_screen()
     width = _screen_width()
     is_narrow = width < 96
     state_width = min(44, max(34, width - 2 if is_narrow else width // 3))
     scene_width = min(width - 2 if is_narrow else width - state_width - 2, 88)
-    print(_hud_bar(run, "Arbitration", arbitration.context.scene_type))
+    print(_hud_bar(run, "Encounter", encounter.context.scene_type))
     print()
 
     state_lines = [
@@ -332,7 +332,7 @@ def render_arbitration_view(run: Any, arbitration: Any, selected_rule: Any) -> N
         f"{FG_YELLOW}Money{RESET}: {run.core_state.money}",
         f"{FG_MAGENTA}Sanity{RESET}: {run.core_state.sanity}",
         "",
-        f"{FG_CYAN}Conditions{RESET}: {', '.join(run.meta_state.active_conditions) or 'none'}",
+        f"{FG_CYAN}Marks{RESET}: {', '.join(run.meta_state.active_marks) or 'none'}",
     ]
     major_events = run.meta_state.metadata.get("major_events", [])
     if major_events:
@@ -340,24 +340,24 @@ def render_arbitration_view(run: Any, arbitration: Any, selected_rule: Any) -> N
         state_lines.extend(f"- {item}" for item in major_events[-3:])
 
     scene_lines = [
-        arbitration.context.metadata.get("scene_summary", arbitration.context.context_id),
+        encounter.context.metadata.get("scene_summary", encounter.context.context_id),
         "",
-        arbitration.context.metadata.get("sanity_question", ""),
+        encounter.context.metadata.get("sanity_question", ""),
         "",
-        f"{FG_BLUE}Scene Type{RESET}: {arbitration.context.scene_type}",
+        f"{FG_BLUE}Scene Type{RESET}: {encounter.context.scene_type}",
         f"{FG_RED}Pressure Rule{RESET}: {selected_rule.name if selected_rule else 'none'}",
     ]
     print(
         _columns_or_stack(
             _box("State", state_lines, width=state_width, color=FG_CYAN),
-            _box("Arbitration", scene_lines, width=scene_width, color=FG_BLUE),
+            _box("Encounter", scene_lines, width=scene_width, color=FG_BLUE),
             width=width,
         )
     )
 
 
 def render_choices(option_results: list[Any]) -> None:
-    """Render numbered option results for the current arbitration."""
+    """Render numbered option results for the current encounter."""
 
     width = min(_screen_width(), 110)
     lines: list[str] = []
@@ -392,7 +392,7 @@ def render_result(run: Any, chosen_result: Any, narration: Any, applied_notes: l
         f"{FG_YELLOW}Money{RESET}: {run.core_state.money}",
         f"{FG_MAGENTA}Sanity{RESET}: {run.core_state.sanity}",
         "",
-        f"{FG_CYAN}Conditions{RESET}: {', '.join(run.meta_state.active_conditions) or 'none'}",
+        f"{FG_CYAN}Marks{RESET}: {', '.join(run.meta_state.active_marks) or 'none'}",
     ]
 
     result_lines = [
@@ -435,7 +435,7 @@ def render_run_complete(run: Any) -> None:
         f"{FG_YELLOW}Money{RESET}: {run.core_state.money}",
         f"{FG_MAGENTA}Sanity{RESET}: {run.core_state.sanity}",
         "",
-        f"{FG_CYAN}Final Conditions{RESET}: {', '.join(run.meta_state.active_conditions) or 'none'}",
+        f"{FG_CYAN}Final Marks{RESET}: {', '.join(run.meta_state.active_marks) or 'none'}",
     ]
     major_events = run.meta_state.metadata.get("major_events", [])
     if major_events:

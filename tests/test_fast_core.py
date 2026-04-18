@@ -15,7 +15,7 @@ from src.t1.core.fast_core import (
     _build_prompt,
     _template_fallback,
 )
-from src.t2.core.types import ArbitrationOptionSeed, ArbitrationSeed
+from src.t2.core.types import EncounterOptionSeed, EncounterSeed
 from src.t0.core import validate_arbitration_asset
 
 
@@ -23,9 +23,9 @@ from src.t0.core import validate_arbitration_asset
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def _seed(n_options: int = 2) -> ArbitrationSeed:
+def _seed(n_options: int = 2) -> EncounterSeed:
     options = [
-        ArbitrationOptionSeed(
+        EncounterOptionSeed(
             option_id=f"opt_{i}",
             intent=f"Do thing {i}",
             tags=["tag_a"],
@@ -33,7 +33,7 @@ def _seed(n_options: int = 2) -> ArbitrationSeed:
         )
         for i in range(n_options)
     ]
-    return ArbitrationSeed(
+    return EncounterSeed(
         scene_type="crossroads",
         scene_concept="A flooded corridor with two exits",
         sanity_axis="Safety vs speed when sanity is low",
@@ -43,7 +43,7 @@ def _seed(n_options: int = 2) -> ArbitrationSeed:
 
 
 def _state() -> CoreStateView:
-    return CoreStateView(floor=2, act=1, health=8, max_health=10, money=5, sanity=9)
+    return CoreStateView(depth=2, act=1, health=8, max_health=10, money=5, sanity=9)
 
 
 # ---------------------------------------------------------------------------
@@ -73,9 +73,9 @@ def test_build_prompt_contains_tendency():
     assert "rising" in prompt
 
 
-def test_build_prompt_includes_floor_and_act():
+def test_build_prompt_includes_depth_and_act():
     prompt = _build_prompt(_seed(), _state())
-    assert "Floor: 2" in prompt
+    assert "Depth: 2" in prompt
     assert "Act: 1" in prompt
 
 
@@ -131,12 +131,12 @@ def test_assemble_add_events_str_coerced_to_list():
 
 
 def test_assemble_numeric_effects_copied_from_seed():
-    seed = ArbitrationSeed(
+    seed = EncounterSeed(
         scene_type="market",
         scene_concept="c",
         sanity_axis="s",
         options=[
-            ArbitrationOptionSeed(
+            EncounterOptionSeed(
                 option_id="opt_a",
                 intent="buy",
                 effects={"health_delta": 3, "money_delta": -5, "sanity_delta": 0},
@@ -155,16 +155,16 @@ def test_assemble_numeric_effects_copied_from_seed():
     assert "sanity_delta" not in eff  # zero values excluded
 
 
-def test_assemble_add_conditions_preserved():
-    seed = ArbitrationSeed(
+def test_assemble_add_marks_preserved():
+    seed = EncounterSeed(
         scene_type="ritual",
         scene_concept="c",
         sanity_axis="s",
         options=[
-            ArbitrationOptionSeed(
+            EncounterOptionSeed(
                 option_id="opt_b",
                 intent="drink",
-                effects={"add_conditions": ["cursed", "wet"]},
+                effects={"add_marks": ["cursed", "wet"]},
             )
         ],
     )
@@ -175,7 +175,7 @@ def test_assemble_add_conditions_preserved():
     }
     result = _assemble(seed, expanded, _state(), "arb_z")
     eff = result["options"][0]["metadata"]["effects"]
-    assert eff["add_conditions"] == ["cursed", "wet"]
+    assert eff["add_marks"] == ["cursed", "wet"]
 
 
 def test_assemble_output_passes_validate_arbitration_asset():
@@ -233,7 +233,7 @@ def test_expand_falls_back_to_template_on_http_error():
     ):
         payload, usage = asyncio.run(expander.expand(seed, state, "arb_fallback"))
 
-    # Fallback must still produce a valid arbitration
+    # Fallback must still produce a valid encounter
     validate_arbitration_asset(payload)
     # Labels come from intent when ollama is unavailable
     assert payload["options"][0]["label"] == seed.options[0].intent

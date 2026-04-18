@@ -2,7 +2,7 @@
 
 Called after each player choice to:
   1. Classify the current arc state → best-fit T2 cache entry_id
-  2. Assign per-option effect values for the NEXT arbitration in the current node
+  2. Assign per-option effect values for the NEXT encounter in the current node
 
 Cache structure (Anthropic prompt-cache prefix):
   system    — arc classification guide       ~3,000 tokens  (global, cached)
@@ -151,9 +151,9 @@ Step 6. Scan the T2 cache for the entry whose four fields most closely match you
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 JOB 2 — EFFECT ASSIGNMENT
-You will be told which specific arbitration comes next: node_id + arb_index.
-Look up that arbitration in Table C (per-campaign option structure).
-Assign h/m/s integer values for every option in THAT ONE arbitration only.
+You will be told which specific encounter comes next: node_id + arb_index.
+Look up that encounter in Table C (per-campaign option structure).
+Assign h/m/s integer values for every option in THAT ONE encounter only.
 
 Effect fields:
   h  health_delta   — typically -10 to +5.  Negative = injury, illness, exhaustion.
@@ -167,10 +167,10 @@ with large negative deltas, or destabilizing to an option with net positive delt
 
 Calibration rules:
 - Scale magnitude to current world_pressure: low → small values, critical → large negatives.
-- Every arbitration must have at least one option with meaningfully different risk than others.
+- Every encounter must have at least one option with meaningfully different risk than others.
 - 0 is valid (no effect on that stat).
 - Positive values should feel earned — recovery, reward, relief.
-- If no next arbitration is specified, output an empty effects list.
+- If no next encounter is specified, output an empty effects list.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -187,30 +187,30 @@ class M2ClassifierConfig:
 
 
 class M2Classifier:
-    """Classifies current game arc state and assigns per-option effects for the next arbitration.
+    """Classifies current game arc state and assigns per-option effects for the next encounter.
 
-    Called once per player choice (after each arbitration completes). The call is
-    fire-and-forget — results are consumed before the next arbitration is displayed.
+    Called once per player choice (after each encounter completes). The call is
+    fire-and-forget — results are consumed before the next encounter is displayed.
     """
 
     def __init__(
         self,
         config: M2ClassifierConfig | None = None,
-        t2_cache_table_json: str = "[]",
-        t1_cache_table_index_json: str = "",
-        verdict_dict_json: str = "",
+        a2_cache_table_json: str = "[]",
+        a1_cache_table_index_json: str = "",
+        toll_lexicon_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
-        self._t2_cache_table_json = t2_cache_table_json
-        self._t1_cache_table_index_json = t1_cache_table_index_json
-        self._verdict_dict_json = verdict_dict_json
+        self._a2_cache_table_json = a2_cache_table_json
+        self._a1_cache_table_index_json = a1_cache_table_index_json
+        self._toll_lexicon_json = toll_lexicon_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
             "name": "select_arc_and_effects",
             "description": (
                 "Select the best-matching T2 cache arc state and assign per-option "
-                "gameplay effect values for the specified next arbitration."
+                "gameplay effect values for the specified next encounter."
             ),
             "input_schema": {
                 "type": "object",
@@ -226,7 +226,7 @@ class M2Classifier:
                         "type": "array",
                         "description": (
                             "Per-option effect values for every option in the specified "
-                            "next arbitration. Empty array if no next arbitration was given."
+                            "next encounter. Empty array if no next encounter was given."
                         ),
                         "items": {
                             "type": "object",
@@ -237,7 +237,7 @@ class M2Classifier:
                                 },
                                 "v": {
                                     "type": "string",
-                                    "description": "verdict id from the campaign verdict dictionary. Assign this first, then set h/m/s consistent with it.",
+                                    "description": "toll id from the saga toll lexicon. Assign this first, then set h/m/s consistent with it.",
                                 },
                                 "h": {"type": "integer", "description": "health_delta"},
                                 "m": {"type": "integer", "description": "money_delta"},
@@ -259,20 +259,20 @@ class M2Classifier:
         blocks: list[dict] = [
             {
                 "type": "text",
-                "text": f"T2 cache (arc state catalogue):\n{self._t2_cache_table_json}",
+                "text": f"T2 cache (arc state catalogue):\n{self._a2_cache_table_json}",
                 "cache_control": {"type": "ephemeral"},
             },
         ]
-        if self._t1_cache_table_index_json:
+        if self._a1_cache_table_index_json:
             verdict_suffix = (
-                f"\n\nVerdict dictionary for this campaign:\n{self._verdict_dict_json}"
-                if self._verdict_dict_json else ""
+                f"\n\nToll lexicon for this saga:\n{self._toll_lexicon_json}"
+                if self._toll_lexicon_json else ""
             )
             blocks.append({
                 "type": "text",
                 "text": (
                     f"T1 option index (node option structure for this campaign, no effect values):\n"
-                    f"{self._t1_cache_table_index_json}{verdict_suffix}"
+                    f"{self._a1_cache_table_index_json}{verdict_suffix}"
                 ),
                 "cache_control": {"type": "ephemeral"},
             })
@@ -293,7 +293,7 @@ class M2Classifier:
                     "health_delta": int(item["h"]),
                     "money_delta":  int(item["m"]),
                     "sanity_delta": int(item["s"]),
-                    "verdict":      v,
+                    "toll":         v,
                 }
             return entry_id, effects_map
         except (KeyError, TypeError, ValueError):
@@ -305,11 +305,11 @@ class M2Classifier:
         next_node_id: str | None = None,
         next_arb_idx: int | None = None,
     ) -> tuple[int, dict[str, dict], dict[str, int]]:
-        """Classify arc state and assign effects + verdicts for the next arbitration.
+        """Classify arc state and assign effects + verdicts for the next encounter.
 
         Retries up to 2 times if the response fails format validation.
         Returns (entry_id, effects_map, usage). effects_map is empty when no
-        next arbitration is specified or all retries are exhausted.
+        next encounter is specified or all retries are exhausted.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
@@ -319,7 +319,7 @@ class M2Classifier:
         arb_hint = (
             f"\n\nAssign effects for: node_id={next_node_id}, arb_index={next_arb_idx}"
             if needs_effects else
-            "\n\nNo next arbitration — output empty effects list."
+            "\n\nNo next encounter — output empty effects list."
         )
 
         user_blocks = self._build_user_blocks()
@@ -371,11 +371,11 @@ class M2Classifier:
                     return _NO_MATCH_ID, {}, _empty_usage
             return _NO_MATCH_ID, {}, _empty_usage
 
-    def update_t2_cache_table(self, t2_cache_table_json: str) -> None:
+    def update_a2_cache_table(self, a2_cache_table_json: str) -> None:
         """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
-        self._t2_cache_table_json = t2_cache_table_json
+        self._a2_cache_table_json = a2_cache_table_json
 
-    def update_t1_cache_table_index(self, t1_cache_table_index_json: str, verdict_dict_json: str = "") -> None:
-        """Replace the T1 option index JSON and verdict dict (e.g. after campaign switch)."""
-        self._t1_cache_table_index_json = t1_cache_table_index_json
-        self._verdict_dict_json = verdict_dict_json
+    def update_a1_cache_table_index(self, a1_cache_table_index_json: str, toll_lexicon_json: str = "") -> None:
+        """Replace the A1 option index JSON and toll lexicon (e.g. after saga switch)."""
+        self._a1_cache_table_index_json = a1_cache_table_index_json
+        self._toll_lexicon_json = toll_lexicon_json

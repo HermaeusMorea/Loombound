@@ -21,7 +21,7 @@ class RuleSystem:
         self.templates = list(templates)
 
     def record_selected_rule(self, rule_id: str | None) -> None:
-        """Track global rule usage after one arbitration finishes."""
+        """Track global rule usage after one encounter finishes."""
 
         if not rule_id:
             return
@@ -31,7 +31,7 @@ class RuleSystem:
 
 
 @dataclass(slots=True)
-class NodeRuleState:
+class WaypointRuleState:
     """Node-scoped rule state for one scene lifecycle."""
 
     available_rule_ids: list[str] = field(default_factory=list)
@@ -40,14 +40,14 @@ class NodeRuleState:
     selection_trace: list[str] = field(default_factory=list)
 
     def reset_for_arbitration(self) -> None:
-        """Clear per-arbitration fields while keeping node-level availability."""
+        """Clear per-encounter fields while keeping node-level availability."""
 
         self.candidate_rule_ids = []
         self.selected_rule_id = None
         self.selection_trace = []
 
     def record_evaluations(self, evaluations: list[RuleEvaluation]) -> None:
-        """Store matched candidate rule ids for this arbitration pass."""
+        """Store matched candidate rule ids for this encounter pass."""
 
         self.candidate_rule_ids = [item.rule.id for item in evaluations if item.matched]
 

@@ -3,7 +3,7 @@
   "context": {
     "context_id": "market_01",
     "scene_type": "market_offer",
-    "floor": 5,
+    "depth": 5,
     "act": 1,
     "resources": {
       "health": 5,
@@ -26,7 +26,7 @@
         "cost": 2,
         "effects": {
           "money_delta": -2,
-          "add_conditions": ["lamp_oil"],
+          "add_marks": ["lamp_oil"],
           "add_events": ["You left with oil, rations, and one less reason to panic in the dark."]
         }
       }
@@ -40,7 +40,7 @@
         "effects": {
           "money_delta": -3,
           "sanity_delta": -1,
-          "add_conditions": ["velvet_idol"],
+          "add_marks": ["velvet_idol"],
           "add_events": ["The idol now sits in your pocket, humming whenever you think of sleep."]
         }
       }

@@ -2,7 +2,7 @@
 
 from .enforcement import enforce_rule
 from .effects import apply_option_effects
-from .rule_state import NodeRuleState, RuleSystem
+from .rule_state import WaypointRuleState, RuleSystem
 from .signals import build_signals
 from .theme_scorer import score_themes
 from .context_builder import (
@@ -12,7 +12,7 @@ from .context_builder import (
 
 __all__ = [
     "enforce_rule", "apply_option_effects",
-    "NodeRuleState", "RuleSystem",
+    "WaypointRuleState", "RuleSystem",
     "build_signals", "score_themes",
     "AssetValidationError", "load_arbitration", "load_json_asset",
     "validate_arbitration_asset", "validate_node_asset",

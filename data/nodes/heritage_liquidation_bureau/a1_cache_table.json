@@ -1,10 +1,10 @@
 [
   {
-    "node_id": "outpost_checkpoint",
-    "node_type": "threshold",
+    "waypoint_id": "outpost_checkpoint",
+    "waypoint_type": "threshold",
     "label": "废墟区检查站",
     "map_blurb": "清算局在废墟边缘设立的最后一个官方检查站，铁皮屋顶上插着一面褪色到几乎全白的国旗。一台手摇发报机仍在忠实地向总局发送\"一切正常\"的信号。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "threshold",
         "scene_concept": "你通过检查站的木制栅栏，年迈的守卫正在用生锈的戳子在一份清单上盖章。他的制服袖口露出了用布条包扎的伤口——可能是上月的放射线烫伤。",
@@ -22,7 +22,7 @@
               "money_delta": 50,
               "sanity_delta": -15,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "official_record_expanded"
               ]
             }
@@ -39,7 +39,7 @@
               "money_delta": 0,
               "sanity_delta": 10,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "checkpoint_passed_quietly"
               ]
             }
@@ -63,7 +63,7 @@
               "money_delta": 0,
               "sanity_delta": -10,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "radio_maintenance_logged"
               ]
             }
@@ -80,7 +80,7 @@
               "money_delta": 0,
               "sanity_delta": 15,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "guardian_resentment"
               ]
             }
@@ -90,11 +90,11 @@
     ]
   },
   {
-    "node_id": "scrap_market",
-    "node_type": "market",
+    "waypoint_id": "scrap_market",
+    "waypoint_type": "market",
     "label": "拾荒者黑市",
     "map_blurb": "用废旧汽车壳搭建的露天集市，瓶盖是硬通货，干净的水比子弹更值钱。这里的每一笔交易理论上都应缴纳增值税——理论上。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "market",
         "scene_concept": "一个戴着自制防护面罩的商贩在用弹壳制成的天平秤量回收的铜线。他告诉你，这里每天都有人用假瓶盖试图进行黑市交易。",
@@ -112,7 +112,7 @@
               "money_delta": 120,
               "sanity_delta": -20,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "market_resentment"
               ]
             }
@@ -129,7 +129,7 @@
               "money_delta": 40,
               "sanity_delta": 5,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "market_alliance"
               ]
             }
@@ -153,7 +153,7 @@
               "money_delta": 80,
               "sanity_delta": -25,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "community_hostility"
               ]
             }
@@ -170,7 +170,7 @@
               "money_delta": 0,
               "sanity_delta": 20,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "child_encounter_avoided"
               ]
             }
@@ -180,11 +180,11 @@
     ]
   },
   {
-    "node_id": "survivors_commune",
-    "node_type": "encounter",
+    "waypoint_id": "survivors_commune",
+    "waypoint_type": "encounter",
     "label": "幸存者公社",
     "map_blurb": "一座由地铁隧道改建的地下聚落，三百余人在此繁衍生息了八代。他们有自己的法律、自己的货币，以及一种对\"外面来的制服人\"根深蒂固的敌意。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "encounter",
         "scene_concept": "地铁隧道的大厅里，约两百人围坐成半圆形。一个年长的女性坐在自制的木制座位上，她的衣服上用旧布条绣着一个标志——某个不属于任何官方记录的国家的徽章。",
@@ -202,7 +202,7 @@
               "money_delta": 200,
               "sanity_delta": -30,
               "health_delta": -5,
-              "add_conditions": [
+              "add_marks": [
                 "commune_rebellion_triggered"
               ]
             }
@@ -219,7 +219,7 @@
               "money_delta": 60,
               "sanity_delta": 10,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "commune_ally_gained"
               ]
             }
@@ -236,7 +236,7 @@
               "money_delta": 0,
               "sanity_delta": 15,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "commune_report_falsified"
               ]
             }
@@ -260,7 +260,7 @@
               "money_delta": 150,
               "sanity_delta": -35,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "commune_records_seized"
               ]
             }
@@ -277,7 +277,7 @@
               "money_delta": 40,
               "sanity_delta": 25,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "commune_autonomy_granted"
               ]
             }
@@ -301,7 +301,7 @@
               "money_delta": 0,
               "sanity_delta": -20,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "youth_alienation"
               ]
             }
@@ -318,7 +318,7 @@
               "money_delta": 0,
               "sanity_delta": 30,
               "health_delta": 0,
-              "add_conditions": [
+              "add_marks": [
                 "auditor_conscience_awakened"
               ]
             }
@@ -328,11 +328,11 @@
     ]
   },
   {
-    "node_id": "tax_archive",
-    "node_type": "archive",
+    "waypoint_id": "tax_archive",
+    "waypoint_type": "archive",
     "label": "区税务档案馆",
     "map_blurb": "半塌的混凝土建筑深处，数以万计的纸质档案在辐射中奇迹般保存了下来。每一份都记录着两百年前某个公民的纳税义务——以及他们后代至今未清的欠款。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "archive",
         "scene_concept": "你在倒塌的混凝土架构间踟蹰，手电筒光束扫过成千上万的发黄档案。纸张在辐射尘埃中奇迹般保存，每一份都用褪色的墨迹记录着两百年前的纳税义务与血统——以及那些早已尘埃的欠债者的名字。",
@@ -350,7 +350,7 @@
               "health_delta": -5,
               "money_delta": 0,
               "sanity_delta": 10,
-              "add_conditions": [
+              "add_marks": [
                 "档案复原",
                 "秩序之光"
               ]
@@ -368,7 +368,7 @@
               "health_delta": 0,
               "money_delta": 15,
               "sanity_delta": -8,
-              "add_conditions": [
+              "add_marks": [
                 "优先名单"
               ]
             }
@@ -392,7 +392,7 @@
               "health_delta": -8,
               "money_delta": 0,
               "sanity_delta": 5,
-              "add_conditions": [
+              "add_marks": [
                 "遗恨记录"
               ]
             }
@@ -409,7 +409,7 @@
               "health_delta": 0,
               "money_delta": 5,
               "sanity_delta": -12,
-              "add_conditions": [
+              "add_marks": [
                 "纸灰之味"
               ]
             }
@@ -419,11 +419,11 @@
     ]
   },
   {
-    "node_id": "campfire_ruins",
-    "node_type": "rest",
+    "waypoint_id": "campfire_ruins",
+    "waypoint_type": "rest",
     "label": "废墟中的篝火",
     "map_blurb": "一栋倒塌的税务大楼前，有人用公文纸生了一堆火。你可以在这里短暂休息，用税单的背面记录今天的见闻，或者干脆把它们也扔进火里。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "rest",
         "scene_concept": "倒塌的税务大楼前，有人用过期的税单与公文纸点起了篝火。火焰舔舐着泛黄的纸页，字迹在热浪中扭曲消融。你可以在这里停留，用税单背面记录或思考，或干脆加把柴。",
@@ -441,7 +441,7 @@
               "health_delta": 8,
               "money_delta": 0,
               "sanity_delta": 3,
-              "add_conditions": [
+              "add_marks": [
                 "日志碎片"
               ]
             }
@@ -458,7 +458,7 @@
               "health_delta": 12,
               "money_delta": -3,
               "sanity_delta": -5,
-              "add_conditions": [
+              "add_marks": [
                 "火焰宽恕"
               ]
             }
@@ -468,11 +468,11 @@
     ]
   },
   {
-    "node_id": "final_audit",
-    "node_type": "ritual",
+    "waypoint_id": "final_audit",
+    "waypoint_type": "ritual",
     "label": "最终审计",
     "map_blurb": "废墟深处最大的定居点，一位自称\"区长\"的老人统治着上千名幸存者。你的税单上写着：此区累计欠税两百年，含滞纳金共计——一个已经没有任何意义的天文数字。",
-    "arbitrations": [
+    "encounters": [
       {
         "scene_type": "ritual",
         "scene_concept": "废墟深处最大的定居点，几百人在破旧的石墙与帐篷中活动。一位穿着整洁但补丁众多的老人坐在用弹壳与木料搭建的'行政办公室'中，等待着这位编号丁-0937的审计员。他知道来者的目的。",
@@ -490,7 +490,7 @@
               "health_delta": -10,
               "money_delta": 0,
               "sanity_delta": -15,
-              "add_conditions": [
+              "add_marks": [
                 "最终公文",
                 "制度破碎"
               ]
@@ -508,7 +508,7 @@
               "health_delta": 5,
               "money_delta": 10,
               "sanity_delta": -8,
-              "add_conditions": [
+              "add_marks": [
                 "非正式结算"
               ]
             }
@@ -525,7 +525,7 @@
               "health_delta": 15,
               "money_delta": -20,
               "sanity_delta": 12,
-              "add_conditions": [
+              "add_marks": [
                 "赦免宣言",
                 "制度逃离"
               ]
@@ -550,7 +550,7 @@
               "health_delta": 0,
               "money_delta": 5,
               "sanity_delta": -10,
-              "add_conditions": [
+              "add_marks": [
                 "本地确认"
               ]
             }
@@ -567,7 +567,7 @@
               "health_delta": -5,
               "money_delta": 8,
               "sanity_delta": -18,
-              "add_conditions": [
+              "add_marks": [
                 "压力加倍"
               ]
             }
@@ -584,7 +584,7 @@
               "health_delta": 8,
               "money_delta": 3,
               "sanity_delta": 8,
-              "add_conditions": [
+              "add_marks": [
                 "档案统一"
               ]
             }
@@ -608,7 +608,7 @@
               "health_delta": 3,
               "money_delta": 0,
               "sanity_delta": -7,
-              "add_conditions": [
+              "add_marks": [
                 "见证者"
               ]
             }
@@ -625,7 +625,7 @@
               "health_delta": -15,
               "money_delta": 2,
               "sanity_delta": -20,
-              "add_conditions": [
+              "add_marks": [
                 "幻象破碎"
               ]
             }
@@ -642,7 +642,7 @@
               "health_delta": 10,
               "money_delta": -5,
               "sanity_delta": 15,
-              "add_conditions": [
+              "add_marks": [
                 "仪式融合"
               ]
             }

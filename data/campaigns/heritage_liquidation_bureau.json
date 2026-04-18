@@ -1,5 +1,5 @@
 {
-  "campaign_id": "heritage_liquidation_bureau",
+  "saga_id": "heritage_liquidation_bureau",
   "title": "遗产清算局：废墟审计",
   "intro": "核战结束已两百年，文明的灰烬早已冷却，但遗产清算局的印章从未停止盖落。你是编号丁-0937的外勤审计员，背着一只装满发黄税单的公文包，被派往废墟区执行\"历史欠税追征令\"。在这片被辐射与荒芜吞没的土地上，你的任务荒诞而庄严——向那些勉强活着的人，追讨一个早已不存在的国家的税款。",
   "tone": "后启示录官僚主义黑色喜剧。基调是荒诞与悲凉交织——破败的废墟中矗立着一丝不苟的公文体系，辐射尘埃落在盖满红章的税单上。视觉意象应充满锈蚀的铁皮棚屋、褪色的政府标语、用弹壳做成的算盘，以及穿着破旧但依然整洁制服的审计员。语气在冷面幽默与末世孤独之间摇摆，角色们以荒谬的认真态度对待早已失去意义的制度，而这种认真本身既可笑又令人心碎。",
@@ -8,25 +8,25 @@
     "max_health": 100,
     "money": 15,
     "sanity": 70,
-    "floor": 1,
+    "depth": 1,
     "act": 1
   },
   "initial_meta_state": {
-    "active_conditions": [],
+    "active_marks": [],
     "metadata": {
       "major_events": [],
       "traumas": []
     }
   },
-  "start_node_id": "outpost_checkpoint",
-  "nodes": {
+  "start_waypoint_id": "outpost_checkpoint",
+  "waypoints": {
     "outpost_checkpoint": {
       "label": "废墟区检查站",
       "map_blurb": "清算局在废墟边缘设立的最后一个官方检查站，铁皮屋顶上插着一面褪色到几乎全白的国旗。一台手摇发报机仍在忠实地向总局发送\"一切正常\"的信号。",
-      "node_type": "threshold",
-      "floor": 1,
+      "waypoint_type": "threshold",
+      "depth": 1,
       "arbitrations": 2,
-      "next_nodes": [
+      "next_waypoints": [
         "scrap_market",
         "survivors_commune"
       ]
@@ -34,30 +34,30 @@
     "scrap_market": {
       "label": "拾荒者黑市",
       "map_blurb": "用废旧汽车壳搭建的露天集市，瓶盖是硬通货，干净的水比子弹更值钱。这里的每一笔交易理论上都应缴纳增值税——理论上。",
-      "node_type": "market",
-      "floor": 2,
+      "waypoint_type": "market",
+      "depth": 2,
       "arbitrations": 2,
-      "next_nodes": [
+      "next_waypoints": [
         "tax_archive"
       ]
     },
     "survivors_commune": {
       "label": "幸存者公社",
       "map_blurb": "一座由地铁隧道改建的地下聚落，三百余人在此繁衍生息了八代。他们有自己的法律、自己的货币，以及一种对\"外面来的制服人\"根深蒂固的敌意。",
-      "node_type": "encounter",
-      "floor": 2,
+      "waypoint_type": "encounter",
+      "depth": 2,
       "arbitrations": 3,
-      "next_nodes": [
+      "next_waypoints": [
         "tax_archive"
       ]
     },
     "tax_archive": {
       "label": "区税务档案馆",
       "map_blurb": "半塌的混凝土建筑深处，数以万计的纸质档案在辐射中奇迹般保存了下来。每一份都记录着两百年前某个公民的纳税义务——以及他们后代至今未清的欠款。",
-      "node_type": "archive",
-      "floor": 3,
+      "waypoint_type": "archive",
+      "depth": 3,
       "arbitrations": 2,
-      "next_nodes": [
+      "next_waypoints": [
         "campfire_ruins",
         "final_audit"
       ]
@@ -65,20 +65,20 @@
     "campfire_ruins": {
       "label": "废墟中的篝火",
       "map_blurb": "一栋倒塌的税务大楼前，有人用公文纸生了一堆火。你可以在这里短暂休息，用税单的背面记录今天的见闻，或者干脆把它们也扔进火里。",
-      "node_type": "rest",
-      "floor": 4,
+      "waypoint_type": "rest",
+      "depth": 4,
       "arbitrations": 1,
-      "next_nodes": [
+      "next_waypoints": [
         "final_audit"
       ]
     },
     "final_audit": {
       "label": "最终审计",
       "map_blurb": "废墟深处最大的定居点，一位自称\"区长\"的老人统治着上千名幸存者。你的税单上写着：此区累计欠税两百年，含滞纳金共计——一个已经没有任何意义的天文数字。",
-      "node_type": "ritual",
-      "floor": 5,
+      "waypoint_type": "ritual",
+      "depth": 5,
       "arbitrations": 3,
-      "next_nodes": []
+      "next_waypoints": []
     }
   },
   "generation_context": {

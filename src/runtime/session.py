@@ -1,4 +1,4 @@
-"""Runtime-owned lifecycle objects for runs, nodes, and arbitrations."""
+"""Runtime-owned lifecycle objects for runs, nodes, and encounters."""
 
 from __future__ import annotations
 
@@ -6,57 +6,57 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 from src.t0.memory.models import (
-    ArbitrationContext,
-    ArbitrationResult,
+    EncounterContext,
+    EncounterResult,
     CoreStateView,
     MetaStateView,
-    NodeSummary,
+    WaypointSummary,
 )
-from src.t0.memory.types import NodeMemory, RunMemory
-from src.t0.core.rule_state import NodeRuleState, RuleSystem
+from src.t0.memory.types import WaypointMemory, RunMemory
+from src.t0.core.rule_state import WaypointRuleState, RuleSystem
 
 
 OwnerKind = Literal["run", "node"]
-ArbitrationStatus = Literal["pending", "evaluated", "applied"]
+EncounterStatus = Literal["pending", "evaluated", "applied"]
 
 
 @dataclass(slots=True)
-class Arbitration:
-    """A judgeable unit owned by either a Run or a Node."""
+class Encounter:
+    """A judgeable unit owned by either a Run or a Waypoint."""
 
-    arbitration_id: str
+    encounter_id: str
     owner_kind: OwnerKind
     owner_id: str
-    context: ArbitrationContext
+    context: EncounterContext
     options: list[dict[str, Any]] = field(default_factory=list)
     selected_option_id: str | None = None
-    status: ArbitrationStatus = "pending"
-    result: ArbitrationResult | None = None
+    status: EncounterStatus = "pending"
+    result: EncounterResult | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def empty_for_owner(
         cls,
         *,
-        arbitration_id: str,
+        encounter_id: str,
         owner_kind: OwnerKind,
         owner_id: str,
         scene_type: str,
-        floor: int,
+        depth: int,
         act: int = 1,
         core_state_view: CoreStateView | None = None,
         meta_state_view: MetaStateView | None = None,
-    ) -> "Arbitration":
-        """Create an empty arbitration shell owned by a Run or Node."""
+    ) -> "Encounter":
+        """Create an empty encounter shell owned by a Run or Waypoint."""
 
         return cls(
-            arbitration_id=arbitration_id,
+            encounter_id=encounter_id,
             owner_kind=owner_kind,
             owner_id=owner_id,
-            context=ArbitrationContext.empty(
-                context_id=arbitration_id,
+            context=EncounterContext.empty(
+                context_id=encounter_id,
                 scene_type=scene_type,
-                floor=floor,
+                depth=depth,
                 act=act,
                 core_state_view=core_state_view,
                 meta_state_view=meta_state_view,
@@ -70,12 +70,12 @@ class Arbitration:
         *,
         owner_kind: OwnerKind,
         owner_id: str,
-    ) -> "Arbitration":
-        """Build an arbitration from JSON shaped around context plus options."""
+    ) -> "Encounter":
+        """Build an encounter from JSON shaped around context plus options."""
 
-        context = ArbitrationContext.from_dict(payload)
+        context = EncounterContext.from_dict(payload)
         return cls(
-            arbitration_id=payload.get("arbitration_id", context.context_id),
+            encounter_id=payload.get("encounter_id", context.context_id),
             owner_kind=owner_kind,
             owner_id=owner_id,
             context=context,
@@ -84,15 +84,15 @@ class Arbitration:
         )
 
     def update_context(self, **changes: Any) -> None:
-        """Update the attached arbitration context in place."""
+        """Update the attached encounter context in place."""
 
         self.context.update(**changes)
 
     def load_from_dict(self, payload: dict[str, Any]) -> None:
-        """Populate or refresh this arbitration from a structured payload."""
+        """Populate or refresh this encounter from a structured payload."""
 
-        context = ArbitrationContext.from_dict(payload)
-        self.arbitration_id = payload.get("arbitration_id", context.context_id)
+        context = EncounterContext.from_dict(payload)
+        self.encounter_id = payload.get("encounter_id", context.context_id)
         self.context = context
         self.options = [dict(item) for item in payload.get("options", [])]
         self.metadata = payload.get("metadata", {})
@@ -101,7 +101,7 @@ class Arbitration:
         self.status = "pending"
 
     def replace_options(self, options: list[dict[str, Any]]) -> None:
-        """Replace the full option set for this arbitration."""
+        """Replace the full option set for this encounter."""
 
         self.options = [dict(item) for item in options]
         if self.selected_option_id and self.get_option(self.selected_option_id) is None:
@@ -125,10 +125,10 @@ class Arbitration:
             self.selected_option_id = None
 
     def select_option(self, option_id: str) -> None:
-        """Record the currently chosen option for this arbitration."""
+        """Record the currently chosen option for this encounter."""
 
         if self.get_option(option_id) is None:
-            raise ValueError(f"Unknown option_id '{option_id}' for arbitration '{self.arbitration_id}'.")
+            raise ValueError(f"Unknown option_id '{option_id}' for encounter '{self.encounter_id}'.")
         self.selected_option_id = option_id
 
     def get_option(self, option_id: str) -> dict[str, Any] | None:
@@ -139,103 +139,103 @@ class Arbitration:
                 return item
         return None
 
-    def set_result(self, result: ArbitrationResult) -> None:
+    def set_result(self, result: EncounterResult) -> None:
         """Attach the evaluated result produced by the deterministic pipeline."""
 
         self.result = result
         self.status = "evaluated"
 
     def mark_applied(self) -> None:
-        """Mark the arbitration as fully consumed by its owner."""
+        """Mark the encounter as fully consumed by its owner."""
 
         self.status = "applied"
 
 
 @dataclass(slots=True)
-class Node:
+class Waypoint:
     """A run-owned scene container, such as a crossroads, archive, or market."""
 
-    node_id: str
-    node_type: str
-    floor: int
+    waypoint_id: str
+    waypoint_type: str
+    depth: int
     parent_run_id: str
     entered_core_state: CoreStateView
     entered_meta_state: MetaStateView
-    memory: NodeMemory | None = None
-    rule_state: NodeRuleState | None = None
-    current_arbitration: Arbitration | None = None
-    arbitration_history: list[Arbitration] = field(default_factory=list)
+    memory: WaypointMemory | None = None
+    rule_state: WaypointRuleState | None = None
+    current_encounter: Encounter | None = None
+    encounter_history: list[Encounter] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.memory is None:
-            self.memory = NodeMemory(
-                node_id=self.node_id,
-                node_type=self.node_type,
-                floor=self.floor,
+            self.memory = WaypointMemory(
+                waypoint_id=self.waypoint_id,
+                waypoint_type=self.waypoint_type,
+                depth=self.depth,
             )
         if self.rule_state is None:
-            self.rule_state = NodeRuleState()
+            self.rule_state = WaypointRuleState()
 
-    def initialize_arbitration(self) -> Arbitration:
-        """Create the node-owned arbitration shell when entering the node."""
+    def initialize_encounter(self) -> Encounter:
+        """Create the node-owned encounter shell when entering the node."""
 
-        arbitration = Arbitration.empty_for_owner(
-            arbitration_id=f"{self.node_type}:{self.node_id}",
+        encounter = Encounter.empty_for_owner(
+            encounter_id=f"{self.waypoint_type}:{self.waypoint_id}",
             owner_kind="node",
-            owner_id=self.node_id,
-            scene_type=self.node_type,
-            floor=self.floor,
+            owner_id=self.waypoint_id,
+            scene_type=self.waypoint_type,
+            depth=self.depth,
             act=self.entered_core_state.act,
             core_state_view=self.entered_core_state,
             meta_state_view=self.entered_meta_state,
         )
-        self.current_arbitration = arbitration
-        return arbitration
+        self.current_encounter = encounter
+        return encounter
 
-    def begin_arbitration(self, arbitration: Arbitration) -> None:
-        """Attach an externally created arbitration to this node."""
+    def begin_arbitration(self, encounter: Encounter) -> None:
+        """Attach an externally created encounter to this node."""
 
-        self.current_arbitration = arbitration
+        self.current_encounter = encounter
 
-    def load_current_arbitration(self, payload: dict[str, Any]) -> Arbitration:
-        """Load scene data into the node-owned arbitration shell."""
+    def load_current_encounter(self, payload: dict[str, Any]) -> Encounter:
+        """Load scene data into the node-owned encounter shell."""
 
-        if self.current_arbitration is None:
-            self.initialize_arbitration()
-        self.current_arbitration.load_from_dict(payload)
-        self.current_arbitration.owner_kind = "node"
-        self.current_arbitration.owner_id = self.node_id
-        return self.current_arbitration
+        if self.current_encounter is None:
+            self.initialize_encounter()
+        self.current_encounter.load_from_dict(payload)
+        self.current_encounter.owner_kind = "node"
+        self.current_encounter.owner_id = self.waypoint_id
+        return self.current_encounter
 
-    def close_current_arbitration(self) -> Arbitration | None:
-        """Archive the current arbitration and clear the live slot."""
+    def close_current_encounter(self) -> Encounter | None:
+        """Archive the current encounter and clear the live slot."""
 
-        if self.current_arbitration is None:
+        if self.current_encounter is None:
             return None
-        arbitration = self.current_arbitration
-        self.arbitration_history.append(arbitration)
-        self.current_arbitration = None
-        return arbitration
+        encounter = self.current_encounter
+        self.encounter_history.append(encounter)
+        self.current_encounter = None
+        return encounter
 
-    def build_summary(self, sanity_delta: int = 0, important_flags: list[str] | None = None) -> NodeSummary:
+    def build_summary(self, sanity_delta: int = 0, important_flags: list[str] | None = None) -> WaypointSummary:
         """Build a compact node summary from accumulated node-local state."""
 
         memory = self.memory
-        arbitration_count = len(self.arbitration_history)
+        encounter_count = len(self.encounter_history)
         event_count = len(memory.events) if memory else 0
         chosen_option_ids = [item.player_choice for item in memory.choices_made if item.player_choice] if memory else []
         selected_rule_ids = [item.active_rule_id for item in memory.choices_made if item.active_rule_id] if memory else []
         shock_count = len(memory.shocks_in_node) if memory else 0
         summary_flags = important_flags or (memory.important_flags.copy() if memory else [])
         summary_sanity = sanity_delta or (memory.sanity_lost_in_node if memory else 0)
-        return NodeSummary(
-            node_id=self.node_id,
-            node_type=self.node_type,
-            floor=self.floor,
+        return WaypointSummary(
+            waypoint_id=self.waypoint_id,
+            waypoint_type=self.waypoint_type,
+            depth=self.depth,
             sanity_delta=summary_sanity,
             important_flags=summary_flags,
             metadata={
-                "arbitration_count": arbitration_count,
+                "encounter_count": encounter_count,
                 "event_count": event_count,
                 "selected_rule_ids": selected_rule_ids,
                 "chosen_option_ids": chosen_option_ids,
@@ -253,85 +253,85 @@ class Run:
     meta_state: MetaStateView
     memory: RunMemory | None = None
     rule_system: RuleSystem | None = None
-    current_node: Node | None = None
-    current_arbitration: Arbitration | None = None
-    node_history: list[NodeSummary] = field(default_factory=list)
-    arbitration_history: list[Arbitration] = field(default_factory=list)
+    current_waypoint: Waypoint | None = None
+    current_encounter: Encounter | None = None
+    waypoint_history: list[WaypointSummary] = field(default_factory=list)
+    encounter_history: list[Encounter] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.memory is None:
             self.memory = RunMemory()
         if self.rule_system is None:
             self.rule_system = RuleSystem()
-        self.initialize_arbitration()
+        self.initialize_encounter()
 
-    def initialize_arbitration(self) -> Arbitration:
-        """Create the run-owned arbitration shell when entering the run."""
+    def initialize_encounter(self) -> Encounter:
+        """Create the run-owned encounter shell when entering the run."""
 
-        arbitration = Arbitration.empty_for_owner(
-            arbitration_id=f"run:{self.run_id}",
+        encounter = Encounter.empty_for_owner(
+            encounter_id=f"run:{self.run_id}",
             owner_kind="run",
             owner_id=self.run_id,
             scene_type="run",
-            floor=self.core_state.floor,
+            depth=self.core_state.depth,
             act=self.core_state.act,
             core_state_view=replace(self.core_state),
             meta_state_view=replace(self.meta_state),
         )
-        self.current_arbitration = arbitration
-        return arbitration
+        self.current_encounter = encounter
+        return encounter
 
-    def start_node(self, node_id: str, node_type: str, floor: int, memory: NodeMemory | None = None) -> Node:
+    def start_waypoint(self, waypoint_id: str, waypoint_type: str, depth: int, memory: WaypointMemory | None = None) -> Waypoint:
         """Create and activate a node under this run."""
 
-        node = Node(
-            node_id=node_id,
-            node_type=node_type,
-            floor=floor,
+        node = Waypoint(
+            waypoint_id=waypoint_id,
+            waypoint_type=waypoint_type,
+            depth=depth,
             parent_run_id=self.run_id,
             entered_core_state=replace(self.core_state),
             entered_meta_state=replace(self.meta_state),
             memory=memory,
-            rule_state=NodeRuleState(
+            rule_state=WaypointRuleState(
                 available_rule_ids=[template.id for template in self.rule_system.templates] if self.rule_system else []
             ),
         )
-        node.initialize_arbitration()
-        self.current_node = node
+        node.initialize_encounter()
+        self.current_waypoint = node
         return node
 
-    def close_current_node(self, summary: NodeSummary | None = None) -> Node | None:
+    def close_current_waypoint(self, summary: WaypointSummary | None = None) -> Waypoint | None:
         """Archive the current node and optionally store a compact summary."""
 
-        if self.current_node is None:
+        if self.current_waypoint is None:
             return None
-        node = self.current_node
+        node = self.current_waypoint
         if summary is not None:
-            self.node_history.append(summary)
-        self.current_node = None
+            self.waypoint_history.append(summary)
+        self.current_waypoint = None
         return node
 
-    def begin_run_arbitration(self, arbitration: Arbitration) -> None:
-        """Replace the current run-owned arbitration object."""
+    def begin_run_arbitration(self, encounter: Encounter) -> None:
+        """Replace the current run-owned encounter object."""
 
-        self.current_arbitration = arbitration
+        self.current_encounter = encounter
 
-    def load_current_arbitration(self, payload: dict[str, Any]) -> Arbitration:
-        """Load run-level scene data into the run-owned arbitration shell."""
+    def load_current_encounter(self, payload: dict[str, Any]) -> Encounter:
+        """Load run-level scene data into the run-owned encounter shell."""
 
-        if self.current_arbitration is None:
-            self.initialize_arbitration()
-        self.current_arbitration.load_from_dict(payload)
-        self.current_arbitration.owner_kind = "run"
-        self.current_arbitration.owner_id = self.run_id
-        return self.current_arbitration
+        if self.current_encounter is None:
+            self.initialize_encounter()
+        self.current_encounter.load_from_dict(payload)
+        self.current_encounter.owner_kind = "run"
+        self.current_encounter.owner_id = self.run_id
+        return self.current_encounter
 
-    def close_current_arbitration(self) -> Arbitration | None:
-        """Archive the current run-owned arbitration and clear the live slot."""
+    def close_current_encounter(self) -> Encounter | None:
+        """Archive the current run-owned encounter and clear the live slot."""
 
-        if self.current_arbitration is None:
+        if self.current_encounter is None:
             return None
-        arbitration = self.current_arbitration
-        self.arbitration_history.append(arbitration)
-        self.current_arbitration = None
-        return arbitration
+        encounter = self.current_encounter
+        self.encounter_history.append(encounter)
+        self.current_encounter = None
+        return encounter

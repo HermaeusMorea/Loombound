@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
 class AssetValidationError(ValueError):
@@ -34,28 +34,28 @@ def validate_node_asset(payload: dict[str, Any], *, source: Path | None = None) 
     label = _source_label(source)
     _require_string(payload, "node_id", label)
     _require_string(payload, "node_type", label)
-    _require_int(payload, "floor", label)
+    _require_int(payload, "depth", label)
 
-    arbitrations = payload.get("arbitrations", [])
-    if isinstance(arbitrations, int):
-        # LLM-generated mode: integer declares how many arbitrations Slow Core should produce.
-        if arbitrations < 0:
-            raise AssetValidationError(f"{label} field 'arbitrations' integer must be >= 0.")
-    elif isinstance(arbitrations, list):
-        for index, arbitration in enumerate(arbitrations):
-            if not isinstance(arbitration, dict):
-                raise AssetValidationError(f"{label} arbitration #{index + 1} must be an object.")
-            _require_string(arbitration, "file", f"{label} arbitration #{index + 1}")
+    encounters = payload.get("encounters", [])
+    if isinstance(encounters, int):
+        # LLM-generated mode: integer declares how many encounters Slow Core should produce.
+        if encounters < 0:
+            raise AssetValidationError(f"{label} field 'encounters' integer must be >= 0.")
+    elif isinstance(encounters, list):
+        for index, encounter in enumerate(encounters):
+            if not isinstance(encounter, dict):
+                raise AssetValidationError(f"{label} encounter #{index + 1} must be an object.")
+            _require_string(encounter, "file", f"{label} encounter #{index + 1}")
     else:
         raise AssetValidationError(
-            f"{label} field 'arbitrations' must be a list of file references or an integer count."
+            f"{label} field 'encounters' must be a list of file references or an integer count."
         )
 
     return payload
 
 
 def validate_arbitration_asset(payload: dict[str, Any], *, source: Path | None = None) -> dict[str, Any]:
-    """Validate the minimum structure required for an arbitration asset."""
+    """Validate the minimum structure required for an encounter asset."""
 
     label = _source_label(source)
     context = payload.get("context")
@@ -63,7 +63,7 @@ def validate_arbitration_asset(payload: dict[str, Any], *, source: Path | None =
         raise AssetValidationError(f"{label} must contain a 'context' object.")
 
     _require_string(context, "context_id", f"{label} context")
-    _require_int(context, "floor", f"{label} context")
+    _require_int(context, "depth", f"{label} context")
 
     scene_type = context.get("scene_type", context.get("decision_type"))
     if not isinstance(scene_type, str) or not scene_type.strip():
@@ -82,11 +82,11 @@ def validate_arbitration_asset(payload: dict[str, Any], *, source: Path | None =
     return payload
 
 
-def load_arbitration(path: Path, *, owner_kind: str = "run", owner_id: str = "loombound") -> Arbitration:
-    """Build an arbitration object from an authored arbitration JSON file."""
+def load_arbitration(path: Path, *, owner_kind: str = "run", owner_id: str = "loombound") -> Encounter:
+    """Build an encounter object from an authored encounter JSON file."""
 
     payload = validate_arbitration_asset(load_json_asset(path), source=path)
-    return Arbitration.from_dict(payload, owner_kind=owner_kind, owner_id=owner_id)
+    return Encounter.from_dict(payload, owner_kind=owner_kind, owner_id=owner_id)
 
 
 def _source_label(source: Path | None) -> str:

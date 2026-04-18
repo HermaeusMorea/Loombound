@@ -2,8 +2,8 @@
 
 Two-layer asset model:
   NodeSeedPack      — Slow Core output (Claude): high-density structured plan
-                      for one node, containing multiple ArbitrationSeed entries.
-  ResolvedArbitration — Fast Core output (gemma4): full arbitration JSON dict
+                      for one node, containing multiple EncounterSeed entries.
+  ResolvedEncounter — Fast Core output (gemma4): full encounter JSON dict
                         ready for validate_arbitration_asset → runtime.
 
 Prefetch layer:
@@ -31,11 +31,11 @@ def _new_id(prefix: str) -> str:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class ArbitrationOptionSeed:
-    """One option inside an ArbitrationSeed.
+class EncounterOptionSeed:
+    """One option inside an EncounterSeed.
 
     Effects dict keys: health_delta, money_delta, sanity_delta (int),
-    add_conditions (list[str]), add_events (list[str] — filled by Fast Core).
+    add_marks (list[str]), add_events (list[str] — filled by Fast Core).
     """
     option_id: str
     intent: str
@@ -44,8 +44,8 @@ class ArbitrationOptionSeed:
 
 
 @dataclass
-class ArbitrationSeed:
-    """Quasi-level plan for one arbitration inside a node.
+class EncounterSeed:
+    """Quasi-level plan for one encounter inside a node.
 
     scene_concept and sanity_axis are the Slow Core's core contribution:
     they give Fast Core the narrative direction needed to write coherent text.
@@ -53,21 +53,21 @@ class ArbitrationSeed:
     scene_type: str
     scene_concept: str        # e.g. "rain-soaked crossroads, three paths..."
     sanity_axis: str          # e.g. "safety vs occult risk when already strained"
-    options: list[ArbitrationOptionSeed] = field(default_factory=list)
+    options: list[EncounterOptionSeed] = field(default_factory=list)
     tendency: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class NodeSeedPack:
-    """Slow Core output: structured plan for all arbitrations in one future node.
+    """Slow Core output: structured plan for all encounters in one future node.
 
     One Slow Core API call produces one NodeSeedPack.
-    Fast Core expands each ArbitrationSeed into a full arbitration JSON dict.
+    Fast Core expands each EncounterSeed into a full encounter JSON dict.
     """
     target_node_id: str
     node_theme: str
     narrative_direction: str
-    arbitrations: list[ArbitrationSeed] = field(default_factory=list)
+    encounters: list[EncounterSeed] = field(default_factory=list)
     seed_id: str = field(default_factory=lambda: _new_id("seed"))
     created_at: datetime = field(default_factory=_now)
     # Token usage from the Slow Core API call that produced this pack.
@@ -80,11 +80,11 @@ class NodeSeedPack:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class ResolvedArbitration:
-    """Fast Core output: one complete arbitration JSON dict.
+class ResolvedEncounter:
+    """Fast Core output: one complete encounter JSON dict.
 
     payload passes validate_arbitration_asset and is consumed directly
-    by the existing runtime pipeline (load_current_arbitration / _play_arbitration).
+    by the existing runtime pipeline (load_current_encounter / _play_encounter).
     """
     payload: dict[str, Any] = field(default_factory=dict)
 
@@ -102,7 +102,7 @@ class PrefetchEntry:
     node_id: str
     status: PrefetchStatus = "pending"
     seed_pack: NodeSeedPack | None = None
-    # Resolved arbitration payloads in order — consumed by _play_node.
+    # Resolved encounter payloads in order — consumed by _play_node.
     resolved: list[dict[str, Any]] = field(default_factory=list)
     error: str = ""
     created_at: datetime = field(default_factory=_now)

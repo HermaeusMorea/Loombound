@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from src.t0.memory import Arbitration
+from src.t0.memory import Encounter
 
 
-def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[str, float]:
+def score_themes(encounter: Encounter, signals: dict[str, object]) -> dict[str, float]:
     """Map low-level deterministic signals into sanity-survival themes."""
 
     # Theme scores are not the final verdict. They are a lightweight way to
@@ -39,9 +39,9 @@ def score_themes(arbitration: Arbitration, signals: dict[str, object]) -> dict[s
     if "temptation" in context_tags:
         scores["detachment"] += 1.5
         scores["composure"] += 1.0
-    if arbitration.context.scene_type == "market_offer":
+    if encounter.context.scene_type == "market_offer":
         scores["detachment"] += 0.5
-    if arbitration.context.scene_type in {"omens_choice", "crossroads"}:
+    if encounter.context.scene_type in {"omens_choice", "crossroads"}:
         scores["clarity"] += 0.5
 
     return scores

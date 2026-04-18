@@ -12,7 +12,7 @@ from report_llm_usage import (
 def test_dynamic_run_report_matches_expected_totals() -> None:
     lines = [
         "## [2026-04-15 10:00:00 UTC] SLOW CORE REQUEST — node `demo_node`",
-        "arbitration_count: 2",
+        "encounter_count: 2",
         "## [2026-04-15 10:00:02 UTC] SLOW CORE RESPONSE — seed `seed_demo_00` (1/2)",
         "tokens — input: 200  output: 50  cache_created: 0  cache_read: 0",
         "## [2026-04-15 10:00:03 UTC] FAST CORE RESPONSE — `demo_node_gen_00`",
@@ -21,7 +21,7 @@ def test_dynamic_run_report_matches_expected_totals() -> None:
         "tokens — input: 120  output: 30  cache_created: 0  cache_read: 0",
         "## [2026-04-15 10:00:05 UTC] FAST CORE RESPONSE — `demo_node_gen_01`",
         "tokens — prompt: 50  eval: 25",
-        "## [2026-04-15 10:00:06 UTC] COMPLETE — `demo_node` (2 arbitration(s) ready)",
+        "## [2026-04-15 10:00:06 UTC] COMPLETE — `demo_node` (2 encounter(s) ready)",
     ]
     node_index = {"demo_node": {"demo_campaign"}}
     campaign_titles = {"demo_campaign": "Demo Campaign"}
@@ -30,7 +30,7 @@ def test_dynamic_run_report_matches_expected_totals() -> None:
     runs = group_runs(requests, len(lines))
     report = analyze_run(lines, runs[0], campaign_titles)
 
-    assert report.campaign_id == "demo_campaign"
+    assert report.saga_id == "demo_campaign"
     assert report.node_order == ["demo_node"]
     assert report.slow_calls == 2
     assert report.slow_input == 320
@@ -59,7 +59,7 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
         "tokens — input: 200  output: 20  cache_created: 0  cache_read: 180",
         "## [2026-04-15 10:05:02 UTC] FAST CORE RESPONSE (preloaded) — `demo_node_a_tb_00`",
         "tokens — prompt: 80  eval: 40",
-        "## [2026-04-15 10:05:03 UTC] COMPLETE (preloaded) — `demo_node_a` (1 arbitration(s), entry_id=7)",
+        "## [2026-04-15 10:05:03 UTC] COMPLETE (preloaded) — `demo_node_a` (1 encounter(s), entry_id=7)",
     ]
     node_index = {
         "demo_node_a": {"demo_campaign"},
@@ -107,7 +107,7 @@ def test_select_run_prefers_latest_run_with_actual_runtime_usage() -> None:
         "tokens — input: 200  output: 50  cache_created: 0  cache_read: 0",
         "## [2026-04-15 10:00:02 UTC] FAST CORE RESPONSE (preloaded) — `demo_node_tb_00`",
         "tokens — prompt: 80  eval: 40",
-        "## [2026-04-15 10:00:03 UTC] COMPLETE (preloaded) — `demo_node` (1 arbitration(s), entry_id=4)",
+        "## [2026-04-15 10:00:03 UTC] COMPLETE (preloaded) — `demo_node` (1 encounter(s), entry_id=4)",
         "",
         "## [2026-04-15 10:05:00 UTC] M2 CLASSIFIER REQUEST — node `demo_node`",
     ]
