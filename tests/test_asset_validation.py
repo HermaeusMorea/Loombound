@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.runtime.campaign import choose_index
+from src.runtime.saga import choose_index
 from src.t0.core import AssetValidationError, validate_arbitration_asset, validate_node_asset
 
 

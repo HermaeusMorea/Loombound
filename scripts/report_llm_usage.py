@@ -59,7 +59,7 @@ RE_SLOW_RESPONSE = re.compile(
     r"\((?P<idx>\d+)/(?P<total>\d+)\)$"
 )
 RE_FAST_RESPONSE = re.compile(
-    r"^## \[(?P<ts>[^\]]+)\] FAST CORE RESPONSE(?: \([^)]+\))? — `(?P<arb>[^`]+)`$"
+    r"^## \[(?P<ts>[^\]]+)\] (?:FAST CORE RESPONSE|C1 RESPONSE)(?: \([^)]+\))? — `(?P<arb>[^`]+)`$"
 )
 # Old format (per-node Opus): kept for backward-compatible log parsing
 RE_M2_REQUEST  = re.compile(r"^## \[(?P<ts>[^\]]+)\] M2 CLASSIFIER REQUEST — node `(?P<node>[^`]+)`$")
@@ -69,7 +69,7 @@ RE_M2_RESPONSE = re.compile(
 # New format (per-choice Haiku): label is "node_id:arb_idx" or "entry_id_only"
 RE_M2_UPDATE_REQUEST  = re.compile(r"^## \[(?P<ts>[^\]]+)\] M2 ARC UPDATE REQUEST — (?P<label>\S+)$")
 RE_M2_UPDATE_RESPONSE = re.compile(
-    r"^## \[(?P<ts>[^\]]+)\] M2 ARC UPDATE RESPONSE — (?P<label>\S+) entry_id=(?P<entry_id>-?\d+)$"
+    r"^## \[(?P<ts>[^\]]+)\] M2 ARC UPDATE RESPONSE — (?P<label>\S+) entry_id=(?P<entry_id>-?\d+)"
 )
 RE_COMPLETE = re.compile(
     r"^## \[(?P<ts>[^\]]+)\] COMPLETE(?: \(preloaded\))? — `(?P<node>[^`]+)` "
@@ -78,7 +78,7 @@ RE_COMPLETE = re.compile(
 
 # Offline events
 RE_CAMPAIGN_CORE = re.compile(r"^## \[(?P<ts>[^\]]+)\] CAMPAIGN CORE RESPONSE — `(?P<campaign>[^`]+)`$")
-RE_T1_CACHE       = re.compile(r"^## \[(?P<ts>[^\]]+)\] T1 CACHE RESPONSE — `(?P<campaign>[^`]+)`")
+RE_T1_CACHE       = re.compile(r"^## \[(?P<ts>[^\]]+)\] (?:T1|A1) CACHE RESPONSE — `(?P<campaign>[^`]+)`")
 RE_T1_CACHE_NODE  = re.compile(r"^## \[(?P<ts>[^\]]+)\] T1 CACHE NODE RESPONSE — `(?P<node>[^`]+)`")
 RE_ARC_PALETTE   = re.compile(r"^## \[(?P<ts>[^\]]+)\] ARC PALETTE GENERATED$")
 
@@ -327,11 +327,11 @@ class RunReport:
 
     @property
     def local_saved_vs_haiku(self) -> float:
-        return self.fast_eval * HAIKU_OUTPUT
+        return haiku_cost(self.fast_prompt, self.fast_eval)
 
     @property
     def local_saved_vs_opus(self) -> float:
-        return self.fast_eval * OPUS_OUTPUT
+        return opus_cost(self.fast_prompt, self.fast_eval)
 
 
 # ---------------------------------------------------------------------------
@@ -354,6 +354,8 @@ def load_campaign_metadata(
                 data = json.load(fh)
         except Exception as exc:
             print(f"warning: skipping {path.name} — {exc}", file=sys.stderr)
+            continue
+        if not isinstance(data, dict) or "saga_id" not in data:
             continue
         saga_id = data.get("saga_id", path.stem)
         titles[saga_id] = data.get("title", saga_id)
@@ -505,18 +507,19 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
     current_candidates = set(requests[0].campaign_candidates)
 
     for event in requests[1:]:
-        cur = current_candidates or set()
-        ev  = event.campaign_candidates or set()
+        cur = current_candidates
+        ev  = event.campaign_candidates
         if cur and ev:
             intersection = cur & ev
-            same = bool(intersection)
-        else:
-            intersection = cur or ev
-            same = True
-        if same:
+            if intersection:
+                current_events.append(event)
+                current_candidates = intersection
+                continue
+        elif not cur and not ev:
+            # Both unknown — keep in same run
             current_events.append(event)
-            current_candidates = intersection
             continue
+        # Saga boundary or incompatible candidates — start new run
         runs.append(RunGroup(
             start_line=current_events[0].line_no,
             end_line=event.line_no - 1,
@@ -524,7 +527,7 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
             campaign_candidates=current_candidates,
         ))
         current_events = [event]
-        current_candidates = set(event.campaign_candidates)
+        current_candidates = set(ev)
 
     runs.append(RunGroup(
         start_line=current_events[0].line_no,
@@ -536,7 +539,7 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
 
 
 def _split_arb_id(arb_id: str) -> str:
-    for sep in ("_tb_", "_gen_"):
+    for sep in ("_t1_", "_tb_", "_gen_"):
         if sep in arb_id:
             return arb_id.rsplit(sep, 1)[0]
     return arb_id
@@ -785,16 +788,16 @@ def render_report(report: RunReport) -> str:
     lines = [
         "─" * 66,
         "  LLM USAGE REPORT",
-        f"  campaign : {title}",
+        f"  saga     : {title}",
         f"  run      : {report.start_timestamp.strftime(TIME_FORMAT)}"
         + (f"  (+{dur}s)" if dur > 0 else ""),
-        f"  nodes    : {', '.join(report.node_order) if report.node_order else '(none)'}",
+        f"  waypoints: {', '.join(report.node_order) if report.node_order else '(none)'}",
         "─" * 66,
     ]
 
     # ── OFFLINE ──────────────────────────────────────────────────────────
     lines.append("")
-    lines.append("  OFFLINE  (one-time / per-campaign)")
+    lines.append("  OFFLINE  (one-time / per-saga)")
     lines.append(f"  {'label':<18} {'model':<22} {'input':<13} {'output':<13} cost")
     lines.append("  " + "─" * 62)
 
@@ -811,14 +814,14 @@ def render_report(report: RunReport) -> str:
         cc = report.campaign_core
         m = cc.model or "?"
         theme_short = (cc.theme or "")[:50]
-        lines.append(_row("campaign graph", m, cc.input_tokens, cc.output_tokens, cc.cost,
+        lines.append(_row("saga graph", m, cc.input_tokens, cc.output_tokens, cc.cost,
                           f'"{theme_short}"'))
         if _is_opus(m):
             offline_opus_cost += cc.cost
         else:
             offline_haiku_cost += cc.cost
     else:
-        lines.append("  campaign graph     (not found in log before this run)")
+        lines.append("  saga graph     (not found in log before this run)")
 
     if report.t1_cache_table_node_events:
         tb_in  = report.t1_cache_table_input
@@ -832,10 +835,10 @@ def render_report(report: RunReport) -> str:
         offline_haiku_cost += tb_cost
     elif report.t1_cache_table:
         tb = report.t1_cache_table
-        lines.append(_row("table b", "claude-haiku-4-5", tb.input_tokens, tb.output_tokens, tb.cost))
+        lines.append(_row("a1 cache", "claude-haiku-4-5", tb.input_tokens, tb.output_tokens, tb.cost))
         offline_haiku_cost += tb.cost
     else:
-        lines.append("  table b            (not found in log before this run)")
+        lines.append("  a1 cache           (not found in log before this run)")
 
     offline_remote_tokens = (
         (report.campaign_core.input_tokens + report.campaign_core.output_tokens if report.campaign_core else 0)
@@ -882,7 +885,7 @@ def render_report(report: RunReport) -> str:
 
     local_tok = report.fast_total
     lines.append(
-        f"  {'fast core ×' + str(report.fast_calls):<18} {'gemma3:4b (local)':<22}"
+        f"  {'c1 ×' + str(report.fast_calls):<18} {'qwen2.5:7b (local)':<22}"
         f" prompt={_tok(report.fast_prompt):<6} eval={_tok(report.fast_eval):<6}"
         f" FREE  ({_tok(local_tok)} local tokens)"
     )
@@ -905,19 +908,72 @@ def render_report(report: RunReport) -> str:
     if total_opus_cost:
         lines.append(f"  {'opus (offline)':<28}  {_usd(total_opus_cost)}")
     if total_haiku_cost:
-        lines.append(f"  {'haiku (table b + m2)':<28}  {_usd(total_haiku_cost)}")
+        lines.append(f"  {'haiku (a1 cache + m2)':<28}  {_usd(total_haiku_cost)}")
     lines.append(f"  {'─' * 40}")
     lines.append(f"  {'total API spend':<28}  {_usd(total_api_cost)}")
 
     lines.append("")
-    lines.append(f"  local tokens (gemma3):    {_tok(local_tok)}")
+    lines.append(f"  local tokens (qwen2.5:7b):    {_tok(local_tok)}")
     saved_h = report.local_saved_vs_haiku
     saved_o = report.local_saved_vs_opus
-    lines.append(f"  saved vs haiku:           ~{_usd(saved_h)}  ({_tok(report.fast_eval)} eval tokens)")
+    lines.append(f"  saved vs haiku:           ~{_usd(saved_h)}  (prompt+eval, {_tok(report.fast_total)} tokens)")
     lines.append(f"  saved vs opus:            ~{_usd(saved_o)}")
 
     if report.m2_cache_read:
         lines.append(f"  haiku cache savings:      ~{_usd(report.m2_cache_savings)}  ({_tok(report.m2_cache_read)} cache_read tokens)")
+
+    # ── 100-PLAY PROJECTION ──────────────────────────────────────────────
+    N = 1000
+    arc_in   = report.arc_palette.input_tokens if report.arc_palette else 0
+    arc_out  = report.arc_palette.output_tokens if report.arc_palette else 0
+    core_in  = report.campaign_core.input_tokens if report.campaign_core else 0
+    core_out = report.campaign_core.output_tokens if report.campaign_core else 0
+    a1_in    = report.t1_cache_table_input
+    a1_out   = report.t1_cache_table_output
+
+    # Offline cost variants  (saga gen = arc palette + saga graph)
+    saga_gen_haiku = haiku_cost(arc_in, arc_out) + haiku_cost(core_in, core_out)
+    a1_haiku       = haiku_cost(a1_in, a1_out)
+    a1_opus        = opus_cost(a1_in, a1_out)
+
+    off_tiered   = offline_opus_cost + a1_haiku     # opus saga gen  + haiku a1
+    off_all_opus = offline_opus_cost + a1_opus       # opus saga gen  + opus  a1
+    off_all_haiku= saga_gen_haiku    + a1_haiku      # haiku saga gen + haiku a1
+
+    # Per-session cost variants
+    # all-* also pays for C1 scene expansion (local/free in tiered, remote in all-*)
+    c1_haiku = haiku_cost(report.fast_prompt, report.fast_eval)
+    c1_opus  = opus_cost(report.fast_prompt, report.fast_eval)
+
+    sess_tiered   = report.m2_cost                                          # haiku m2  + free c1
+    sess_all_opus = (opus_cost(report.m2_input, report.m2_output,
+                               report.m2_cache_read)
+                     + runtime_slow_cost + c1_opus)                         # opus  m2  + opus  c1
+    sess_all_haiku= report.m2_cost + c1_haiku                              # haiku m2  + haiku c1
+
+    tot_tiered    = off_tiered    + sess_tiered    * N
+    tot_all_opus  = off_all_opus  + sess_all_opus  * N
+    tot_all_haiku = off_all_haiku + sess_all_haiku * N
+
+    lines.append("")
+    lines.append("─" * 66)
+    lines.append("")
+    lines.append(f"  {N}-PLAY COST PROJECTION")
+    lines.append("")
+    lines.append(f"  {'strategy':<20} {'offline ×1':<14} {'per play':<14} {f'×{N} total'}")
+    lines.append("  " + "─" * 62)
+    lines.append(f"  {'tiered (current)':<20} {_usd(off_tiered):<14} {_usd(sess_tiered):<14} {_usd(tot_tiered)}")
+    lines.append(f"  {'all-opus':<20} {_usd(off_all_opus):<14} {_usd(sess_all_opus):<14} {_usd(tot_all_opus)}")
+    lines.append(f"  {'all-haiku':<20} {_usd(off_all_haiku):<14} {_usd(sess_all_haiku):<14} {_usd(tot_all_haiku)}")
+    lines.append("")
+    save_vs_opus  = tot_all_opus  - tot_tiered
+    delta_haiku   = tot_tiered    - tot_all_haiku
+    if save_vs_opus > 0:
+        lines.append(f"  tiered saves vs all-opus:   {_usd(save_vs_opus)}")
+    if delta_haiku > 0:
+        lines.append(f"  tiered costs vs all-haiku:  +{_usd(delta_haiku)}  (saga gen quality stays Opus)")
+    elif delta_haiku < 0:
+        lines.append(f"  tiered saves vs all-haiku:  {_usd(-delta_haiku)}")
 
     # ── PER NODE ─────────────────────────────────────────────────────────
     if report.node_usage:
@@ -953,8 +1009,8 @@ def render_report(report: RunReport) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Summarize token usage from logs/llm.md.")
     parser.add_argument("--log", type=Path, default=DEFAULT_LOG)
-    parser.add_argument("--campaign", help="Campaign id (default: latest run).")
-    parser.add_argument("--campaign-dir", type=Path, default=DEFAULT_CAMPAIGNS)
+    parser.add_argument("--saga", help="Saga id (default: latest run).")
+    parser.add_argument("--saga-dir", type=Path, default=DEFAULT_CAMPAIGNS)
     return parser
 
 
@@ -965,7 +1021,7 @@ def main() -> None:
     with args.log.open(encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh]
 
-    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.campaign_dir)
+    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.saga_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
     campaign_core_events = parse_campaign_core_events(lines)
     t1_cache_table_events       = parse_t1_cache_table_events(lines, node_index)
@@ -974,7 +1030,7 @@ def main() -> None:
 
     run = select_run(
         runs,
-        args.campaign,
+        args.saga,
         lines=lines,
         campaign_titles=campaign_titles,
         campaign_core_events=campaign_core_events,

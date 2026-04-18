@@ -1,4 +1,4 @@
-"""Interactive CLI loop for playing a small Loombound campaign."""
+"""Interactive CLI loop for playing a Loombound saga."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from src.t0.memory import EncounterResult
 from src.t0.core import apply_option_effects, enforce_rule
 from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
 from src.t2.core.collector import build_classifier_input, build_a1_entry
-from src.t1.core.fast_core import FastCoreConfig
+from src.t1.core import C1Config
 from src.t0.memory import append_node_event, record_choice, update_after_node
 from src.t0.memory.models import NarrationBlock
 from src.t0.core import (
@@ -28,7 +28,7 @@ from src.t0.core import (
     render_run_intro,
 )
 from src.t0.core import build_selection_trace, evaluate_rules, select_rule
-from src.runtime.campaign import (
+from src.runtime.saga import (
     REPO_ROOT,
     choose_index,
     load_rules,
@@ -36,7 +36,7 @@ from src.runtime.campaign import (
     resolve_asset_path,
     sync_encounter_resources,
 )
-from src.t0.core import build_signals, score_themes
+from src.t0.core import build_signals
 from src.t0.core import (
     AssetValidationError,
     load_json_asset,
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 
 T2_CACHE_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
 
-_NARRATION_REWRITE_TIMEOUT = 6.0  # seconds to wait for T1 rewrite before showing draft
+
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
     """Patch Opus-assigned numeric effect values into a payload's option metadata in-place.
 
     Only the three stat keys are touched; add_events / add_marks written by
-    gemma3 are preserved. The payload dict is mutated directly.
+    C1-generated content is preserved. The payload dict is mutated directly.
     """
     for opt in payload.get("options", []):
         opt_id = opt.get("option_id", "")
@@ -135,8 +135,7 @@ def _play_encounter(
     )
 
     signals = build_signals(encounter)
-    theme_scores = score_themes(encounter, signals)
-    evaluations = evaluate_rules(encounter, rules, theme_scores)
+    evaluations = evaluate_rules(encounter, rules)
     waypoint.rule_state.reset_for_arbitration()
     waypoint.rule_state.record_evaluations(evaluations)
 
@@ -164,26 +163,14 @@ def _play_encounter(
 
     option_results = enforce_rule(encounter, selected.rule if selected else None)
 
-    # Start narration rewrite in background — player will take several seconds to choose,
-    # so the gemma3 rewrite (~300ms) should finish well before render_result.
-    narration_event = None
-    narration_result: list = [None]
     rule_theme = selected.rule.theme if selected else "neutral"
-    scene_summary = (
-        encounter.context.metadata.get("scene_summary", "")
-        if hasattr(encounter.context, "metadata") else ""
-    )
-    if prefetch is not None and narration_table is not None:
-        draft = narration_table.get(rule_theme) or narration_table.get("neutral") or {}
-        if draft:
-            narration_event, narration_result = prefetch.start_narration_rewrite(
-                opening_draft=draft.get("opening", ""),
-                judgement_draft=draft.get("judgement", ""),
-                warning_draft=draft.get("warning", ""),
-                scene_summary=scene_summary,
-                scene_type=encounter.context.scene_type,
-                rule_theme=rule_theme,
-            )
+    narration_text = ""
+    if narration_table is not None:
+        narration_text = (
+            narration_table.get(rule_theme)
+            or narration_table.get("neutral")
+            or ""
+        )
 
     render_arbitration_view(run, encounter, selected.rule if selected else None)
     render_choices(option_results)
@@ -224,13 +211,7 @@ def _play_encounter(
         )
         prefetch.update_arc_state(quasi, _next_node, _next_idx)
 
-    # Resolve narration: wait for T1 rewrite (usually already done) or use empty block.
-    if narration_event is not None:
-        narration_event.wait(timeout=_NARRATION_REWRITE_TIMEOUT)
-        narration = narration_result[0] or NarrationBlock()
-    else:
-        narration = NarrationBlock()
-
+    narration = NarrationBlock(text=narration_text)
     applied_notes = apply_option_effects(run, selected_option, chosen_result)
     encounter.set_result(
         EncounterResult(
@@ -238,7 +219,6 @@ def _play_encounter(
             matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
             option_results=option_results,
             sanity_delta=chosen_result.sanity_cost,
-            theme_scores=theme_scores,
             narration=narration,
         )
     )
@@ -329,7 +309,7 @@ def _prefetch_targets(
     run,
     current_waypoint_memory=None,
 ) -> None:
-    """Trigger prefetch for a list of campaign node IDs."""
+    """Trigger prefetch for a list of saga waypoint IDs."""
 
     if prefetch is None:
         return
@@ -357,7 +337,7 @@ def _prefetch_targets(
 
 
 def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -> list[str]:
-    """Return unique grandchild campaign node IDs in stable order."""
+    """Return unique grandchild saga waypoint IDs in stable order."""
 
     targets: list[str] = []
     seen: set[str] = set()
@@ -375,8 +355,8 @@ def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -
 def main() -> None:
     _load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Play a Loombound campaign. Requires ANTHROPIC_API_KEY and ollama (gemma3:4b).")
-    parser.add_argument("--saga", type=Path, default=None, help="Path to a campaign JSON file.")
+    parser = argparse.ArgumentParser(description="Play a Loombound saga. Requires ANTHROPIC_API_KEY and ollama (qwen2.5:7b).")
+    parser.add_argument("--saga", type=Path, default=None, help="Path to a saga JSON file.")
     parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
     parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
     parser.add_argument(
@@ -384,27 +364,32 @@ def main() -> None:
         dest="fast_model",
         default=None,
         metavar="MODEL",
-        help="Fast Core ollama model for text expansion (default: gemma3:4b). "
+        help="Fast Core ollama model for text expansion (default: qwen2.5:7b). "
              "Can also be set via FAST_CORE_MODEL env var.",
     )
     args = parser.parse_args()
 
     if args.saga is None:
-        print(
-            "No campaign found. Generate one first:\n"
-            "\n"
-            "  ./loombound gen \"your theme\"\n"
-            "\n"
-            "Requires ANTHROPIC_API_KEY in .env.\n"
-            "\n"
-            "With Haiku M2 + local gemma3 (Fast Core), a typical 5-node run costs ~$0.01.\n"
-            "Replacing Fast Core with Opus alone would cost ~$0.20 — about 20× more.\n"
-            "The gap widens as you generate more campaigns and play more runs.\n"
-            "\n"
-            "  cp .env.example .env   # then fill in ANTHROPIC_API_KEY",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        sagas_dir = REPO_ROOT / "data" / "sagas"
+        candidates = sorted(
+            [p for p in sagas_dir.glob("*.json") if not p.stem.endswith(("_toll_lexicon", "_rules", "_narration_table"))],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        ) if sagas_dir.exists() else []
+        if not candidates:
+            print(
+                "No saga found. Generate one first:\n"
+                "\n"
+                "  ./loombound gen \"your theme\"\n"
+                "\n"
+                "Requires ANTHROPIC_API_KEY in .env.\n"
+                "\n"
+                "  cp .env.example .env   # then fill in ANTHROPIC_API_KEY",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        args.saga = candidates[0]
+        print(f"No --saga specified. Using most recent: {candidates[0].stem}")
 
     # --- Startup check: Claude API key required ---
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -438,9 +423,9 @@ def main() -> None:
 
     fast_model = (
         args.fast_model
-        or os.environ.get("FAST_CORE_MODEL", "gemma3:4b")
+        or os.environ.get("FAST_CORE_MODEL", "qwen2.5:7b")
     )
-    fast_cfg = FastCoreConfig(
+    fast_cfg = C1Config(
         model=fast_model,
         lang=args.lang,
         tone=saga.get("tone") or None,
@@ -546,7 +531,7 @@ def main() -> None:
             current_node_id = next_nodes[next_index]
 
             # Trigger Opus for arb 0 of the chosen next node.
-            # Runs in background while the player reads the node header + waits for gemma3.
+            # Runs in background while the player reads the node header + waits for C1.
             quasi = build_classifier_input(run.core_state, run.memory, list(run.waypoint_history))
             prefetch.update_arc_state(quasi, current_node_id, 0)
 

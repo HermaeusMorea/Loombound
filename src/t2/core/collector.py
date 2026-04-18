@@ -175,7 +175,7 @@ def _build_state_sections(
             )
 
     if waypoint_history:
-        sections.append(f"\n## Node trajectory ({len(waypoint_history)} completed)")
+        sections.append(f"\n## Waypoint trajectory ({len(waypoint_history)} completed)")
         for summary in waypoint_history[-4:]:
             flags = ", ".join(summary.important_flags) if summary.important_flags else "none"
             sections.append(
@@ -183,16 +183,16 @@ def _build_state_sections(
                 f"  sanity_delta={summary.sanity_delta}  flags={flags}"
             )
     else:
-        sections.append("\n## Node trajectory\n  Run just started — no nodes completed yet.")
+        sections.append("\n## Waypoint trajectory\n  Run just started — no waypoints completed yet.")
 
     if current_waypoint_memory is not None and current_waypoint_memory.choices_made:
-        sections.append("\n## Active node so far (partial)")
+        sections.append("\n## Active waypoint so far (partial)")
         sections.append(
-            f"  node={current_waypoint_memory.waypoint_id} type={current_waypoint_memory.waypoint_type}"
+            f"  waypoint={current_waypoint_memory.waypoint_id} type={current_waypoint_memory.waypoint_type}"
             f" depth={current_waypoint_memory.depth}"
         )
         sections.append(
-            f"  arbitrations_resolved={len(current_waypoint_memory.choices_made)}"
+            f"  encounters_resolved={len(current_waypoint_memory.choices_made)}"
             f" sanity_lost={current_waypoint_memory.sanity_lost_in_node}"
         )
         if current_waypoint_memory.important_flags:
@@ -215,6 +215,37 @@ def _build_state_sections(
     return sections
 
 
+def _effect_calibration(core_state: CoreStateView) -> str:
+    """Derive per-resource effect delta guidance from current tendency bands.
+
+    C2 sees tendency bands, not exact integers. This section translates bands
+    into recommended delta ranges so effects stay proportional to actual state.
+    """
+    max_h = core_state.max_health or 10
+    h_band = _band(core_state.health, 0, max_h)
+    m_band = _band(core_state.money, 0, 15)
+    s_band = _band(core_state.sanity, 0, max_h)
+
+    # Health: more room to lose when high, more room to gain when low
+    h_loss = {"very_low": -2, "low": -3, "moderate": -5, "high": -7, "very_high": -9}.get(h_band, -5)
+    h_gain = {"very_low": 5, "low": 4, "moderate": 3, "high": 2, "very_high": 1}.get(h_band, 3)
+
+    # Money: symmetric-ish but avoid wiping out a broke character
+    m_loss = {"very_low": -1, "low": -2, "moderate": -4, "high": -6, "very_high": -8}.get(m_band, -4)
+    m_gain = 8
+
+    # Sanity: fragile characters shouldn't lose much more; healthy ones can absorb more
+    s_loss = {"very_low": -2, "low": -3, "moderate": -5, "high": -6, "very_high": -7}.get(s_band, -4)
+    s_gain = {"very_low": 3, "low": 3, "moderate": 2, "high": 1, "very_high": 1}.get(s_band, 2)
+
+    return (
+        f"\n## Effect delta calibration (calibrate h/m/s to current state)\n"
+        f"  h (health  {h_band}/{max_h}): [{h_loss}, +{h_gain}]  — reserve extremes for pivotal options\n"
+        f"  m (money   {m_band}):         [{m_loss}, +{m_gain}]\n"
+        f"  s (sanity  {s_band}/{max_h}): [{s_loss}, +{s_gain}]  — fragile sanity → smaller losses"
+    )
+
+
 def build_classifier_input(
     core_state: CoreStateView,
     run_memory: RunMemory,
@@ -234,6 +265,7 @@ def build_classifier_input(
         previous_core_state,
         current_waypoint_memory=current_waypoint_memory,
     )
+    sections.append(_effect_calibration(core_state))
     sections.append("\nClassify the arc state that best matches the current game state above.")
     return "\n".join(sections)
 

@@ -50,6 +50,6 @@ def test_build_classifier_input_includes_partial_active_node_snapshot() -> None:
         current_waypoint_memory=waypoint_memory,
     )
 
-    assert "## Active node so far (partial)" in msg
+    assert "## Active waypoint so far (partial)" in msg
     assert "option=buy_ashes" in msg
     assert "active flags: chose_greedy_option" in msg

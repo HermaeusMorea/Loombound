@@ -13,33 +13,33 @@ CLI 文字冒险 / 跑团风格 roguelite，主题偏克苏鲁心智压力与叙
 
 ```
 Run
-└── Node (×N)
-    └── Arbitration (×1..M)
+└── Waypoint (×N)
+    └── Encounter (×1..M)
 ```
 
 ### Run
 
 整局游戏的宿主。持有：
-- `CoreState` — 数值状态（health / money / sanity / floor / act）
-- `MetaState` — 叙事解释层状态（active_conditions、major_events、traumas）
-- `RunMemory` — 跨节点长期记忆
+- `CoreState` — 数值状态（health / money / sanity / depth / act）
+- `MetaState` — 叙事解释层状态（active_marks、major_events、traumas）
+- `RunMemory` — 跨 waypoint 长期记忆
 - `RuleSystem` — 整局规则系统状态
 
-### Node
+### Waypoint
 
-地图上的单个节点 / 场景容器。生命周期：
+地图上的单个地点 / 场景容器。生命周期：
 1. 从 Run 进入，继承状态视图
-2. 节点内顺序处理一个或多个 Arbitration
-3. 结束时生成 NodeSummary，重要结果写回 RunMemory
-4. 节点销毁
+2. Waypoint 内顺序处理一个或多个 Encounter
+3. 结束时生成 WaypointSummary，重要结果写回 RunMemory
+4. Waypoint 销毁
 
-持有：`NodeMemory`、`NodeRuleState`
+持有：`WaypointMemory`、`WaypointRuleState`
 
-### Arbitration
+### Encounter
 
 单次事件选择 / 裁决单元。包含：
-- `ArbitrationContext`（scene_type、floor/act、resources、tags、状态视图）
-- options（选项列表）
+- `EncounterContext`（scene_type、depth/act、resources、tags、状态视图）
+- options（选项列表，含 C2 生成的 toll 和 effects）
 - selected option + result
 - status
 
@@ -50,13 +50,13 @@ Run
 ### CoreState（结构化、决定论）
 
 - health / money / sanity
-- floor / act / location
+- depth / act / location
 - inventory tags
 - 由 kernel 负责验证和更新，LLM 不直接写入
 
 ### MetaState（叙事解释层）
 
-- active_conditions（临时状态标签）
+- active_marks（持久状态标签，如 `lamp_oil`、`warding_tools`）
 - metadata.major_events / traumas / narrator_mood
 - 适合由 LLM 生成和解释的文本性状态
 
@@ -64,17 +64,17 @@ Run
 
 ## 记忆模型
 
-### RunMemory（跨节点长期记忆）
+### RunMemory（跨 waypoint 长期记忆）
 
-保存：sanity、recent_rules、recent_shocks、theme_counters、behavior_counters、important_incidents、narrator_mood
+保存：sanity、recent_rules、recent_shocks、behavior_counters、important_incidents、narrator_mood
 
 用于：为后续裁决提供长期上下文、为规则系统提供轻量 bias、为 LLM 生成提供摘要
 
-### NodeMemory（节点内短期记忆）
+### WaypointMemory（waypoint 内短期记忆）
 
-保存：events、choices_made、shocks_in_node、sanity_lost_in_node、important_flags、node_summary
+保存：events、choices_made、shocks_in_waypoint、sanity_lost_in_waypoint、important_flags、waypoint_summary
 
-用于：描述节点内发生了什么、在节点结束时向 RunMemory 提炼重要信息
+用于：描述 waypoint 内发生了什么、在 waypoint 结束时向 RunMemory 提炼重要信息
 
 ---
 
@@ -82,36 +82,35 @@ Run
 
 三部分：
 
-- **RuleTemplate** — 静态规则模板，定义适用场景、主题、匹配条件、偏好/禁止的 option tags、sanity_penalty
+- **RuleTemplate** — 静态规则模板，定义适用场景、theme（per-saga narration_table 中的 key）、匹配条件、偏好/禁止的 option tags、sanity_penalty
 - **RuleSystem** — 整局级，持有 templates，记录最近使用和使用次数
-- **NodeRuleState** — 节点级，当前可用规则、候选规则、选中规则、selection trace
+- **WaypointRuleState** — waypoint 级，当前可用规则、候选规则、选中规则、selection trace
+
+规则选择按 `(-freshness_penalty, priority, id)` 排序，不使用主题分数。
 
 ---
 
 ## 决定论主链
 
-每条 Arbitration 的执行顺序：
+每条 Encounter 的执行顺序：
 
 ```
-context → signals → theme scoring → rule matching
-→ rule selection → enforcement → narration → state update
+context → rule matching → rule selection → enforcement → narration → state update
 ```
 
-1. 从 context 和 options 提取 signals
-2. 映射到主题分数（clarity / composure / self_preservation / detachment）
-3. RuleTemplate 对当前 arbitration 做匹配
-4. RuleSystem + RunMemory 对候选规则轻量排序
-5. 选出主规则
-6. enforcement：对所有 options 给出 `stable / destabilizing` 裁决，计算 sanity_cost/delta
-7. narration 生成演出文本
-8. 将选中 option 的 effects 写回 Run
+1. RuleTemplate 对当前 encounter 做匹配（context tags + option tags）
+2. RuleSystem + RunMemory 对候选规则轻量排序（freshness penalty + priority）
+3. 选出主规则
+4. enforcement：应用 C2 生成的 toll，计算 sanity_cost/delta
+5. narration：从 saga 的 narration_table 按 `rule.theme` 查单句心理描述（fallback 到 `"neutral"`）
+6. 将选中 option 的 effects 写回 Run
 
 ---
 
 ## 状态适配层（state_adapter）
 
 外部内容进入系统的唯一正规边界：
-- 读取 authored JSON assets → 内部运行时对象
+- 读取 JSON assets → 内部运行时对象
 - 接收 LLM 生成的结构化内容包 → 内部运行时对象
 - 保证 kernel 永远处理统一的内部对象，不直接处理自由文本
 
@@ -120,7 +119,7 @@ context → signals → theme scoring → rule matching
 ## 展示层（presentation）
 
 CLI ANSI 终端界面：
-- 顶部 HUD（状态数值、当前节点信息）
+- 顶部 HUD（状态数值、当前 waypoint 信息）
 - 中间内容区（场景描述、裁决结果、map）
 - 底部输入区
 
@@ -135,29 +134,24 @@ CLI ANSI 终端界面：
 
 ```
 data/
-├── campaigns/<id>.json        ← 节点拓扑图（由 Opus 生成）
-├── nodes/<id>/<node_id>.json  ← 节点 spec（floor, type, arbitration 数量）
-├── nodes/<id>/table_b.json    ← 场景骨架（由 Haiku 生成）
-├── m2_table_a.json            ← 全局 arc-state 调色板（由 Opus 一次性生成）
-├── arbitrations/              ← authored 手写仲裁内容
-├── rules/rules.small.json     ← 规则集
-└── text/narration_templates.json
+├── sagas/<id>.json                      ← waypoint 拓扑图（C3/Opus 生成）
+├── sagas/<id>_toll_lexicon.json         ← per-saga toll 词汇表（C3 生成）
+├── sagas/<id>_rules.json                ← per-saga 规则集（C3 生成，含 rule.theme keys）
+├── sagas/<id>_narration_table.json      ← per-saga 叙事主题表（C3 生成，10-15 条）
+├── waypoints/<id>/a1_cache_table.json   ← waypoint 场景骨架（C2/Haiku 生成）
+└── a2_cache_table.json                  ← 全局 bearing 枚举（C3 一次性生成）
 ```
 
 ---
 
-## `src/core/` 模块结构
+## 模块结构
 
-| 模块 | 职责 |
-|---|---|
-| `runtime` | Run/Node/Arbitration 生命周期，gameplay loop，campaign 初始化 |
-| `deterministic_kernel` | 共享数据模型（CoreStateView、ArbitrationContext、OptionResult 等） |
-| `state_adapter` | 外部内容 → 内部运行时对象的正规化边界 |
-| `signal_interpretation` | 从 scene/context 提取 signals 和主题分数 |
-| `rule_engine` | 规则匹配、选择、selection trace |
-| `enforcement` | 规则落到 options，apply 选项效果到状态 |
-| `memory` | RunMemory/NodeMemory 类型和 update_after_node 逻辑 |
-| `narration` | 文字演出生成 |
-| `presentation` | CLI HUD 渲染 |
-| `authoring` | authored JSON 资产加载 |
-| `llm_interface` | LLM 协作层（M1/M2 classifier、prefetch、collector） |
+| 目录 | 层 | 职责 |
+|---|---|---|
+| `src/t0/memory/` | A0 | CoreState、RunMemory、WaypointMemory 等数据模型 |
+| `src/t0/core/` | C0 | enforcement、rule_engine、state_adapter、signal_interpretation |
+| `src/t1/core/` | C1 | C1 expander（qwen2.5:7b 场景文字展开）、prompts、ollama transport |
+| `src/t2/memory/` | A2 | bearing 条目、toll lexicon 等数据模型（a2_store） |
+| `src/t2/core/` | C2 | m2_classifier、prefetch、gen_a1_cache_table、collector |
+| `src/t3/core/` | C3 | saga 生成逻辑（generate_campaign、gen_a2_cache_table） |
+| `src/runtime/` | 组装点 | play_cli、session、campaign；可 import 全部层的唯一位置 |

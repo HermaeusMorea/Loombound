@@ -38,36 +38,6 @@ REPO_ROOT = (
 )
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 
-# ---------------------------------------------------------------------------
-# Provider registry  (name → default_model, base_url, api_key_env)
-# ---------------------------------------------------------------------------
-
-_PROVIDERS: dict[str, tuple[str, str, str]] = {
-    "deepseek": (
-        "deepseek-chat",
-        "https://api.deepseek.com/v1",
-        "DEEPSEEK_API_KEY",
-    ),
-    "openai": (
-        "gpt-4o",
-        "https://api.openai.com/v1",
-        "OPENAI_API_KEY",
-    ),
-    "qwen": (
-        "qwen-plus",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "DASHSCOPE_API_KEY",
-    ),
-}
-
-
-def _provider_defaults(provider: str) -> tuple[str, str, str]:
-    if provider in _PROVIDERS:
-        return _PROVIDERS[provider]
-    raise ValueError(
-        f"Unknown provider '{provider}'. "
-        f"Choose: anthropic, {', '.join(_PROVIDERS)}"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +174,7 @@ Each rule is a pattern the protagonist should follow to maintain stability — a
 a survival heuristic, a moral code forged by this world's specific pressures.
 - id: snake_case, descriptive (e.g. "rule_never_open_unmarked_doors")
 - name: a short, memorable maxim phrased as guidance ("When the fog thickens, trust the cold")
-- theme: one of: self_preservation, composure, clarity, detachment — or invent one that fits
+- theme: must be one of the snake_case keys you define in narration_table
 - decision_types: which scene types trigger this rule (crossroads, market, encounter, archive, ritual, threshold, rest, investigation)
 - priority: 60–120 (higher = checked first)
 - sanity_penalty: integer 0–3 (cost if the rule is violated)
@@ -215,14 +185,16 @@ a survival heuristic, a moral code forged by this world's specific pressures.
 Make the rules feel like they were written by someone who survived this world, not a game designer.
 
 NARRATION TABLE
-Write atmospheric narration for each of these five rule themes: \
-self_preservation, composure, clarity, detachment, neutral.
-Each entry has three fields shown to the player after a choice:
-- opening  (1–2 sentences, shown BEFORE the choice — sets the psychological frame)
-- judgement (1–2 sentences, shown AFTER the choice — quiet observation on what just happened)
-- warning   (1 sentence — the sanity cost or mental toll the player should expect)
-Ground the text in your specific world: reference its places, factions, imagery, and stakes. \
-Write in second person ("You…" / "你…"). Keep each field under 60 words.
+Define 10–15 psychological theme labels for this saga. Each entry is a snake_case key mapped \
+to one sentence shown to the player after a choice — a brief internal state, mood, or sensation \
+the protagonist feels at that moment of psychological pressure.
+Rules:
+- Write in second person ("You…" / "你…"). One sentence per theme, under 20 words.
+- Describe inner experience only — no concrete actions, no invented specifics (no page numbers, \
+  names, or locations).
+- Must include a "neutral" key as the default fallback.
+- These keys also serve as the valid values for rule.theme — design them to cover the \
+  psychological range your rules will need.
 
 Call create_campaign exactly once.
 """
@@ -350,24 +322,12 @@ _TOOL = {
             "narration_table": {
                 "type": "object",
                 "description": (
-                    "Per-theme narration drafts grounded in this campaign's specific world. "
-                    "Keys: self_preservation, composure, clarity, detachment, neutral."
+                    "10–15 per-saga psychological theme labels. "
+                    "Each key is a snake_case theme name; each value is one sentence of inner experience. "
+                    "Must include 'neutral'. Rule.theme values must be keys from this table."
                 ),
-                "properties": {
-                    theme: {
-                        "type": "object",
-                        "properties": {
-                            "opening":   {"type": "string"},
-                            "judgement": {"type": "string"},
-                            "warning":   {"type": "string"},
-                        },
-                        "required": ["opening", "judgement", "warning"],
-                        "additionalProperties": False,
-                    }
-                    for theme in ("self_preservation", "composure", "clarity", "detachment", "neutral")
-                },
-                "required": ["self_preservation", "composure", "clarity", "detachment", "neutral"],
-                "additionalProperties": False,
+                "additionalProperties": {"type": "string"},
+                "minProperties": 10,
             },
         },
         "required": ["saga_id", "title", "intro", "tone", "initial_core_state", "start_waypoint_id", "waypoints", "toll_lexicon", "rules", "narration_table"],
@@ -375,25 +335,14 @@ _TOOL = {
     },
 }
 
-_TOOL_OPENAI = {
-    "type": "function",
-    "function": {
-        "name": _TOOL["name"],
-        "description": _TOOL["description"],
-        "parameters": _TOOL["input_schema"],
-    },
-}
-
-
 # ---------------------------------------------------------------------------
-# Campaign graph generation — Anthropic
+# Campaign graph generation — Anthropic (Opus)
 # ---------------------------------------------------------------------------
 
 async def _generate_anthropic(
     theme: str,
     node_count: int,
     lang: str,
-    provider: str,
     model: str,
     api_key: str | None,
     tone_hint: str | None = None,
@@ -420,7 +369,7 @@ async def _generate_anthropic(
         if block.type == "tool_use" and block.name == "create_campaign":
             raw = _coerce_json(block.input)
             _log_campaign_core_usage(
-                provider=provider, model=model, theme=theme,
+                provider="anthropic", model=model, theme=theme,
                 node_count=node_count, lang=lang,
                 tone_hint=tone_hint, worldview_hint=worldview_hint,
                 saga_id=raw["saga_id"],
@@ -435,96 +384,6 @@ async def _generate_anthropic(
     )
 
 
-# ---------------------------------------------------------------------------
-# Campaign graph generation — OpenAI-compatible
-# ---------------------------------------------------------------------------
-
-async def _generate_openai_compat(
-    theme: str,
-    node_count: int,
-    lang: str,
-    provider: str,
-    model: str,
-    base_url: str,
-    api_key: str | None,
-    tone_hint: str | None = None,
-    worldview_hint: str | None = None,
-) -> dict:
-    try:
-        import openai  # type: ignore
-    except ImportError:
-        print(
-            "Error: 'openai' package required for non-Anthropic providers. "
-            "Run: pip install openai",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    client = openai.AsyncOpenAI(api_key=api_key or "dummy", base_url=base_url)
-    user_msg = _build_user_msg(theme, node_count, lang, tone_hint, worldview_hint)
-
-    print(f"  Calling {model} via OpenAI-compat ({node_count} nodes, theme: {theme!r})...")
-    response = await client.chat.completions.create(
-        model=model,
-        max_tokens=4096,
-        messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
-        ],
-        tools=[_TOOL_OPENAI],
-        tool_choice={"type": "function", "function": {"name": "create_campaign"}},
-    )
-
-    usage = response.usage
-    if usage:
-        print(f"  Usage: input={usage.prompt_tokens}  output={usage.completion_tokens}")
-
-    msg = response.choices[0].message
-    if msg.tool_calls:
-        for tc in msg.tool_calls:
-            if tc.function.name == "create_campaign":
-                raw = _coerce_json(tc.function.arguments)
-                _log_campaign_core_usage(
-                    provider=provider, model=model, theme=theme,
-                    node_count=node_count, lang=lang,
-                    tone_hint=tone_hint, worldview_hint=worldview_hint,
-                    saga_id=raw["saga_id"],
-                    title=raw.get("title", raw["saga_id"]),
-                    usage_input=usage.prompt_tokens if usage else 0,
-                    usage_output=usage.completion_tokens if usage else 0,
-                )
-                return raw
-
-    raise RuntimeError(
-        f"No create_campaign tool call in response. "
-        f"finish_reason={response.choices[0].finish_reason}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Campaign graph generation — dispatcher
-# ---------------------------------------------------------------------------
-
-async def _generate(
-    theme: str,
-    node_count: int,
-    lang: str,
-    provider: str,
-    model: str,
-    api_key: str | None,
-    base_url: str | None,
-    tone_hint: str | None = None,
-    worldview_hint: str | None = None,
-) -> dict:
-    if provider == "anthropic":
-        return await _generate_anthropic(
-            theme, node_count, lang, provider, model, api_key,
-            tone_hint=tone_hint, worldview_hint=worldview_hint,
-        )
-    return await _generate_openai_compat(
-        theme, node_count, lang, provider, model, base_url or "", api_key,
-        tone_hint=tone_hint, worldview_hint=worldview_hint,
-    )
 
 
 def _build_user_msg(
@@ -735,10 +594,8 @@ def print_graph(data: dict) -> None:
 
 def _step1_generate_graph(
     args: argparse.Namespace,
-    provider: str,
     model: str,
     api_key: str,
-    base_url: str | None,
 ) -> dict:
     """Generate and validate the campaign graph, retrying up to args.retries times.
 
@@ -750,9 +607,9 @@ def _step1_generate_graph(
             print(f"\nRetrying (attempt {attempt}/{args.retries})...")
         try:
             data = _normalise(asyncio.run(
-                _generate(
+                _generate_anthropic(
                     args.theme, args.nodes, args.lang,
-                    provider, model, api_key, base_url,
+                    model, api_key,
                     tone_hint=args.tone,
                     worldview_hint=args.worldview,
                 )
@@ -815,61 +672,24 @@ def main() -> None:
         "--skip-t1-cache", action="store_true",
         help="Skip T1 cache generation (campaign graph only).",
     )
-    parser.add_argument(
-        "--provider", default=None, metavar="PROVIDER",
-        help="Campaign graph provider: anthropic (default), deepseek, openai, qwen. "
-             "Can also be set via CAMPAIGN_CORE_PROVIDER env var.",
-    )
-    parser.add_argument(
-        "--provider-model", dest="provider_model", default=None, metavar="MODEL",
-        help="Override model name for the campaign graph provider. "
-             "Can also be set via CAMPAIGN_CORE_MODEL env var.",
-    )
     args = parser.parse_args()
 
-    # Resolve campaign graph provider / model
-    provider = os.environ.get("CAMPAIGN_CORE_PROVIDER") or args.provider or "anthropic"
-    provider_model_override = args.provider_model or os.environ.get("CAMPAIGN_CORE_MODEL")
-
-    if provider == "anthropic":
-        default_model = "claude-opus-4-6"
-        base_url = None
-        api_key_env = "ANTHROPIC_API_KEY"
-    else:
-        try:
-            default_model, base_url, api_key_env = _provider_defaults(provider)
-        except ValueError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-
-    model = provider_model_override or default_model
-    api_key = os.environ.get(api_key_env)
+    model = os.environ.get("CAMPAIGN_CORE_MODEL") or "claude-opus-4-6"
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        print(
-            f"Error: {api_key_env} not set "
-            f"(required for provider '{provider}').",
-            file=sys.stderr,
-        )
+        print("Error: ANTHROPIC_API_KEY not set.", file=sys.stderr)
         sys.exit(1)
 
-    # Anthropic key is always needed for T1 cache generation (Haiku)
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.skip_t1_cache and not anthropic_key:
-        print(
-            "Warning: ANTHROPIC_API_KEY not set — skipping T1 cache generation.\n"
-            "Run with --skip-t1-cache to suppress this warning, or add the key to .env.",
-            file=sys.stderr,
-        )
-        args.skip_t1_cache = True
+    if not args.skip_t1_cache:
+        anthropic_key = api_key
+    else:
+        anthropic_key = None
 
-    print(
-        f"Generating campaign: '{args.theme}' ({args.nodes} nodes) "
-        f"via {provider}/{model}"
-    )
+    print(f"Generating saga: '{args.theme}' ({args.nodes} nodes) via {model}")
 
     # ── Step 1: generate campaign graph ────────────────────────────────────
 
-    data = _step1_generate_graph(args, provider, model, api_key, base_url)
+    data = _step1_generate_graph(args, model, api_key)
 
     print_graph(data)
 
@@ -877,7 +697,7 @@ def main() -> None:
     generation_context = {
         "theme":          args.theme,
         "language":       args.lang,
-        "provider":       provider,
+        "provider":       "anthropic",
         "model":          model,
         "tone_hint":      args.tone,
         "worldview_hint": args.worldview,
@@ -888,14 +708,14 @@ def main() -> None:
 
     # ── Step 2: generate T1 cache (Haiku, batched 3 nodes per call) ────────
 
-    if not args.skip_t1_cache:
+    if not args.skip_t1_cache and anthropic_key:
         generate_t1_cache_table_step(data, node_count, args.lang, anthropic_key)
 
-    print(f"\nCAMPAIGN_ID={data['saga_id']}")
-    print(f"CAMPAIGN_PATH={out_path}")
     saga_id = data['saga_id']
+    print(f"\nSAGA_ID={saga_id}")
+    print(f"SAGA_PATH={out_path}")
     print(f"\nTo play:")
-    print(f"  ./loombound run --campaign {saga_id} --lang {args.lang}")
+    print(f"  ./loombound run --saga {saga_id} --lang {args.lang}")
 
 
 if __name__ == "__main__":

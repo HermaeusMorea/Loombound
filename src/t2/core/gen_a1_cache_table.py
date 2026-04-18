@@ -268,28 +268,30 @@ async def _generate_t1_cache_table(
     client = anthropic.AsyncAnthropic(api_key=api_key)
     model = "claude-haiku-4-5-20251001"
 
-    user_msg, expected = _build_t1_cache_table_user_msg(nodes_raw, title, tone, intro, lang)
-
     _md_log([
-        f"## [{_ts()}] T1 CACHE REQUEST — `{saga_id}` ({len(nodes_raw)} nodes)",
+        f"## [{_ts()}] A1 CACHE REQUEST — `{saga_id}` ({len(nodes_raw)} waypoints)",
         f"model: {model}",
         *[f"  {n['waypoint_id']} arb×{n.get('encounter_count', 1)}" for n in nodes_raw],
     ])
 
+    accumulated: list[dict] = []
+    remaining_nodes = list(nodes_raw)
+
     for attempt in range(1, max_retries + 1):
+        retry_msg, expected = _build_t1_cache_table_user_msg(remaining_nodes, title, tone, intro, lang)
         try:
             response = await client.messages.create(
                 model=model,
-                max_tokens=8000,
+                max_tokens=16000,
                 system=_T1_CACHE_SYSTEM,
-                messages=[{"role": "user", "content": user_msg}],
+                messages=[{"role": "user", "content": retry_msg}],
                 tools=[_T1_CACHE_TOOL],
                 tool_choice={"type": "tool", "name": "generate_t1_cache_table"},
             )
         except Exception as exc:
             print(f"  [T1 cache attempt {attempt}] API error: {exc}")
             if attempt == max_retries:
-                return None
+                return accumulated or None
             continue
 
         u = response.usage
@@ -307,19 +309,23 @@ async def _generate_t1_cache_table(
         result_nodes = raw.get("waypoints", [])
 
         if errors:
+            # Collect any waypoints that did come back, retry only the missing ones.
+            got_ids = {n["waypoint_id"] for n in result_nodes if isinstance(n, dict)}
+            accumulated.extend(n for n in result_nodes if isinstance(n, dict))
+            remaining_nodes = [n for n in remaining_nodes if n["waypoint_id"] not in got_ids]
             print(f"  [T1 cache attempt {attempt}] validation errors: {errors}")
             _md_log([
-                f"## [{_ts()}] T1 CACHE RETRY — `{saga_id}` attempt={attempt}",
+                f"## [{_ts()}] A1 CACHE RETRY — `{saga_id}` attempt={attempt}",
                 *errors,
             ])
             if attempt == max_retries:
-                return None
+                return accumulated or None
             continue
 
         # Stamp node metadata client-side (keeps T1 cache self-contained)
         node_meta = {n["waypoint_id"]: n for n in nodes_raw}
         t1_cache_table: list[dict] = []
-        for n in result_nodes:
+        for n in accumulated + result_nodes:
             nid = n["waypoint_id"]
             meta = node_meta.get(nid, {})
             t1_cache_table.append({
@@ -334,7 +340,7 @@ async def _generate_t1_cache_table(
         print(f"  T1 cache: input={u.input_tokens}  output={u.output_tokens}  "
               f"(~${haiku_cost:.4f})")
         _md_log([
-            f"## [{_ts()}] T1 CACHE RESPONSE — `{saga_id}` attempt={attempt}",
+            f"## [{_ts()}] A1 CACHE RESPONSE — `{saga_id}` attempt={attempt}",
             f"model: {model}",
             f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
             f"cost: ${haiku_cost:.4f}",

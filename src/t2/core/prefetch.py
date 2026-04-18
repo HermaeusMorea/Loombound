@@ -14,7 +14,7 @@ Arc state tracking (per-choice Opus calls):
   - _current_arc_id is updated immediately when Opus responds.
   - Effects are stored keyed by "node_id:arb_idx" and consumed by play_cli just
     before displaying the target encounter.
-  - gemma3 prefetch reads _current_arc_id directly — no Opus call needed.
+  - C1 prefetch reads _current_arc_id directly — no Opus call needed.
 
 Thread model:
   play_cli is synchronous (blocking input). Background generation uses
@@ -36,13 +36,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src.t0.memory.models import CoreStateView, NarrationBlock, WaypointSummary
+from src.t0.memory.models import CoreStateView, WaypointSummary
 from src.t2.memory.a2_store import A2Store
 from src.t0.memory.types import WaypointMemory, RunMemory
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from src.t1.core.fast_core import FastCoreExpander, FastCoreConfig
+    from src.t1.core import C1Expander, C1Config
 from .m2_classifier import M2Classifier
 from .types import EncounterSeed, EncounterOptionSeed, NodeSeedPack, PrefetchEntry
 
@@ -143,7 +143,7 @@ class PrefetchCache:
 
     Two independent subsystems:
 
-    1. Node content prefetch (gemma3):
+    1. Node content prefetch (C1):
        trigger() → background thread generates encounter payloads for a future node.
        consume() → returns payloads (or None on cache miss/failure).
 
@@ -155,14 +155,14 @@ class PrefetchCache:
 
     def __init__(
         self,
-        fast_cfg: "FastCoreConfig | None" = None,
+        fast_cfg: "C1Config | None" = None,
         lang: str = "en",
         m2_classifier: M2Classifier | None = None,
     ) -> None:
-        from src.t1.core.fast_core import FastCoreExpander, FastCoreConfig
-        fast_cfg = fast_cfg or FastCoreConfig()
+        from src.t1.core import C1Expander, C1Config
+        fast_cfg = fast_cfg or C1Config()
         fast_cfg.lang = lang
-        self._fast = FastCoreExpander(fast_cfg)
+        self._fast = C1Expander(fast_cfg)
         self._m2_classifier = m2_classifier
 
         # Node content cache
@@ -200,7 +200,7 @@ class PrefetchCache:
         """Start background generation for target_node_id if not already running.
 
         Uses the preloaded path: T1 cache skeleton + current _current_arc_id tendency
-        → gemma3 expansion. If T1 cache is unavailable, marks the entry as failed
+        → C1 expansion. If T1 cache is unavailable, marks the entry as failed
         and the caller falls back to authored JSON.
         """
         with self._lock:
@@ -215,7 +215,7 @@ class PrefetchCache:
         log.info("Prefetch: triggering background generation for '%s' (%d encounter(s)).",
                  target_node_id, encounter_count)
 
-        # Snapshot the arc_id at trigger time — gemma3 uses this for tendency
+        # Snapshot the arc_id at trigger time — C1 uses this for tendency
         arc_id_snapshot = self._current_arc_id
 
         # Deep-copy state so background thread doesn't race with main loop
@@ -381,46 +381,6 @@ class PrefetchCache:
                      node_id, arb_idx, len(effects), rule_id)
         return effects, rule_id
 
-    def start_narration_rewrite(
-        self,
-        opening_draft: str,
-        judgement_draft: str,
-        warning_draft: str,
-        scene_summary: str,
-        scene_type: str,
-        rule_theme: str,
-    ) -> tuple[threading.Event, list]:
-        """Start a background T1 narration rewrite.
-
-        Returns (done_event, result_container).
-        result_container is a 1-item list; result_container[0] is the NarrationBlock
-        once done_event is set. Falls back to the draft on failure.
-        """
-        done = threading.Event()
-        result: list = [None]
-
-        def _run() -> None:
-            import asyncio
-            try:
-                block = asyncio.run(self._fast.rewrite_narration(
-                    opening_draft, judgement_draft, warning_draft,
-                    scene_summary, scene_type, rule_theme,
-                ))
-                result[0] = block
-            except Exception as exc:
-                log.warning("Narration rewrite thread failed: %s", exc)
-                result[0] = NarrationBlock(
-                    opening=opening_draft,
-                    judgement=judgement_draft,
-                    warning=warning_draft,
-                )
-            finally:
-                done.set()
-
-        t = threading.Thread(target=_run, name="narration-rewrite", daemon=True)
-        t.start()
-        return done, result
-
     # ------------------------------------------------------------------
     # Internal: Opus arc update
     # ------------------------------------------------------------------
@@ -564,7 +524,7 @@ class PrefetchCache:
             return
 
         _md_log([
-            f"## [{_ts()}] T1 CACHE LOOKUP — node `{target_node_id}` (arc_id={arc_id_snapshot})",
+            f"## [{_ts()}] A1 CACHE LOOKUP — waypoint `{target_node_id}` (arc_id={arc_id_snapshot})",
             f"waypoint_type: {node_entry.waypoint_type}",
             f"label: {node_entry.label}",
             f"encounters: {len(node_entry.encounters)}",
@@ -580,7 +540,7 @@ class PrefetchCache:
             merged_seeds.append(arb_seed)
             arb_id = f"{target_node_id}_t1_{idx:02d}"
             _md_log([
-                f"## [{_ts()}] FAST CORE REQUEST (preloaded) — `{arb_id}`",
+                f"## [{_ts()}] C1 REQUEST (preloaded) — `{arb_id}`",
                 f"scene_concept: {arb_seed.scene_concept}",
                 f"sanity_axis: {arb_seed.sanity_axis}",
                 f"tendency: {arb_seed.tendency}",
@@ -628,9 +588,9 @@ class PrefetchCache:
             ctx = payload.get("context", {})
             meta = ctx.get("metadata", {})
             _md_log([
-                f"## [{_ts()}] FAST CORE RESPONSE ({id_prefix}) — `{arb_id}`",
+                f"## [{_ts()}] C1 RESPONSE ({id_prefix}) — `{arb_id}`",
                 f"tokens — prompt: {fc_usage.get('prompt_tokens', '?')}  eval: {fc_usage.get('eval_tokens', '?')}",
-                "[local — gemma3, no API cost]",
+                "[local — qwen2.5:7b, no API cost]",
                 f"scene_summary: {meta.get('scene_summary', '(empty)')}",
             ])
 

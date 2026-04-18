@@ -1,4 +1,4 @@
-"""Tests for FastCoreExpander: prompt building, assembly, fallback, and expand()."""
+"""Tests for C1Expander: prompt building, assembly, fallback, and expand()."""
 
 from __future__ import annotations
 
@@ -8,11 +8,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.t0.memory.models import CoreStateView
-from src.t1.core.fast_core import (
-    FastCoreConfig,
-    FastCoreExpander,
+from src.t1.core.ollama import C1Config
+from src.t1.core.expander import (
+    C1Config,
+    C1Expander,
     _assemble,
-    _build_prompt,
+    build_expand_prompt,
     _template_fallback,
 )
 from src.t2.core.types import EncounterOptionSeed, EncounterSeed
@@ -47,34 +48,34 @@ def _state() -> CoreStateView:
 
 
 # ---------------------------------------------------------------------------
-# _build_prompt
+# build_expand_prompt
 # ---------------------------------------------------------------------------
 
-def test_build_prompt_contains_scene_concept():
-    prompt = _build_prompt(_seed(), _state())
+def testbuild_expand_prompt_contains_scene_concept():
+    prompt = build_expand_prompt(_seed(), _state())
     assert "A flooded corridor with two exits" in prompt
 
 
-def test_build_prompt_contains_sanity_axis():
-    prompt = _build_prompt(_seed(), _state())
+def testbuild_expand_prompt_contains_sanity_axis():
+    prompt = build_expand_prompt(_seed(), _state())
     assert "Safety vs speed when sanity is low" in prompt
 
 
-def test_build_prompt_contains_all_option_ids():
+def testbuild_expand_prompt_contains_all_option_ids():
     seed = _seed(n_options=3)
-    prompt = _build_prompt(seed, _state())
+    prompt = build_expand_prompt(seed, _state())
     for opt in seed.options:
         assert opt.option_id in prompt
 
 
-def test_build_prompt_contains_tendency():
-    prompt = _build_prompt(_seed(), _state())
+def testbuild_expand_prompt_contains_tendency():
+    prompt = build_expand_prompt(_seed(), _state())
     assert "arc_trajectory" in prompt
     assert "rising" in prompt
 
 
-def test_build_prompt_includes_depth_and_act():
-    prompt = _build_prompt(_seed(), _state())
+def testbuild_expand_prompt_includes_depth_and_act():
+    prompt = build_expand_prompt(_seed(), _state())
     assert "Depth: 2" in prompt
     assert "Act: 1" in prompt
 
@@ -84,7 +85,7 @@ def test_build_prompt_includes_depth_and_act():
 # ---------------------------------------------------------------------------
 
 def test_num_predict_budget_scales_with_options():
-    expander = FastCoreExpander()
+    expander = C1Expander()
     # Access the formula indirectly by checking it via expand() mock
     for n in (2, 3, 4):
         expected = 600 + n * 300
@@ -217,18 +218,18 @@ def test_template_fallback_uses_scene_concept_as_summary():
 
 
 # ---------------------------------------------------------------------------
-# FastCoreExpander.expand() — fallback on HTTP error
+# C1Expander.expand() — fallback on HTTP error
 # ---------------------------------------------------------------------------
 
 def test_expand_falls_back_to_template_on_http_error():
     import httpx
 
-    expander = FastCoreExpander(FastCoreConfig(max_retries=0))
+    expander = C1Expander(C1Config(max_retries=0))
     seed = _seed(2)
     state = _state()
 
     with patch(
-        "src.t1.core.fast_core._call_ollama",
+        "src.t1.core.expander.call_ollama",
         new=AsyncMock(side_effect=httpx.ConnectError("ollama not running")),
     ):
         payload, usage = asyncio.run(expander.expand(seed, state, "arb_fallback"))
@@ -251,11 +252,11 @@ def test_expand_returns_usage_on_success():
     }
     fake_usage = {"prompt_tokens": 120, "eval_tokens": 80}
 
-    expander = FastCoreExpander(FastCoreConfig(max_retries=0))
+    expander = C1Expander(C1Config(max_retries=0))
     seed = _seed(2)
 
     with patch(
-        "src.t1.core.fast_core._call_ollama",
+        "src.t1.core.expander.call_ollama",
         new=AsyncMock(return_value=(fake_expanded, fake_usage)),
     ):
         payload, usage = asyncio.run(expander.expand(seed, _state(), "arb_ok"))

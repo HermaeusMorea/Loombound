@@ -9,13 +9,13 @@
 #       Delete data/a2_cache_table.json.
 #
 #   gen "theme" [--nodes N] [--lang zh] [--tone "..."] [--worldview "..."]
-#               [--model PROVIDER[:MODEL]] [--skip-t1-cache]
+#               [--skip-t1-cache]
 #       Generate a saga graph (Opus) + A1 cache skeletons (Haiku).
 #
 #   run [--saga ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
 #       Launch the game. Requires ANTHROPIC_API_KEY (Claude API only).
 #
-#   report [--campaign ID]
+#   report [--saga ID]
 #       Print LLM usage / cost report for the last run.
 #
 #   clean [--saga ID_OR_PATH] [--all]
@@ -61,8 +61,8 @@ _usage() {
     exit 0
 }
 
-# Resolve a campaign ID or path to a JSON file path.
-# Accepts: bare ID, data/campaigns/ID.json, or absolute path.
+# Resolve a saga ID or path to a JSON file path.
+# Accepts: bare ID, data/sagas/ID.json, or absolute path.
 _resolve_campaign() {
     local id="$1"
     if [[ "$id" == /* ]] || [[ "$id" == ./* ]]; then
@@ -113,29 +113,7 @@ case "$subcmd" in
 
     # ── gen ─────────────────────────────────────────────────────────────────
     gen)
-        provider=""
-        provider_model=""
-        passthrough=()
-
-        while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --model)
-                    val="$2"; shift 2
-                    if [[ "$val" == *:* ]]; then
-                        provider="${val%%:*}"
-                        provider_model="${val#*:}"
-                    else
-                        provider="$val"
-                    fi
-                    ;;
-                *) passthrough+=("$1"); shift ;;
-            esac
-        done
-
-        [[ -n "$provider" ]]       && passthrough+=(--provider "$provider")
-        [[ -n "$provider_model" ]] && passthrough+=(--provider-model "$provider_model")
-
-        exec "$PYTHON" -m src.t3.core.generate_campaign "${passthrough[@]+"${passthrough[@]}"}"
+        exec "$PYTHON" -m src.t3.core.generate_campaign "$@"
         ;;
 
     # ── run ─────────────────────────────────────────────────────────────────

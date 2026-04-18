@@ -9,10 +9,7 @@ dist/
 build/
 *.egg-info/
 logs/*
-!logs/heritage_liquidation_bureau_playthrough.md
+!logs/sample_deep_mine_cult_act1.md
 # LLM-generated campaign data — excluded (regenerate with ./loombound gen)
-data/campaigns/*
-!data/campaigns/act1_campaign.json
-!data/campaigns/heritage_liquidation_bureau.json
-data/nodes/*
-!data/nodes/heritage_liquidation_bureau
+data/sagas/*
+data/waypoints/*

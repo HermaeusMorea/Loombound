@@ -1,13 +1,6 @@
-"""C1 logic: Fast Core (gemma3)."""
+"""C1 core: local qwen2.5:7b scene expansion via ollama."""
 
-__all__ = ["FastCoreExpander", "FastCoreConfig"]
+from .ollama import C1Config
+from .expander import C1Expander
 
-
-def FastCoreExpander(*args, **kwargs):
-    from .fast_core import FastCoreExpander as _F
-    return _F(*args, **kwargs)
-
-
-def FastCoreConfig(*args, **kwargs):
-    from .fast_core import FastCoreConfig as _F
-    return _F(*args, **kwargs)
+__all__ = ["C1Config", "C1Expander"]

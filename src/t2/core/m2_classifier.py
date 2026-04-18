@@ -175,9 +175,9 @@ Effect fields:
   m  money_delta    — typically -8 to +10.  Negative = cost, theft, loss.
   s  sanity_delta   — typically -8 to +3.   Negative = dread, trauma, revelation.
 
-For each option, assign v FIRST from the campaign verdict dictionary, then set h/m/s
-values that are consistent with that verdict. The verdict dictionary is appended to
-the T1 option index. Honor its numeric constraints — do not assign stable to an option
+For each option, assign toll FIRST from the saga toll lexicon, then set h/m/s
+values that are consistent with that toll. The toll lexicon is appended to
+the A1 option index. Honor its numeric constraints — do not assign stable to an option
 with large negative deltas, or destabilizing to an option with net positive deltas.
 
 Calibration rules:
@@ -197,7 +197,7 @@ _NO_MATCH_ID = -1
 class M2ClassifierConfig:
     api_key: str | None = None
     model: str = "claude-haiku-4-5-20251001"
-    max_tokens: int = 220   # entry_id + selected_rule_id + per-option verdict + h/m/s
+    max_tokens: int = 220   # entry_id + selected_rule_id + per-option toll + h/m/s
     timeout: float = 30.0
 
 
@@ -264,9 +264,9 @@ class M2Classifier:
                                     "type": "string",
                                     "description": "toll id from the saga toll lexicon. Assign this first, then set h/m/s consistent with it.",
                                 },
-                                "h": {"type": "integer", "description": "health_delta"},
-                                "m": {"type": "integer", "description": "money_delta"},
-                                "s": {"type": "integer", "description": "sanity_delta"},
+                                "h": {"type": "integer", "description": "health_delta", "minimum": -15, "maximum": 10},
+                                "m": {"type": "integer", "description": "money_delta",  "minimum": -15, "maximum": 15},
+                                "s": {"type": "integer", "description": "sanity_delta", "minimum": -10, "maximum": 5},
                             },
                             "required": ["id", "v", "h", "m", "s"],
                             "additionalProperties": False,
@@ -293,15 +293,15 @@ class M2Classifier:
                 f"\n\nSaga rules (select one per encounter):\n{self._rules_json}"
                 if self._rules_json else ""
             )
-            verdict_suffix = (
+            toll_suffix = (
                 f"\n\nToll lexicon for this saga:\n{self._toll_lexicon_json}"
                 if self._toll_lexicon_json else ""
             )
             blocks.append({
                 "type": "text",
                 "text": (
-                    f"T1 option index (node option structure for this campaign, no effect values):\n"
-                    f"{self._a1_cache_table_index_json}{rules_suffix}{verdict_suffix}"
+                    f"A1 option index (waypoint option structure for this saga, no effect values):\n"
+                    f"{self._a1_cache_table_index_json}{rules_suffix}{toll_suffix}"
                 ),
                 "cache_control": {"type": "ephemeral"},
             })
@@ -320,9 +320,9 @@ class M2Classifier:
                 if not opt_id or not v:
                     return None
                 effects_map[opt_id] = {
-                    "health_delta": int(item["h"]),
-                    "money_delta":  int(item["m"]),
-                    "sanity_delta": int(item["s"]),
+                    "health_delta": max(-15, min(10, int(item["h"]))),
+                    "money_delta":  max(-15, min(15, int(item["m"]))),
+                    "sanity_delta": max(-10, min(5,  int(item["s"]))),
                     "toll":         v,
                 }
             return entry_id, selected_rule_id, effects_map

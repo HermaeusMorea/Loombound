@@ -48,7 +48,7 @@ def apply_option_effects(run: Run, option: dict[str, Any], selected_result: Any)
     for condition in effects.get("add_marks", []):
         if condition not in run.meta_state.active_marks:
             run.meta_state.active_marks.append(condition)
-            notes.append(f"Gained condition: {condition}")
+            notes.append(f"Gained mark: {condition}")
 
     major_events = run.meta_state.metadata.setdefault("major_events", [])
     for event in effects.get("add_events", []):

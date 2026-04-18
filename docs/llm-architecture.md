@@ -6,48 +6,46 @@ LLM 是必需内容层，但不替代确定性 kernel。职责边界：
 
 | 负责方 | 职责 |
 |---|---|
-| **kernel** | 状态结构、合法更新、规则选择、replay 一致性 |
-| **LLM** | 内容资产生成、场景文本展开、arc 分类、选项数值分配 |
+| **kernel（C0）** | 状态结构、合法更新、规则选择、replay 一致性 |
+| **LLM（C1/C2/C3）** | 内容资产生成、场景文本展开、bearing 分类、选项数值分配 |
 
 所有 LLM 输出必须经过 `state_adapter` 正规化后才能进入运行时。
 
 ---
 
-## IRIS 三层架构
-
-本设计参考 PRISM 协议，将 AI 层分为三层，各层说不同的语言：
+## 三层处理架构（C0–C2）
 
 ```
 ┌────────────────────────────────────────┐
-│  M2 — Claude Haiku                     │  quasi 语言：arc 倾向、per-option 数值
-│  运行时 arc 分类器（每次选择后调用）     │
+│  C2 — Claude Haiku                     │  tendency（倾向带）→ bearing + per-option toll/effects
+│  运行时 bearing 分类器（每次选择后调用） │
 └──────────────────┬─────────────────────┘
-                   │  entry_id + effects（动态注入）
+                   │  entry_id + effects + tolls（动态注入）
 ┌──────────────────▼─────────────────────┐
-│  M1 / Fast Core — gemma3:4b（本地）     │  quasi ↔ 精确文本 转换
+│  C1 — qwen2.5:7b（本地）                 │  A1 骨架 → 精确散文
 │  场景文本展开（运行时实时）               │
 └──────────────────┬─────────────────────┘
                    │  structured payloads
 ┌──────────────────▼─────────────────────┐
-│  M0 / Kernel — 确定性核心               │  精确语言：整数、枚举、合法 schema
-│  RunMemory / NodeMemory                │
+│  C0 — 确定性核心                        │  精确语言：整数、枚举、合法 schema
+│  RunMemory / WaypointMemory            │
 └────────────────────────────────────────┘
 ```
 
 ---
 
-## M0 — Kernel 层（确定性）
+## C0 — Kernel 层（确定性）
 
-对应 `RunMemory` / `NodeMemory`，完全确定性更新。  
+对应 `RunMemory` / `WaypointMemory`，完全确定性更新。  
 不涉及 LLM，是系统的事实基础。
 
 ---
 
-## M2 — 运行时 arc 分类器（Claude Haiku）
+## C2 — 运行时 bearing 分类器（Claude Haiku）
 
-### 离线：生成 Table A 和 Table B
+### 离线：生成 A2 cache table 和 A1 cache table
 
-**Table A（全局 arc-state 调色板，一次性，由 Opus 生成）**
+**A2 cache table（全局 bearing 枚举，一次性，由 C3/Opus 生成）**
 
 ~50 条枚举，四个维度：
 - `arc_trajectory`: rising / plateau / climax / resolution / pivot
@@ -55,78 +53,81 @@ LLM 是必需内容层，但不替代确定性 kernel。职责边界：
 - `narrative_pacing`: slow / steady / accelerating / sprint
 - `pending_intent`: exploration / confrontation / revelation / recovery / transition
 
-存于 `data/m2_table_a.json`，运行时加载进 Haiku prompt cache。
+存于 `data/a2_cache_table.json`，运行时加载进 Haiku prompt cache。
 
-**Table B（per-campaign 场景骨架，每次 gen 由 Haiku 生成）**
+**A1 cache table（per-saga 场景骨架，每次 `gen` 由 C2/Haiku 生成）**
 
-每个节点一组 scene skeleton：
+每个 waypoint 一组场景骨架：
 - `scene_concept`：场景核心方向（20–40 词）
-- `sanity_axis`：本节点的心智压力轴
+- `sanity_axis`：本 waypoint 的心智压力轴
 - `options`：选项意图（intent）、tags —— **不含 h/m/s 数值**
 
-存于 `data/nodes/<campaign_id>/table_b.json`。
+存于 `data/waypoints/<saga_id>/a1_cache_table.json`。
 
-**Table C（运行时派生，不存文件）**
+**A1 option index（运行时派生，不存文件）**
 
-从 Table B 提取 `option_id + intent`，去掉所有数值，作为 Haiku 的 per-campaign cached prefix。Haiku 查表后填写各选项的 h/m/s 数值。
+从 A1 cache table 提取 `option_id + intent`，去掉所有数值，作为 Haiku 的 per-saga cached prefix。  
+Haiku 查表后填写各选项的 h/m/s 数值和 toll。
 
-### 运行时：per-choice 分类 + 数值分配
+### 运行时：per-choice bearing 分类 + 数值分配
 
-每次玩家完成一次 arbitration 选择后，后台线程立即调用 M2 Classifier：
+每次玩家完成一次 encounter 选择后，后台线程立即调用 C2 classifier：
 
 ```
-Table A (cached) + Table C (cached) + M1/M0 quasi state + 下一个 arbitration 标识
-  → entry_id（整数） + effects（{option_id: {h, m, s}}）
+A2 cache table (cached) + A1 option index (cached) + toll lexicon (cached)
+  + tendency（A0 压缩）+ 下一个 encounter 标识
+  → entry_id（整数） + effects（{option_id: {h, m, s}}）+ tolls
 ```
 
-- **entry_id**：更新本地 `_current_arc_id`，供 gemma3 prefetch 查 Table A 倾向
-- **effects**：在下一个 arbitration 显示前注入选项数值
-- gemma3 prefetch 直接读 `_current_arc_id`，不再主动调用 Haiku
+- **entry_id**：更新当前 bearing，供 C1 prefetch 查 A2 cache table 倾向
+- **effects**：在下一个 encounter 显示前注入选项数值
+- **tolls**：per-option toll 标签，交给 rule enforcement
+- C1 prefetch 直接读当前 bearing，不再主动调用 C2
 
-节点内最后一次选择：只返回 entry_id（无 effects）。  
-玩家选定下一节点后，主循环触发该节点第一个 arbitration 的 Haiku 调用。
+Waypoint 内最后一次选择：只返回 entry_id（无 effects）。  
+玩家选定下一 waypoint 后，主循环触发该 waypoint 第一个 encounter 的 C2 调用。
 
 ---
 
 ## Prompt Cache 策略
 
-Haiku M2 Classifier 的缓存分三层：
+C2 classifier 的缓存分四层：
 
 ```
-system prompt（分类指南 + 效果分配规则）    ~3,000 tokens  全局 cache
-tool schema（select_arc_and_effects）        ~1,000 tokens  全局 cache
-Table A                                      ~1,500 tokens  session cache
-Table C（per-campaign 选项结构）             ~2,000 tokens  per-campaign cache
----
-动态部分（quasi state + 目标 arbitration）     ~300 tokens  每次全量计费
-输出（entry_id + 一个 arb 的 effects）          ~80 tokens  每次全量计费
+system prompt（分类指南 + toll 分配规则）      ~3,000 tokens  全局 cache
+tool schema（arc update + effects）             ~1,000 tokens  全局 cache
+A2 cache table                                  ~1,500 tokens  session cache
+A1 option index + toll lexicon（per-saga）      ~2,500 tokens  per-saga cache
+─────────────────────────────────────────────────────────────
+tendency（A0 压缩）+ 目标 encounter 标识           ~300 tokens  每次全量计费
+输出（entry_id + 一组 effects + tolls）            ~100 tokens  每次全量计费
 ```
 
-cache 命中后每次调用实际成本：
+cache 命中后每次调用实际成本（实测 8 次均值）：
 
 | 部分 | tokens | 费率 | 费用 |
 |---|---|---|---|
-| 缓存读（~7,500 tokens） | 7,500 | $0.08/M | ~$0.0006 |
-| 动态输入 | 300 | $0.80/M | ~$0.00024 |
-| 输出 | 80 | $4/M | ~$0.00032 |
-| **合计** | | | **~$0.001** |
+| 缓存读（~8,087 tokens） | 8,087 | $0.08/M | ~$0.00065 |
+| 动态输入 | ~398 | $0.80/M | ~$0.00032 |
+| 输出 | ~220 | $4/M | ~$0.00088 |
+| **合计** | | | **~$0.0019** |
 
 ---
 
-## M1 — Fast Core（gemma3:4b，本地）
+## C1 — 场景展开（qwen2.5:7b，本地）
 
-接收 arc 倾向（来自 Table A entry_id）+ Table B 场景骨架，展开为玩家看到的完整文本：
+接收当前 bearing（来自 A2 cache table entry_id）+ A1 cache table 场景骨架，展开为玩家看到的完整文本：
 
-| 字段 | 来源 | Fast Core 展开方式 |
+| 字段 | 来源 | C1 展开方式 |
 |---|---|---|
 | `scene_summary` | scene_concept | 3–5 句氛围散文 |
 | `sanity_question` | sanity_axis | 1 句悬念问句 |
 | option labels | intent | 5–10 词选项文字 |
 | `add_events` | intent | 1–2 句因果记录 |
 
-h/m/s 数值由 Haiku 注入，gemma3 生成 add_events 时参考效果方向但不直接输出数值。
+h/m/s 数值和 toll 由 C2 注入，C1 生成 add_events 时参考效果方向但不直接输出数值。
 
-本地运行，零 API 成本。
+本地运行，零 API 成本。`num_predict = -1`（无限制，防止复杂场景截断）。
 
 ---
 
@@ -134,55 +135,61 @@ h/m/s 数值由 Haiku 注入，gemma3 生成 add_events 时参考效果方向但
 
 ```
 游戏开始
-  └─ _current_arc_id = 0（固定初始值）
-  └─ gemma3 warmup（后台）
+  └─ bearing = 0（固定初始值）
+  └─ C1（qwen2.5:7b）warmup（后台）
 
-进入节点 N
-  └─ prefetch.trigger(N+1)
-       └─ 读 _current_arc_id → 查 Table A 倾向
-       └─ 查 Table B 骨架
-       └─ gemma3 展开（后台，和玩家游玩并行）
-  └─ 玩家选取节点后，主循环触发 Haiku(N_first_arb=0)（后台）
+进入 waypoint N
+  └─ prefetch.trigger(N)
+       └─ 读 bearing → 查 A2 cache table 倾向
+       └─ 查 A1 cache table 骨架
+       └─ C1 展开（后台，和玩家游玩并行）
+  └─ 玩家选取 waypoint 后，主循环触发 C2(waypoint_N, encounter=0)（后台）
 
-游玩 Arb 0
-  └─ consume_arb_effects(N, 0) → 等待 Haiku 结果 → 注入 effects
+游玩 encounter 0
+  └─ consume_effects(N, 0) → 等待 C2 结果 → 注入 effects + tolls
   └─ 显示选项 → 玩家选择
-  └─ update_arc_state(quasi, N, next_arb=1)（后台）
+  └─ C2 update（bearing + N, next=1）（后台）
 
-游玩 Arb 1
-  └─ consume_arb_effects(N, 1) → 等待 Haiku 结果 → 注入 effects
-  └─ 玩家选择（最后一个 arb）
-  └─ update_arc_state(quasi, None, None) → 仅更新 entry_id
+游玩 encounter 1（最后）
+  └─ consume_effects(N, 1) → 等待 C2 结果 → 注入 effects + tolls
+  └─ 玩家选择
+  └─ C2 update（bearing only）→ 仅更新 entry_id
 
-节点 N 结束，玩家选择节点 N+1
-  └─ update_arc_state(quasi, N+1, arb=0)（后台）
-  └─ 进入节点 N+1，prefetch 结果已就绪
+Waypoint N 结束，玩家选择 waypoint N+1
+  └─ C2 update（bearing + N+1, encounter=0）（后台）
+  └─ 进入 waypoint N+1，prefetch 结果已就绪
 ```
 
 ---
 
-## quasi 语言
+## tendency 语言
 
-M0 → M2 的状态传递使用"quasi 精确描述"，示例：
+C0 → C2 的状态传递使用"tendency 描述"（A0 精确数值压缩为倾向带），示例：
 
 ```
-## Current state (quasi)
+## Current state (tendency)
   health:  high (stable)
   sanity:  moderate (falling)
-  floor:   2,  act: 2
-  dominant themes: dread×3, isolation×2
+  depth:   2,  act: 2  active_marks: lamp_oil
 
-## Node trajectory (2 completed)
-  [crossroads] floor=1  sanity_delta=-1  flags=none
-  [market]     floor=2  sanity_delta=-2  flags=witnessed_violence
+## Waypoint trajectory (2 completed)
+  [crossroads] depth=1  sanity_delta=-1  flags=none
+  [market]     depth=2  sanity_delta=-2  flags=witnessed_violence
 
-## Active node so far (partial)
-  arbitrations_resolved=1  sanity_lost=1
+## Active waypoint so far (partial)
+  encounters_resolved=1  sanity_lost=1
 
-Assign effects for: node_id=archive_vault, arb_index=1
+## Effect delta calibration (calibrate h/m/s to current state)
+  h (health  high/10): [-7, +2]  — reserve extremes for pivotal options
+  m (money   moderate): [-4, +8]
+  s (sanity  moderate/10): [-5, +2]  — fragile sanity → smaller losses
+
+Assign effects for: waypoint_id=archive_vault, encounter_index=1
 ```
 
-Haiku 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": -1}, ...]}`。
+C2 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": -1, "toll": "destabilizing"}, ...]}`。
+
+`## Effect delta calibration` 由 `collector.py` 根据当前倾向带实时生成，告知 C2 当前状态下各资源的合理 delta 范围，防止血量上限 10 时输出 -50 等失真数值。C2 仍可在极端剧情节点突破建议范围，但应将大幅变动保留给关键选项。
 
 ---
 
@@ -190,26 +197,26 @@ Haiku 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": 
 
 ### LLM 可以生成
 
-- Campaign 图、节点拓扑、map_blurb（Opus，`./loombound gen`）
-- scene_concept、sanity_axis、选项意图（Haiku，Table B 生成）
-- arc state entry_id + per-option h/m/s 数值（Haiku，运行时 M2）
-- scene_summary、sanity_question、option labels、add_events（gemma3，运行时展开）
+- Saga 图、waypoint 拓扑、map_blurb、toll lexicon、rules、narration_table（C3，`./loombound gen`）
+- scene_concept、sanity_axis、选项意图（C2，A1 cache table 生成）
+- bearing entry_id + per-option h/m/s 数值 + tolls（C2，运行时）
+- scene_summary、sanity_question、option labels、add_events（C1，运行时展开）
 
 ### LLM 不可直接写入
 
 - CoreState 数值字段的最终应用（由 kernel 执行）
 - RuleTemplate 的最终选择
-- Run / Node / Arbitration 的结构字段
+- Run / Waypoint / Encounter 的结构字段
 
 ---
 
 ## 离线生成流程
 
 ```bash
-# 1. 生成全局 arc palette（一次性）
+# 1. 生成全局 bearing 枚举（一次性）
 ./loombound arc-palette
 
-# 2. 生成 campaign（Opus 生图 + Haiku 生 Table B，自动）
+# 2. 生成 saga（Opus 生图 + Haiku 生 A1 cache，自动）
 ./loombound gen "主题" --lang zh
 
 # 3. 运行
@@ -220,73 +227,63 @@ Haiku 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": 
 
 ## 成本分析
 
-### 参考数据：campaign "核战后遗址的审计员"（5 节点，11 次 arbitration）
+### 实测参考（deep_mine_cult_act1，4 waypoints，8 次 encounter 选择）
 
-> 注：以下运行时数据采集于 Haiku M2 上线前（当时使用 Opus per-node 设计），仅供离线成本参考。
+完整日志：[logs/sample_deep_mine_cult_act1.md](../logs/sample_deep_mine_cult_act1.md)
 
-**离线阶段（一次性，所有玩家共享）**
+**离线阶段（一次性）**
 
 | 步骤 | 模型 | 实测花费 |
 |---|---|---|
-| Campaign 图生成 | Claude Opus | $0.0454 |
-| Table B 场景骨架生成 | Claude Haiku | $0.0166 |
-| **离线小计** | | **$0.0620** |
+| Saga 图 + toll lexicon + rules + narration_table | Claude Opus 4.6 | $0.0878 |
+| A1 cache table 场景骨架 | Claude Haiku 4.5 | $0.0251 |
+| **离线小计** | | **$0.1129** |
 
-**运行时估算（Haiku per-choice 设计）**
+**运行时（单局）**
 
-| 步骤 | 模型 | 估算花费 |
+| 步骤 | 模型 | 实测花费 |
 |---|---|---|
-| M2 分类 × 11 次选择（cache 命中） | Claude Haiku | ~$0.011 |
-| Fast Core 展开 × 11 arbitration | gemma3（本地） | **$0** |
-| **运行时小计** | | **~$0.011** |
+| C2 bearing 分类 × 8 次（cache_read 64,696 tokens，节省 $0.0466） | Claude Haiku | $0.0148 |
+| C1 场景展开 × 8 encounter（12,423 local tokens） | qwen2.5:7b（本地） | **$0** |
+| **运行时小计** | | **$0.0148** |
 
-**首次游玩总花费估算：~$0.073**
+### 1000 局成本对比
 
----
-
-### 随游玩次数增加，均摊成本趋近于运行时极限
-
-| 游玩次数 | 总 API 花费 | 每次均摊 |
-|---|---|---|
-| 1 次 | ~$0.073 | ~$0.073 |
-| 10 次 | ~$0.173 | ~$0.017 |
-| 100 次 | ~$1.17 | ~$0.012 |
-| ∞ | — | **~$0.011** |
-
----
-
-### 假如用全 Opus 方案替换 Fast Core？
-
-这 11 次 arbitration 展开，Fast Core 平均每次约 617 eval tokens，输入约 300 tokens。换成 Opus 的等效成本：
-
-```
-每次 arbitration：300 input + 617 output
-= 300 × $15/M + 617 × $75/M ≈ $0.051/次
-11 次合计 ≈ $0.56/局
-```
-
-| 游玩次数 | 当前架构 | 全 Opus 方案 | 倍率 |
+| 策略 | 离线 ×1 | 每局 | 1000 局总计 |
 |---|---|---|---|
-| 1 次 | ~$0.073 | ~$0.62 | ~8.5× |
-| 100 次 | ~$1.17 | ~$56 | **~48×** |
+| **tiered（当前）** Opus gen + Haiku C2 + 本地 C1 | $0.1129 | $0.0148 | **$14.88** |
+| 全 Opus（C2 + C1 均换 Opus） | $0.2450 | $0.2199 | $220.11 |
+| 全 Haiku（saga gen 也换 Haiku） | $0.0392 | $0.0352 | $35.22 |
+
+> tiered vs 全 Haiku：每局 C1 本地免费省 $0.0204，1000 局节省 ~$20。  
+> tiered vs 全 Opus：1000 局节省 ~$205，约 **14.8×** 差距。  
+> 完整的 per-run 明细由 `./loombound report` 实时计算。
 
 ---
 
 ## 模块位置
 
 ```
-src/core/llm_interface/
-├── m2_classifier.py    ← 运行时 arc 分类器（Haiku，per-choice）
-├── prefetch.py         ← 后台预载线程 + arc 状态追踪
-├── fast_core.py        ← gemma3 场景文本展开
-├── collector.py        ← M0 → quasi state 构建
-└── types.py            ← SeedPack / PrefetchEntry 数据类型
+src/t3/core/
+├── generate_campaign.py    ← C3：saga 生成（Opus）
+└── gen_a2_cache_table.py   ← C3：A2 cache table 生成（Opus，一次性）
 
-src/core/memory/
-├── m2_store.py         ← Table A / Table B / Table C 加载与查询
-└── types.py            ← M1Entry, M1Store, M2Entry, M2Store
+src/t2/core/
+├── m2_classifier.py        ← C2：运行时 bearing 分类器（Haiku，per-choice）
+├── prefetch.py             ← C1 + C2：后台预载线程 + bearing 状态追踪
+├── gen_a1_cache_table.py   ← C2：A1 cache table 生成（Haiku，per-saga）
+├── collector.py            ← C0 → tendency state 构建
+└── types.py                ← EncounterSeed / PrefetchEntry 数据类型
 
-scripts/
-├── generate_arc_palette.py   ← 生成 Table A（Opus）
-└── generate_campaign.py      ← 生成 campaign 图（Opus）+ Table B（Haiku）
+src/t1/core/
+├── expander.py             ← C1：qwen2.5:7b 场景文本展开
+├── prompts.py              ← C1 prompt 构建
+└── ollama.py               ← C1 transport（ollama /api/chat）
+
+src/t2/memory/
+├── a2_store.py             ← A2 cache table / A1 cache table / A1 option index 加载
+└── types.py                ← A2Entry、A1Entry、A1Store、A2Store
+
+src/t0/memory/
+└── models.py               ← CoreState、EncounterContext、OptionResult 等核心数据模型
 ```

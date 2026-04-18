@@ -185,7 +185,6 @@ class RuleEvaluation:
     rule: RuleTemplate
     matched: bool
     reasons: list[str]
-    theme_score: float
 
 
 @dataclass(slots=True)
@@ -201,11 +200,9 @@ class OptionResult:
 
 @dataclass(slots=True)
 class NarrationBlock:
-    """Optional text wrapper around an already-decided verdict."""
+    """One-sentence psychological frame shown after a choice."""
 
-    opening: str = ""
-    judgement: str = ""
-    warning: str = ""
+    text: str = ""
 
 
 @dataclass(slots=True)
@@ -216,7 +213,6 @@ class EncounterResult:
     matched_rule_ids: list[str]
     option_results: list[OptionResult]
     sanity_delta: int
-    theme_scores: dict[str, float] = field(default_factory=dict)
     narration: NarrationBlock = field(default_factory=NarrationBlock)
 
 
@@ -239,7 +235,6 @@ class RunSnapshot:
     encounter_id: str
     selected_rule_id: str | None
     matched_rule_ids: list[str]
-    theme_scores: dict[str, float]
     option_results: list[OptionResult]
     sanity_delta: int
     narration: NarrationBlock = field(default_factory=NarrationBlock)
@@ -251,7 +246,6 @@ class RunSnapshot:
             "encounter_id": self.encounter_id,
             "selected_rule_id": self.selected_rule_id,
             "matched_rule_ids": self.matched_rule_ids,
-            "theme_scores": self.theme_scores,
             "option_results": [
                 {
                     "option_id": item.option_id,

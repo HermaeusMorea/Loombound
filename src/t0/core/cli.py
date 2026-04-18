@@ -362,10 +362,10 @@ def render_choices(option_results: list[Any]) -> None:
     width = min(_screen_width(), 110)
     lines: list[str] = []
     for idx, result in enumerate(option_results, start=1):
-        verdict_color = FG_GREEN if result.verdict == "stable" else FG_RED
+        toll_color = FG_GREEN if result.toll == "stable" else FG_RED
         lines.append(f"{BOLD}{idx}.{RESET} {result.label}")
         lines.append(
-            f"   {verdict_color}{result.verdict}{RESET} | "
+            f"   {toll_color}{result.toll}{RESET} | "
             f"{FG_MAGENTA}sanity cost{RESET}: {result.sanity_cost}"
         )
         if result.reasons:
@@ -384,7 +384,7 @@ def render_result(run: Any, chosen_result: Any, narration: Any, applied_notes: l
     is_narrow = width < 96
     state_width = min(44, max(34, width - 2 if is_narrow else width // 3))
     result_width = min(width - 2 if is_narrow else width - state_width - 2, 88)
-    print(_hud_bar(run, "Result", chosen_result.verdict))
+    print(_hud_bar(run, "Result", chosen_result.toll))
     print()
 
     state_lines = [
@@ -397,14 +397,10 @@ def render_result(run: Any, chosen_result: Any, narration: Any, applied_notes: l
 
     result_lines = [
         f"{FG_WHITE}Chosen{RESET}: {chosen_result.label}",
-        f"{FG_RED if chosen_result.verdict == 'destabilizing' else FG_GREEN}Verdict{RESET}: {chosen_result.verdict}",
+        f"{FG_RED if chosen_result.toll == 'destabilizing' else FG_GREEN}Toll{RESET}: {chosen_result.toll}",
     ]
-    if narration.opening:
-        result_lines.extend(["", narration.opening])
-    if narration.judgement:
-        result_lines.extend(["", narration.judgement])
-    if narration.warning:
-        result_lines.extend(["", narration.warning])
+    if narration.text:
+        result_lines.extend(["", narration.text])
     if applied_notes:
         result_lines.extend(["", f"{FG_YELLOW}Applied Changes{RESET}:"])
         result_lines.extend(f"- {note}" for note in applied_notes)
@@ -416,7 +412,7 @@ def render_result(run: Any, chosen_result: Any, narration: Any, applied_notes: l
                 "Result",
                 result_lines,
                 width=result_width,
-                color=FG_GREEN if chosen_result.verdict == "stable" else FG_RED,
+                color=FG_GREEN if chosen_result.toll == "stable" else FG_RED,
             ),
             width=width,
         )

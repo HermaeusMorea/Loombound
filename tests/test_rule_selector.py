@@ -3,7 +3,6 @@ from src.t0.memory import RunMemory
 from src.t0.core import RuleSystem
 from src.t0.memory import Encounter
 from src.t0.core import evaluate_rules, select_rule
-from src.t0.core import build_signals, score_themes
 
 
 def test_selects_self_preservation_rule_for_risky_crossroads() -> None:
@@ -52,8 +51,7 @@ def test_selects_self_preservation_rule_for_risky_crossroads() -> None:
         ),
     ]
 
-    theme_scores = score_themes(encounter, build_signals(encounter))
-    selected = select_rule(evaluate_rules(encounter, rules, theme_scores))
+    selected = select_rule(evaluate_rules(encounter, rules))
     assert selected is not None
     assert selected.rule.id == "shaken"
 
@@ -103,8 +101,7 @@ def test_recent_rule_gets_small_freshness_penalty_when_candidates_tie() -> None:
         ),
     ]
 
-    theme_scores = score_themes(encounter, build_signals(encounter))
-    evaluations = evaluate_rules(encounter, rules, theme_scores)
+    evaluations = evaluate_rules(encounter, rules)
     rule_system = RuleSystem(templates=rules, recently_used_rule_ids=["recent_rule"])
     selected = select_rule(evaluations, rule_system=rule_system, run_memory=RunMemory())
     assert selected is not None
