@@ -270,7 +270,11 @@ def _play_node(
     if prefetched and len(prefetched) == total_arbs:
         payloads = prefetched
     elif llm_count > 0:
-        payloads = []
+        raise RuntimeError(
+            f"Prefetch unavailable for waypoint '{cache_key}' "
+            f"({llm_count} LLM encounter(s) expected). "
+            "Check logs/llm.md for generation errors."
+        )
     else:
         payloads = [
             validate_encounter_asset(
@@ -539,6 +543,9 @@ def main() -> None:
         return
     except (AssetValidationError, ValueError) as exc:
         print(f"\n\nAsset error: {exc}")
+        return
+    except RuntimeError as exc:
+        print(f"\n\nError: {exc}")
         return
 
     render_run_complete(run)

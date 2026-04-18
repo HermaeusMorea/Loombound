@@ -22,7 +22,7 @@ from pathlib import Path
 
 import anthropic
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_PATH = REPO_ROOT / ".env"
 OUTPUT_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
