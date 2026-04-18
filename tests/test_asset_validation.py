@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.runtime.campaign import choose_index
-from src.core.state_adapter import AssetValidationError, validate_arbitration_asset, validate_node_asset
+from src.runtime.campaign import choose_index
+from src.t0.core import AssetValidationError, validate_arbitration_asset, validate_node_asset
 
 
 def test_validate_node_asset_requires_arbitration_file() -> None:

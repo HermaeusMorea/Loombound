@@ -575,7 +575,6 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
         },
         "start_node_id": data["start_node_id"],
         "nodes":         campaign_nodes,
-        "verdict_dict":  data.get("verdict_dict", []),
     }
     if generation_context:
         campaign_json["generation_context"] = generation_context
@@ -584,6 +583,13 @@ def write_campaign(data: dict, out_name: str, generation_context: dict | None = 
     out_path.write_text(
         json.dumps(campaign_json, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+
+    verdict_dict = data.get("verdict_dict", [])
+    if verdict_dict:
+        verdict_dict_path = campaigns_dir / f"{out_name}_verdict_dict.json"
+        verdict_dict_path.write_text(
+            json.dumps(verdict_dict, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     return out_path, len(nodes_raw)
 

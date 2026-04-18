@@ -7,16 +7,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.core.deterministic_kernel.models import CoreStateView
-from src.core.llm_interface.fast_core import (
+from src.t0.memory.models import CoreStateView
+from src.t1.core.fast_core import (
     FastCoreConfig,
     FastCoreExpander,
     _assemble,
     _build_prompt,
     _template_fallback,
 )
-from src.core.llm_interface.types import ArbitrationOptionSeed, ArbitrationSeed
-from src.core.state_adapter import validate_arbitration_asset
+from src.t2.core.types import ArbitrationOptionSeed, ArbitrationSeed
+from src.t0.core import validate_arbitration_asset
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +228,7 @@ def test_expand_falls_back_to_template_on_http_error():
     state = _state()
 
     with patch(
-        "src.core.llm_interface.fast_core._call_ollama",
+        "src.t1.core.fast_core._call_ollama",
         new=AsyncMock(side_effect=httpx.ConnectError("ollama not running")),
     ):
         payload, usage = asyncio.run(expander.expand(seed, state, "arb_fallback"))
@@ -255,7 +255,7 @@ def test_expand_returns_usage_on_success():
     seed = _seed(2)
 
     with patch(
-        "src.core.llm_interface.fast_core._call_ollama",
+        "src.t1.core.fast_core._call_ollama",
         new=AsyncMock(return_value=(fake_expanded, fake_usage)),
     ):
         payload, usage = asyncio.run(expander.expand(seed, _state(), "arb_ok"))

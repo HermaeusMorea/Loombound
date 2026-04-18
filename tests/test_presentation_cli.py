@@ -1,4 +1,4 @@
-from src.core.presentation import cli
+from src.t0.core import cli
 
 
 def test_visible_len_counts_cjk_as_double_width() -> None:

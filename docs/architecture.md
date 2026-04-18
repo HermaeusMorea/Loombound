@@ -6,23 +6,23 @@
 
 ```
 arc-palette（一次性）
-  Opus → T2 cache table（~50 条 arc-state 枚举）
+  C3（Opus）→ A2 cache table（~50 条 bearing 枚举）
 
-gen（每个 campaign）
-  Opus → campaign.json（节点图 + verdict_dict）
-  Haiku → t1_cache_table.json（per-node 场景骨架）
+gen（每个 saga）
+  C3（Opus）→ saga.json（waypoint 图 + toll lexicon）
+  C2（Haiku）→ a1_cache_table.json（per-waypoint 场景骨架）
 
 run（游戏会话）
-  启动：加载 T2 cache table + T1 cache table → 构建 M2Classifier
-  每个节点：
-    PrefetchCache → Fast Core（gemma3）预取场景文字
-    玩家做选择 → M2（Haiku）fire-and-forget →
-      entry_id（arc state 更新）+
-      下一个 arb 的 per-option effects + verdicts
-  每次 arbitration：
-    enforce_rule（M2 verdict → sanity penalty）
-    apply_option_effects（更新 M0 状态）
-    PrefetchCache 消费 effects + verdicts
+  启动：加载 A2 cache table + A1 cache table → 构建 C2 classifier
+  每个 waypoint：
+    PrefetchCache → C1（gemma3）预取场景文字
+    玩家做选择 → C2（Haiku）fire-and-forget →
+      entry_id（bearing 更新）+
+      下一个 encounter 的 per-option effects + tolls
+  每次 encounter：
+    enforce_rule（C2 toll → sanity penalty）
+    apply_option_effects（更新 A0 状态）
+    PrefetchCache 消费 effects + tolls
 
 report
   解析 logs/llm.md → token 用量报表
@@ -33,73 +33,78 @@ report
 ## 数据流
 
 ```
-离线                                 运行时
-────────────────────────────────     ──────────────────────────────────────
+离线                                   运行时
+──────────────────────────────────     ──────────────────────────────────────
 
-Opus
- └─ campaign.json                    加载 campaign.json
-    nodes / tone / verdict_dict  ──→  RunSession
- └─ t2_cache_table.json          ──→  M2Classifier（全局 cached prefix）
+C3（Opus）
+ └─ saga.json                          加载 saga.json
+    waypoints / tone / toll lexicon ──→  RunSession
+ └─ a2_cache_table.json            ──→  C2 classifier（全局 cached prefix）
 
-Haiku（离线）
- └─ t1_cache_table.json          ──→  M2Classifier（per-campaign cached prefix）
-                                      + T1 option index（派生，不落文件）
+C2（Haiku，离线）
+ └─ a1_cache_table.json            ──→  C2 classifier（per-saga cached prefix）
+                                        + A1 option index（派生，不落文件）
 
-                                  玩家选择 arb N
-                                     │
-                                  M2（Haiku）←── quasi state（M0 压缩）
-                                     │            T2 cache table（cached）
-                                     │            T1 option index（cached）
-                                     │            verdict_dict（cached）
-                                     ▼
-                                  entry_id + effects + verdicts（arb N+1）
-                                     │
-                                  PrefetchCache（内存）
-                                     │
-                                  arb N+1 渲染时消费
-                                     │
-                                  enforce_rule → OptionResult（verdict + sanity_cost）
-                                  apply_option_effects → M0 状态更新
+                                    玩家选择 encounter N
+                                       │
+                                    C2（Haiku）←── tendency（A0 压缩）
+                                       │             A2 cache table（cached）
+                                       │             A1 option index（cached）
+                                       │             toll lexicon（cached）
+                                       ▼
+                                    entry_id + effects + tolls（encounter N+1）
+                                       │
+                                    PrefetchCache（内存）
+                                       │
+                                    encounter N+1 渲染时消费
+                                       │
+                                    enforce_rule → OptionResult（toll + sanity_cost）
+                                    apply_option_effects → A0 状态更新
 ```
 
 ---
 
-## 模块依赖方向
+## 目录结构与模块依赖
 
-规则：**下层不 import 上层**，`runtime/play_cli` 是唯一允许 import 全部模块的组装点。
+规则：**低层不 import 高层**，`runtime/` 是唯一允许 import 全部层的组装点。
 
 ```
-scripts/
+scripts/           ← 离线入口（薄壳，业务逻辑在 t3/core/）
   generate_campaign.py
-  gen_t1_cache_table.py      ← play_cli 不 import；仅 generate_campaign 调用
-  gen_t2_cache_table.py
+  gen_a1_cache_table.py
+  gen_a2_cache_table.py
   report_llm_usage.py
-  build_demo.py
         │
         ▼（单向）
-src/core/
-  runtime/play_cli            ← 组装点，import 全部
-    ├─ runtime/session, campaign
-    ├─ llm_interface/         ← M2Classifier, FastCore, PrefetchCache, collector
-    │    └─ memory/           ← RunMemory, NodeMemory, M1Store, M2Store
-    │         └─ deterministic_kernel/   ← 数据模型（无 import）
-    ├─ enforcement/
-    │    └─ deterministic_kernel/
-    ├─ rule_engine/
-    │    └─ deterministic_kernel/
-    ├─ signal_interpretation/
-    │    └─ deterministic_kernel/
-    ├─ state_adapter/
-    │    └─ deterministic_kernel/
-    ├─ narration/
-    ├─ authoring/
-    └─ presentation/
+src/
+  runtime/         ← 组装点，import 全部层
+    play_cli.py
+    session.py
+    campaign.py
+
+  t3/              ← C3（Opus）+ A3 数据结构
+    core/          ← saga 生成逻辑
+    memory/        ← A3 数据模型（saga 图、tone）
+
+  t2/              ← C2（Haiku）+ A2 数据结构
+    core/          ← classifier、prefetch
+    memory/        ← A2 数据模型（bearing 条目、toll lexicon）
+
+  t1/              ← C1（gemma3）+ A1 数据结构
+    core/          ← fast_core、narration
+    memory/        ← A1 数据模型（scene_concept、选项骨架）
+
+  t0/              ← C0（确定性）+ A0 数据结构
+    core/          ← enforcement、rule_engine、state_adapter、signal_interpretation
+    memory/        ← A0 数据模型（CoreState、RunMemory、WaypointMemory）
 ```
 
 **禁止的方向：**
-- `src/` 不 import `scripts/`（现在 `generate_campaign.py` import `gen_t1_cache_table` 是待修的违规）
-- `deterministic_kernel` 不 import 任何 `src/core` 上层模块
-- `memory` 不 import `llm_interface` 或 `runtime`
+- `t0/` 不 import `t1/`、`t2/`、`t3/`
+- `t1/` 不 import `t2/`、`t3/`
+- `t2/` 不 import `t3/`
+- `scripts/` 不 import `runtime/`
+- 任何层不 import `runtime/`
 
 ---
 
@@ -107,17 +112,17 @@ src/core/
 
 | 方向 | 描述 | 实现 |
 |---|---|---|
-| **自上而下** | 高层 AI 输出作为低层 AI 的约束种子 | Opus campaign → Haiku T1 cache → Fast Core 展开 |
-| **自下而上** | 低层精确状态压缩为高层语言 | M0 精确数值 → quasi state → M2 Haiku |
+| **自上而下** | 高层核心输出作为低层核心的约束种子 | C3 saga → C2 A1 cache → C1 展开 |
+| **自下而上** | 低层精确状态压缩为高层语言 | A0 精确数值 → tendency → C2（Haiku） |
 
-M2 永远不接触精确整数，只接触倾向带（low/moderate/high）和叙事维度描述。
+C2 永远不接触精确整数，只接触倾向带（low/moderate/high）和叙事维度描述。
 
 ---
 
 ## 关键不变式
 
-1. **verdict 由 M2 运行时输出**，T1 cache 中不存 verdict（静态标注不感知玩家状态）
-2. **M2 输出 verdict 先于 h/m/s**（schema 字段顺序强制），数值必须与 verdict 一致
-3. **M2 格式验证失败则 retry**（最多 2 次），不用 T0 tag-matching 兜底
-4. **PrefetchCache 是唯一的跨-arbitration 状态传递通道**（effects + verdicts 存内存，不落文件）
-5. **scripts 只是入口**，业务逻辑属于 `src/`（待完成：`gen_t1_cache_table` 迁移）
+1. **toll 由 C2 运行时输出**，A1 cache 中不存 toll（静态标注不感知玩家状态）
+2. **C2 输出 toll 先于 effects 数值**（schema 字段顺序强制），数值必须与 toll 一致
+3. **C2 格式验证失败则 retry**（最多 2 次），不降级为确定性规则兜底
+4. **PrefetchCache 是唯一的跨-encounter 状态传递通道**（effects + tolls 存内存，不落文件）
+5. **scripts 只是入口**，业务逻辑属于 `src/`（待完成：`gen_a1_cache_table` 迁移至 `t2/core/`）

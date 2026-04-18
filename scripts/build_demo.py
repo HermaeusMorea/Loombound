@@ -107,7 +107,7 @@ exec "$PYTHON_BIN" {command} "${{@}}"
 
 def _write_launchers(out_root: Path) -> None:
     launchers = {
-        "run.sh": _launcher("run.sh", "-m src.core.runtime.play_cli"),
+        "run.sh": _launcher("run.sh", "-m src.runtime.play_cli"),
         "gen.sh": _launcher("gen.sh", '"$SCRIPT_DIR/app/generate_campaign.pyc"'),
         "report.sh": _launcher("report.sh", '"$SCRIPT_DIR/app/report_llm_usage.pyc"'),
     }

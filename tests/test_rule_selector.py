@@ -1,9 +1,9 @@
-from src.core.deterministic_kernel import RuleTemplate
-from src.core.memory import RunMemory
-from src.core.rule_engine import RuleSystem
-from src.core.runtime import Arbitration
-from src.core.rule_engine import evaluate_rules, select_rule
-from src.core.signal_interpretation import build_signals, score_themes
+from src.t0.memory import RuleTemplate
+from src.t0.memory import RunMemory
+from src.t0.core import RuleSystem
+from src.t0.memory import Arbitration
+from src.t0.core import evaluate_rules, select_rule
+from src.t0.core import build_signals, score_themes
 
 
 def test_selects_self_preservation_rule_for_risky_crossroads() -> None:

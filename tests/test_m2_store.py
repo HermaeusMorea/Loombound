@@ -1,6 +1,6 @@
 import json
 
-from src.core.memory.m2_store import M2Store
+from src.t2.memory.m2_store import M2Store
 
 
 def test_m2_store_loads_node_keyed_t1_cache_table(tmp_path) -> None:

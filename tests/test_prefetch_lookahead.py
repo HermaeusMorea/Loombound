@@ -1,7 +1,7 @@
-from src.core.deterministic_kernel.models import CoreStateView
-from src.core.llm_interface.collector import build_classifier_input
-from src.core.memory.types import NodeChoiceRecord, NodeMemory, RunMemory
-from src.core.runtime.play_cli import _collect_lookahead_targets
+from src.t0.memory.models import CoreStateView
+from src.t2.core.collector import build_classifier_input
+from src.t0.memory.types import NodeChoiceRecord, NodeMemory, RunMemory
+from src.runtime.play_cli import _collect_lookahead_targets
 
 
 def test_collect_lookahead_targets_returns_unique_grandchildren_in_order() -> None:

@@ -1,6 +1,6 @@
-from src.core.deterministic_kernel import RuleTemplate
-from src.core.runtime import Arbitration
-from src.core.enforcement import enforce_rule
+from src.t0.memory import RuleTemplate
+from src.t0.memory import Arbitration
+from src.t0.core import enforce_rule
 
 
 def test_enforcement_uses_m2_verdict() -> None:
