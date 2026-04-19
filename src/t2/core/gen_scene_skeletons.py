@@ -10,8 +10,8 @@ values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 Output: data/waypoints/<saga_id>/scene_skeletons.json
 
 Usage (standalone):
-    python -m src.t2.core.gen_a1_cache_table data/sagas/my_saga.json
-    python -m src.t2.core.gen_a1_cache_table data/sagas/my_saga.json --lang zh
+    python -m src.t2.core.gen_scene_skeletons data/sagas/my_saga.json
+    python -m src.t2.core.gen_scene_skeletons data/sagas/my_saga.json --lang zh
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """

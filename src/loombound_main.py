@@ -60,7 +60,7 @@ def main() -> None:
     subcmd, *rest = args
 
     if subcmd == "arc-palette":
-        _run_module("src.t3.core.gen_a2_cache_table", rest)
+        _run_module("src.t3.core.gen_arc_state_catalog", rest)
 
     elif subcmd == "gen":
         _run_module("src.t3.core.generate_saga", rest)

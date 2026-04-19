@@ -27,7 +27,7 @@ import anthropic
 
 from src.shared.dotenv import load_dotenv
 from src.shared.llm_utils import ts as _ts, md_log as _md_log, extract_tool_input as _extract_tool_input
-from src.t2.core.gen_a1_cache_table import generate_scene_skeletons_step
+from src.t2.core.gen_scene_skeletons import generate_scene_skeletons_step
 from src.t3.core.saga_prompt import (
     _SYSTEM_PROMPT,
     _TOOL,
