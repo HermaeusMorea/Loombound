@@ -32,7 +32,15 @@ def validate_graph(
     if bad:
         errors.append(f"nodes[{bad}] are not objects — malformed response from model")
         return errors
-    node_ids = {n["waypoint_id"] for n in nodes}
+    node_ids: set[str] = set()
+    for i, n in enumerate(nodes):
+        wid = n.get("waypoint_id", "")
+        if not wid:
+            errors.append(f"nodes[{i}] missing or empty waypoint_id")
+        else:
+            node_ids.add(wid)
+    if errors:
+        return errors
 
     if start_waypoint_id not in node_ids:
         errors.append(f"start_waypoint_id '{start_waypoint_id}' not found in nodes")
@@ -46,7 +54,7 @@ def validate_graph(
         for ref in node.get("next_waypoints", []):
             if ref not in node_ids:
                 errors.append(
-                    f"'{node['waypoint_id']}' → '{ref}': referenced node does not exist"
+                    f"'{node.get('waypoint_id', '<missing>')}' → '{ref}': referenced node does not exist"
                 )
 
     if not any(not n.get("next_waypoints") for n in nodes):
