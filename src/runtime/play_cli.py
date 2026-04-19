@@ -25,7 +25,6 @@ from src.t0.core import (
 from src.runtime.saga import (
     REPO_ROOT,
     choose_index,
-    load_rules,
     make_run,
     resolve_asset_path,
 )
@@ -35,11 +34,10 @@ from src.t0.core import (
     validate_encounter_asset,
 )
 from src.runtime.play_encounter import _overlay_effects, _play_encounter
+from src.runtime.saga_loader import load_saga_bundle
 
 
 log = logging.getLogger(__name__)
-
-ARC_STATE_CATALOG_PATH = REPO_ROOT / "data" / "arc_state_catalog.json"
 
 
 
@@ -237,17 +235,19 @@ def main() -> None:
         format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
     )
 
-    saga = load_json_asset(args.saga)
-    saga_id_str = saga.get("saga_id", "")
-    sagas_dir = REPO_ROOT / "data" / "sagas"
+    bundle = load_saga_bundle(Path(args.saga))
+    saga, saga_id_str = bundle.saga, bundle.saga_id
+    rules = bundle.rules
+    narration_table = bundle.narration_table
 
-    _rules_path = sagas_dir / f"{saga_id_str}_rules.json"
-    rules = load_rules(_rules_path) if _rules_path.exists() else []
     if not rules:
         log.warning("No rules found for saga '%s' — rule selection disabled.", saga_id_str)
+    if narration_table is not None:
+        log.info("Loaded narration table: %d theme(s).", len(narration_table))
 
     run = make_run(saga)
     run.rule_system.set_templates(rules)
+    run.memory.tables = bundle.tables
 
     fast_model = (
         args.fast_model
@@ -259,34 +259,16 @@ def main() -> None:
         tone=saga.get("tone") or None,
     )
 
-    # Load arc-state catalog (A2) and scene skeletons (A1) if available
-    saga_dir = REPO_ROOT / "data" / "waypoints" / saga_id_str
-    scene_skeletons_path = saga_dir / "scene_skeletons.json"
-
-    if ARC_STATE_CATALOG_PATH.exists():
-        run.memory.tables.load_arc_state_catalog(ARC_STATE_CATALOG_PATH)
-    if scene_skeletons_path.exists():
-        run.memory.tables.load_scene_skeletons(scene_skeletons_path)
-
-    narration_table: dict | None = None
-    _narration_path = sagas_dir / f"{saga_id_str}_narration_table.json"
-    if _narration_path.exists():
-        narration_table = json.loads(_narration_path.read_text(encoding="utf-8"))
-        log.info("Loaded narration table: %d theme(s).", len(narration_table))
-
     # Build M2Classifier if arc-state catalog is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
-    if run.memory.tables.arc_state_catalog:
-        saga_id = saga.get("saga_id", "")
-        toll_lexicon_path = sagas_dir / f"{saga_id}_toll_lexicon.json"
-        toll_lexicon = json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
-        toll_lexicon_json = json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
+    if bundle.tables.arc_state_catalog:
+        toll_lexicon_json = json.dumps(bundle.toll_lexicon, ensure_ascii=False) if bundle.toll_lexicon else ""
         rules_json = json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
-            arc_state_catalog_json=run.memory.tables.arc_state_catalog_json(),
-            scene_option_index_json=run.memory.tables.scene_option_index_json() if run.memory.tables.scene_skeletons else "",
+            arc_state_catalog_json=bundle.tables.arc_state_catalog_json(),
+            scene_option_index_json=bundle.tables.scene_option_index_json() if bundle.tables.scene_skeletons else "",
             toll_lexicon_json=toll_lexicon_json,
             rules_json=rules_json,
         )
