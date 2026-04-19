@@ -6,14 +6,14 @@
 
 ```
 arc-palette (one-time)
-  C3 (Opus) → A2 cache table (~50 bearing entries)
+  C3 (Opus) → arc-state catalog (~50 bearing entries)
 
 gen (per saga)
   C3 (Opus) → saga.json (waypoint graph + toll lexicon + rules + narration_table)
-  C2 (Haiku) → a1_cache_table.json (per-waypoint scene skeletons)
+  C2 (Haiku) → scene_skeletons.json (per-waypoint scene skeletons)
 
 run (game session)
-  Startup: load A2 cache table + A1 cache table → build C2 classifier
+  Startup: load arc-state catalog + scene skeletons → build C2 classifier
   Per waypoint:
     PrefetchCache → C1 (qwen2.5:7b) prefetch scene text
     Player makes choice → C2 (Haiku) fire-and-forget →
@@ -40,16 +40,16 @@ C3 (Opus)
  └─ saga.json                          load saga.json
     waypoints / tone / toll lexicon ──→  RunSession
     rules + narration_table         ──→  RuleSystem
- └─ a2_cache_table.json            ──→  C2 classifier (global cached prefix)
+ └─ arc_state_catalog.json            ──→  C2 classifier (global cached prefix)
 
 C2 (Haiku, offline)
- └─ a1_cache_table.json            ──→  C2 classifier (per-saga cached prefix)
+ └─ scene_skeletons.json            ──→  C2 classifier (per-saga cached prefix)
                                         + A1 option index (derived, not stored)
 
                                     Player selects encounter N
                                        │
                                     C2 (Haiku) ←── tendency (A0 compressed)
-                                       │             A2 cache table (cached)
+                                       │             arc-state catalog (cached)
                                        │             A1 option index (cached)
                                        │             toll lexicon (cached)
                                        ▼
@@ -85,17 +85,17 @@ src/
       saga_prompt.py       ← tool schema, _build_user_msg, cost helpers
       saga_validate.py     ← graph validation (validate_graph, _normalise)
       saga_write.py        ← file writing (write_saga, print_graph)
-      gen_a2_cache_table.py  ← A2 cache table generation
+      gen_a2_cache_table.py  ← arc-state catalog generation
 
   t2/              ← C2 (Haiku) + A2 data structures
     core/
       m2_classifier.py       ← runtime bearing classifier
       prefetch.py            ← background prefetch + bearing state tracking
-      gen_a1_cache_table.py  ← A1 cache table generation (per-saga)
+      gen_a1_cache_table.py  ← scene skeletons generation (per-saga)
       collector.py           ← tendency state construction
       types.py               ← EncounterSeed / PrefetchEntry
     memory/
-      a2_store.py            ← A2 cache table / A1 cache table / A1 option index loader (includes A2Entry, A1Entry, A1Store, A2Store)
+      a2_store.py            ← arc-state catalog / scene skeletons / A1 option index loader (includes ArcStateEntry, A1Entry, A1Store, RuntimeTableStore)
 
   t1/              ← C1 (qwen2.5:7b) + A1 data structures
     core/
@@ -135,7 +135,7 @@ src/
 
 | Direction | Description | Implementation |
 |---|---|---|
-| **Top-down** | Higher-layer core output serves as constraint seed for lower layers | C3 saga → C2 A1 cache → C1 expansion |
+| **Top-down** | Higher-layer core output serves as constraint seed for lower layers | C3 saga → C2 scene skeleton → C1 expansion |
 | **Bottom-up** | Lower-layer precise state compressed into higher-layer language | A0 exact values → tendency → C2 (Haiku) |
 
 C2 never touches exact integers — only tendency bands (low/moderate/high) and narrative dimension descriptions.
@@ -144,7 +144,7 @@ C2 never touches exact integers — only tendency bands (low/moderate/high) and 
 
 ## Key Invariants
 
-1. **Toll is output by C2 at runtime** — A1 cache stores no tolls (static annotations cannot sense player state)
+1. **Toll is output by C2 at runtime** — scene skeleton stores no tolls (static annotations cannot sense player state)
 2. **C2 outputs toll before effect values** (enforced by schema field order) — values must be consistent with toll
 3. **C2 format validation failure triggers retry** (up to 2 times) — no fallback to deterministic rules
 4. **PrefetchCache is the sole cross-encounter state transfer channel** (effects + tolls held in memory, never written to disk)

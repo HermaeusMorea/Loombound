@@ -138,8 +138,8 @@ data/
 ├── sagas/<id>_toll_lexicon.json         ← per-saga toll 词汇表（C3 生成）
 ├── sagas/<id>_rules.json                ← per-saga 规则集（C3 生成，含 rule.theme keys）
 ├── sagas/<id>_narration_table.json      ← per-saga 叙事主题表（C3 生成，10-15 条）
-├── waypoints/<id>/a1_cache_table.json   ← waypoint 场景骨架（C2/Haiku 生成）
-└── a2_cache_table.json                  ← 全局 bearing 枚举（C3 一次性生成）
+├── waypoints/<id>/scene_skeletons.json   ← waypoint 场景骨架（C2/Haiku 生成）
+└── arc_state_catalog.json                  ← 全局 bearing 枚举（C3 一次性生成）
 ```
 
 ---

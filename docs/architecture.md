@@ -6,14 +6,14 @@
 
 ```
 arc-palette（一次性）
-  C3（Opus）→ A2 cache table（~50 条 bearing 枚举）
+  C3（Opus）→ arc-state catalog（~50 条 bearing 枚举）
 
 gen（每个 saga）
   C3（Opus）→ saga.json（waypoint 图 + toll lexicon + rules + narration_table）
-  C2（Haiku）→ a1_cache_table.json（per-waypoint 场景骨架）
+  C2（Haiku）→ scene_skeletons.json（per-waypoint 场景骨架）
 
 run（游戏会话）
-  启动：加载 A2 cache table + A1 cache table → 构建 C2 classifier
+  启动：加载 arc-state catalog + scene skeletons → 构建 C2 classifier
   每个 waypoint：
     PrefetchCache → C1（qwen2.5:7b）预取场景文字
     玩家做选择 → C2（Haiku）fire-and-forget →
@@ -40,16 +40,16 @@ C3（Opus）
  └─ saga.json                          加载 saga.json
     waypoints / tone / toll lexicon ──→  RunSession
     rules + narration_table         ──→  RuleSystem
- └─ a2_cache_table.json            ──→  C2 classifier（全局 cached prefix）
+ └─ arc_state_catalog.json            ──→  C2 classifier（全局 cached prefix）
 
 C2（Haiku，离线）
- └─ a1_cache_table.json            ──→  C2 classifier（per-saga cached prefix）
+ └─ scene_skeletons.json            ──→  C2 classifier（per-saga cached prefix）
                                         + A1 option index（派生，不落文件）
 
                                     玩家选择 encounter N
                                        │
                                     C2（Haiku）←── tendency（A0 压缩）
-                                       │             A2 cache table（cached）
+                                       │             arc-state catalog（cached）
                                        │             A1 option index（cached）
                                        │             toll lexicon（cached）
                                        ▼
@@ -85,17 +85,17 @@ src/
       saga_prompt.py       ← tool schema、_build_user_msg、cost helpers
       saga_validate.py     ← graph 校验（validate_graph、_normalise）
       saga_write.py        ← 落盘（write_saga、print_graph）
-      gen_a2_cache_table.py  ← A2 cache table 生成
+      gen_a2_cache_table.py  ← arc-state catalog 生成
 
   t2/              ← C2（Haiku）+ A2 数据结构
     core/
       m2_classifier.py       ← 运行时 bearing 分类器
       prefetch.py            ← 后台预载 + bearing 状态追踪
-      gen_a1_cache_table.py  ← A1 cache table 生成（per-saga）
+      gen_a1_cache_table.py  ← scene skeletons 生成（per-saga）
       collector.py           ← tendency state 构建
       types.py               ← EncounterSeed / PrefetchEntry
     memory/
-      a2_store.py            ← A2 cache table / A1 cache table / A1 option index 加载（含 A2Entry、A1Entry、A1Store、A2Store）
+      a2_store.py            ← arc-state catalog / scene skeletons / A1 option index 加载（含 ArcStateEntry、A1Entry、A1Store、RuntimeTableStore）
 
   t1/              ← C1（qwen2.5:7b）+ A1 数据结构
     core/
@@ -135,7 +135,7 @@ src/
 
 | 方向 | 描述 | 实现 |
 |---|---|---|
-| **自上而下** | 高层核心输出作为低层核心的约束种子 | C3 saga → C2 A1 cache → C1 展开 |
+| **自上而下** | 高层核心输出作为低层核心的约束种子 | C3 saga → C2 scene skeleton → C1 展开 |
 | **自下而上** | 低层精确状态压缩为高层语言 | A0 精确数值 → tendency → C2（Haiku） |
 
 C2 永远不接触精确整数，只接触倾向带（low/moderate/high）和叙事维度描述。
@@ -144,7 +144,7 @@ C2 永远不接触精确整数，只接触倾向带（low/moderate/high）和叙
 
 ## 关键不变式
 
-1. **toll 由 C2 运行时输出**，A1 cache 中不存 toll（静态标注不感知玩家状态）
+1. **toll 由 C2 运行时输出**，scene skeleton 中不存 toll（静态标注不感知玩家状态）
 2. **C2 输出 toll 先于 effects 数值**（schema 字段顺序强制），数值必须与 toll 一致
 3. **C2 格式验证失败则 retry**（最多 2 次），不降级为确定性规则兜底
 4. **PrefetchCache 是唯一的跨-encounter 状态传递通道**（effects + tolls 存内存，不落文件）

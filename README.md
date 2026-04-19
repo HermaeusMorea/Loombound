@@ -47,10 +47,10 @@ ollama pull qwen2.5:7b
 # 前置条件：.env 里有 ANTHROPIC_API_KEY，ollama 在跑：ollama pull qwen2.5:7b
 cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 
-# 1. 一次性全局设置（已有 data/a2_cache_table.json 则跳过）
+# 1. 一次性全局设置（已有 data/arc_state_catalog.json 则跳过）
 ./loombound arc-palette
 
-# 2. 生成 saga（Opus 生成图，Haiku 自动生成 A1 cache，两步合一）
+# 2. 生成 saga（Opus 生成图，Haiku 自动生成 scene skeleton，两步合一）
 ./loombound gen "新加坡地下黑客社区" --lang zh
 ./loombound gen "太阳帆时代考古调查" --tone "忧郁、诗性、带一点希望感的太空悬疑" --lang zh
 ./loombound gen "债务猎人逃亡" --worldview "木星轨道殖民地由债务公会和打捞教团共同统治" --lang zh
@@ -75,9 +75,9 @@ cp .env.example .env   # 填入 ANTHROPIC_API_KEY
 |---|---|---|
 | **一次性** | Claude Opus（C3） | 生成全局 bearing 枚举（`arc-palette`，~50 条） |
 | **每个 saga** | Claude Opus（C3） | 生成 saga 图（waypoint 拓扑、toll lexicon、rules、narration_table） |
-| **每个 saga** | Claude Haiku（C2） | 生成 A1 cache table（每 waypoint 场景骨架：scene_concept、选项结构，不含数值） |
+| **每个 saga** | Claude Haiku（C2） | 生成 scene skeletons（每 waypoint 场景骨架：scene_concept、选项结构，不含数值） |
 | **运行时** | Claude Haiku（C2） | bearing 分类器：每次选择后后台调用 → bearing ID + 下一个 encounter 的 per-option effects + tolls（prompt cache 后 ~$0.0013/次） |
-| **运行时** | qwen2.5:7b 本地（C1） | 场景展开：A1 cache 骨架 + bearing 倾向 → 完整场景散文 |
+| **运行时** | qwen2.5:7b 本地（C1） | 场景展开：scene skeleton 骨架 + bearing 倾向 → 完整场景散文 |
 
 全程只需要 `ANTHROPIC_API_KEY` + ollama（本地 qwen2.5:7b）。
 
@@ -122,20 +122,20 @@ C2 的 1–2 秒主要是网络往返 + 极短输出（bearing ID 约 10–30 to
 
 作者本地显卡不够格，实测 C1 场景展开在 16–37 秒之间（CPU 推理回落）；日志里的延迟数据反映的是这个条件。换一块能承载 7b 模型的显卡后，C1 延迟将降至 2–10 秒。
 
-**saga 生成的瓶颈是 Haiku，不是 Opus。** 从输出 token 量反推：Opus 生成 saga 图约 ~1,170 tokens（~40 秒），Haiku 生成 A1 cache table 约 ~6,275 tokens（~63 秒）——每个 waypoint 都要完整输出 scene_concept、sanity_axis 和选项结构，6 个 waypoint 累计输出量约是 Opus 的 5×。使用 Haiku 而非更快的模型是主动的成本选择：Haiku 输出费率约为 Opus 的 1/19，且 saga 生成完全可以在开始游玩后台进行——打通一个 saga 通常需要数分钟，生成早已结束。
+**saga 生成的瓶颈是 Haiku，不是 Opus。** 从输出 token 量反推：Opus 生成 saga 图约 ~1,170 tokens（~40 秒），Haiku 生成 scene skeletons 约 ~6,275 tokens（~63 秒）——每个 waypoint 都要完整输出 scene_concept、sanity_axis 和选项结构，6 个 waypoint 累计输出量约是 Opus 的 5×。使用 Haiku 而非更快的模型是主动的成本选择：Haiku 输出费率约为 Opus 的 1/19，且 saga 生成完全可以在开始游玩后台进行——打通一个 saga 通常需要数分钟，生成早已结束。
 
 ### 数据文件
 
 | 文件 | 来源 | 内容 |
 |---|---|---|
-| `data/a2_cache_table.json` | Claude Opus（一次性） | bearing 枚举（~50 条，运行时 Haiku prompt cache） |
+| `data/arc_state_catalog.json` | Claude Opus（一次性） | bearing 枚举（~50 条，运行时 Haiku prompt cache） |
 | `data/sagas/<id>.json` | Claude Opus（每 saga） | Saga 图：waypoint 拓扑 + 每 waypoint depth / type / encounters（inlined） |
 | `data/sagas/<id>_toll_lexicon.json` | Claude Opus（每 saga） | per-saga toll 词汇表，C2 运行时 cached prefix |
 | `data/sagas/<id>_rules.json` | Claude Opus（每 saga） | per-saga 规则集，含 rule.theme keys |
 | `data/sagas/<id>_narration_table.json` | Claude Opus（每 saga） | per-saga 叙事主题表（10–15 条，单句心理描述） |
-| `data/waypoints/<id>/a1_cache_table.json` | Claude Haiku（每 saga） | 场景骨架：scene_concept、sanity_axis、选项结构（不含 h/m/s 数值） |
+| `data/waypoints/<id>/scene_skeletons.json` | Claude Haiku（每 saga） | 场景骨架：scene_concept、sanity_axis、选项结构（不含 h/m/s 数值） |
 
-> A1 option index（选项结构去掉数值，Haiku 的 per-saga cached prefix）在运行时从 A1 cache table 派生，不单独存文件。
+> A1 option index（选项结构去掉数值，Haiku 的 per-saga cached prefix）在运行时从 scene skeletons 派生，不单独存文件。
 
 ---
 
@@ -145,7 +145,7 @@ C2 的 1–2 秒主要是网络往返 + 极短输出（bearing ID 约 10–30 to
 ./loombound arc-palette                    # 生成全局 bearing 枚举（一次性）
 ./loombound clean-palette                  # 删除 bearing 枚举
 
-./loombound gen "theme" --lang zh          # 默认：Opus 生图 + Haiku 生 A1 cache
+./loombound gen "theme" --lang zh          # 默认：Opus 生图 + Haiku 生 scene skeleton
 ./loombound gen "theme" --skip-t1-cache    # 只生成 saga 图
 ./loombound gen "theme" --nodes 8          # waypoint 数（默认 6）
 ./loombound gen "theme" --tone "..."       # 指定基调

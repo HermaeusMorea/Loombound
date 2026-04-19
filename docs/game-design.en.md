@@ -138,8 +138,8 @@ data/
 ├── sagas/<id>_toll_lexicon.json         ← per-saga toll vocabulary (C3 generated)
 ├── sagas/<id>_rules.json                ← per-saga rule set (C3 generated, contains rule.theme keys)
 ├── sagas/<id>_narration_table.json      ← per-saga narration themes (C3 generated, 10–15 entries)
-├── waypoints/<id>/a1_cache_table.json   ← waypoint scene skeletons (C2/Haiku generated)
-└── a2_cache_table.json                  ← global bearing enumeration (C3 one-time)
+├── waypoints/<id>/scene_skeletons.json   ← waypoint scene skeletons (C2/Haiku generated)
+└── arc_state_catalog.json                  ← global bearing enumeration (C3 one-time)
 ```
 
 ---
