@@ -66,7 +66,7 @@ Loombound's three-tier processing architecture maps almost exactly onto the hier
 |---|---|---|---|
 | Cerebral cortex (central) | Slow, deep reasoning, long-term planning | C3 — Claude Opus (offline saga generation) | Seconds to minutes |
 | Spinal reflex arc | Fast, local, simple signal processing | C2 — Claude Haiku (runtime bearing classification) | 1–2 seconds |
-| Peripheral nerves + muscle | Pure local execution, no network | C1 — qwen2.5:7b local (scene expansion) | Hardware-bound |
+| Peripheral nerves + muscle | Pure local execution, no network | C1 — qwen2.5:7b local (scene expansion) | 2–10 seconds (ideal) |
 
 **Why the analogy runs deep:**
 
@@ -74,7 +74,7 @@ Loombound's three-tier processing architecture maps almost exactly onto the hier
 - The spinal cord (C2/Haiku) handles fast runtime classification and signal routing — no brain involvement needed, completes in 1–2 seconds
 - The muscle (C1 local) produces the final output — fully local, no network, latency determined by hardware not API
 
-**Why C1 is slow — the author's local hardware, not the model:** The current 16–37 second latency reflects the author running inference on underpowered local hardware with no GPU, not the model itself. qwen2.5:7b requires ~4–5 GB VRAM for full-precision loading. With a GPU it reaches 20–80 token/s (~2–10 seconds per scene expansion); without one it falls back to CPU inference, which is 5–10× slower. With adequate hardware, C1 latency falls into the same 1–2 second range as C2 — and the "muscle reflex" analogy holds fully.
+**Why Loombound's C1 is slow in practice:** The current 16–37 second latency reflects the author running inference on underpowered local hardware with no GPU, not the model itself. qwen2.5:7b requires ~4–5 GB VRAM for full-precision loading. With a GPU it reaches 20–80 token/s (~2–10 seconds per scene expansion); without one it falls back to CPU inference, which is 5–10× slower. With adequate hardware, C1 latency falls into the same 1–2 second range as C2 — and the "muscle reflex" analogy holds fully.
 
 The nervous system separates slow reasoning from fast reflexes as a result of evolutionary optimization. Loombound's layered architecture is the same engineering optimization: route each task to the cheapest sufficient processing tier, and never invoke the most expensive tier when a simpler one will do.
 
