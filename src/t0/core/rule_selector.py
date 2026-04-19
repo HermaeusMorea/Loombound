@@ -17,7 +17,9 @@ def _compute_selection_score(
 
     freshness_penalty = 0.0
     if rule_system and evaluation.rule.id in rule_system.recently_used_rule_ids:
-        recent_distance = len(rule_system.recently_used_rule_ids) - rule_system.recently_used_rule_ids.index(evaluation.rule.id)
+        ids = rule_system.recently_used_rule_ids
+        last_pos = len(ids) - 1 - ids[::-1].index(evaluation.rule.id)
+        recent_distance = last_pos + 1  # 1=oldest in window, N=most recently used
         freshness_penalty = 0.1 + (0.02 * recent_distance)
 
     return (-freshness_penalty, evaluation.rule.priority, evaluation.rule.id)

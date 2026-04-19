@@ -64,7 +64,7 @@ def build_a1_entry(
     Called from play_cli immediately after update_after_node().
     """
     # pressure_level: derive from current sanity band
-    pressure_level = _band(core_state.sanity, 0, core_state.max_health or 10)
+    pressure_level = _band(core_state.sanity, 0, 100)
     # Map five-level band to four-level IRIS pressure scale
     pressure_map = {
         "very_low": "critical",
@@ -127,9 +127,9 @@ def _build_state_sections(
     """Build the shared state sections used by both classifier and planner."""
     sections: list[str] = []
 
-    h_band = _band(core_state.health, 0, core_state.max_health or 10)
+    h_band = _band(core_state.health, 0, core_state.max_health or 100)
     m_band = _band(core_state.money, 0, 15)
-    s_band = _band(core_state.sanity, 0, 10)
+    s_band = _band(core_state.sanity, 0, 100)
 
     prev = previous_core_state
     h_dir = _direction(core_state.health, prev.health if prev else None)
@@ -221,28 +221,28 @@ def _effect_calibration(core_state: CoreStateView) -> str:
     C2 sees tendency bands, not exact integers. This section translates bands
     into recommended delta ranges so effects stay proportional to actual state.
     """
-    max_h = core_state.max_health or 10
+    max_h = core_state.max_health or 100
     h_band = _band(core_state.health, 0, max_h)
     m_band = _band(core_state.money, 0, 15)
-    s_band = _band(core_state.sanity, 0, max_h)
+    s_band = _band(core_state.sanity, 0, 100)
 
     # Health: more room to lose when high, more room to gain when low
-    h_loss = {"very_low": -2, "low": -3, "moderate": -5, "high": -7, "very_high": -9}.get(h_band, -5)
-    h_gain = {"very_low": 5, "low": 4, "moderate": 3, "high": 2, "very_high": 1}.get(h_band, 3)
+    h_loss = {"very_low": -5, "low": -8, "moderate": -12, "high": -18, "very_high": -25}.get(h_band, -12)
+    h_gain = {"very_low": 15, "low": 12, "moderate": 8, "high": 5, "very_high": 3}.get(h_band, 8)
 
     # Money: symmetric-ish but avoid wiping out a broke character
     m_loss = {"very_low": -1, "low": -2, "moderate": -4, "high": -6, "very_high": -8}.get(m_band, -4)
     m_gain = 8
 
     # Sanity: fragile characters shouldn't lose much more; healthy ones can absorb more
-    s_loss = {"very_low": -2, "low": -3, "moderate": -5, "high": -6, "very_high": -7}.get(s_band, -4)
-    s_gain = {"very_low": 3, "low": 3, "moderate": 2, "high": 1, "very_high": 1}.get(s_band, 2)
+    s_loss = {"very_low": -5, "low": -8, "moderate": -12, "high": -16, "very_high": -20}.get(s_band, -10)
+    s_gain = {"very_low": 10, "low": 8, "moderate": 5, "high": 3, "very_high": 3}.get(s_band, 5)
 
     return (
         f"\n## Effect delta calibration (calibrate h/m/s to current state)\n"
         f"  h (health  {h_band}/{max_h}): [{h_loss}, +{h_gain}]  — reserve extremes for pivotal options\n"
         f"  m (money   {m_band}):         [{m_loss}, +{m_gain}]\n"
-        f"  s (sanity  {s_band}/{max_h}): [{s_loss}, +{s_gain}]  — fragile sanity → smaller losses"
+        f"  s (sanity  {s_band}/100): [{s_loss}, +{s_gain}]  — fragile sanity → smaller losses"
     )
 
 

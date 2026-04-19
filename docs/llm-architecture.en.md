@@ -180,16 +180,16 @@ State passed from C0 → C2 uses "tendency descriptions" (A0 precise values comp
   encounters_resolved=1  sanity_lost=1
 
 ## Effect delta calibration (calibrate h/m/s to current state)
-  h (health  high/10): [-7, +2]  — reserve extremes for pivotal options
+  h (health  high/100): [-18, +5]  — reserve extremes for pivotal options
   m (money   moderate): [-4, +8]
-  s (sanity  moderate/10): [-5, +2]  — fragile sanity → smaller losses
+  s (sanity  moderate/100): [-12, +5]  — fragile sanity → smaller losses
 
 Assign effects for: waypoint_id=archive_vault, encounter_index=1
 ```
 
 C2 returns `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": -1, "toll": "destabilizing"}, ...]}`.
 
-The `## Effect delta calibration` section is generated per-call by `collector.py` from current tendency bands. It tells C2 the proportional delta range for each resource given the player's actual state — preventing absurd values like -50 when max_health=10. C2 may exceed the suggested range for pivotal options, but large swings should be reserved for critical choices.
+The `## Effect delta calibration` section is generated per-call by `collector.py` from current tendency bands. It tells C2 the proportional delta range for each resource given the player's actual state — preventing absurd output values. C2 may exceed the suggested range for pivotal options, but large swings should be reserved for critical choices.
 
 ---
 

@@ -257,9 +257,5 @@ class RunSnapshot:
                 for item in self.option_results
             ],
             "sanity_delta": self.sanity_delta,
-            "narration": {
-                "opening": self.narration.opening,
-                "judgement": self.narration.judgement,
-                "warning": self.narration.warning,
-            },
+            "narration": self.narration.text,
         }

@@ -168,6 +168,9 @@ def _cmd_clean(args: list[str]) -> None:
         removed = False
         if _SAGAS_DIR.exists():
             for f in _SAGAS_DIR.glob("*.json"):
+                if _is_git_tracked(f):
+                    print(f"  Skipped {f.name} (tracked by git)")
+                    continue
                 f.unlink()
                 print(f"  Removed {f}")
                 removed = True
@@ -182,6 +185,14 @@ def _cmd_clean(args: list[str]) -> None:
             print("Nothing to clean.")
         else:
             print("Done.")
+
+
+def _is_git_tracked(path: Path) -> bool:
+    result = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(path)],
+        cwd=REPO_ROOT, capture_output=True,
+    )
+    return result.returncode == 0
 
 
 def _load_dotenv() -> None:

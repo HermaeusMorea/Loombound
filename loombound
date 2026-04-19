@@ -179,6 +179,14 @@ case "$subcmd" in
                 echo "Removed $campaign_file"
                 removed=1
             fi
+            for suffix in "_rules.json" "_toll_lexicon.json" "_narration_table.json"; do
+                related="$DATA_DIR/sagas/${saga_stem}${suffix}"
+                if [[ -f "$related" ]]; then
+                    rm "$related"
+                    echo "Removed $related"
+                    removed=1
+                fi
+            done
             if [[ -d "$nodes_dir" ]]; then
                 rm -rf "$nodes_dir"
                 echo "Removed $nodes_dir/"
@@ -193,6 +201,7 @@ case "$subcmd" in
 
             for f in "$DATA_DIR/sagas/"*.json; do
                 [[ -f "$f" ]] || continue
+                git -C "$SCRIPT_DIR" ls-files --error-unmatch "$f" &>/dev/null && { echo "  Skipped $(basename "$f") (tracked by git)"; continue; }
                 rm "$f"
                 echo "  Removed $f"
                 removed=1

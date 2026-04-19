@@ -29,7 +29,7 @@ def apply_option_effects(run: Run, option: dict[str, Any], selected_result: Any)
     sanity_loss = int(selected_result.sanity_cost)
 
     if run.core_state.health is not None:
-        run.core_state.health = _clamp(run.core_state.health + health_delta, 0, run.core_state.max_health)
+        run.core_state.health = _clamp(run.core_state.health + health_delta, 0, run.core_state.max_health or 100)
         if health_delta:
             notes.append(f"Health {'+' if health_delta > 0 else ''}{health_delta}")
 
@@ -40,7 +40,7 @@ def apply_option_effects(run: Run, option: dict[str, Any], selected_result: Any)
 
     if run.core_state.sanity is not None:
         net_sanity = direct_sanity_delta - sanity_loss
-        run.core_state.sanity = _clamp(run.core_state.sanity + net_sanity, 0)
+        run.core_state.sanity = _clamp(run.core_state.sanity + net_sanity, 0, 100)
         run.meta_state.sanity = run.core_state.sanity
         if net_sanity:
             notes.append(f"Sanity {'+' if net_sanity > 0 else ''}{net_sanity}")

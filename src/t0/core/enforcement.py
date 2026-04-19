@@ -19,7 +19,7 @@ def enforce_rule(encounter: Encounter, rule: RuleTemplate | None) -> list[Option
                 option_id=option["option_id"],
                 label=option["label"],
                 toll=toll,
-                reasons=[f"m2_toll:{toll}" if m2_toll else "no_m2_toll"],
+                reasons=([f"m2_toll:{toll}"] if m2_toll else ["no_m2_toll"]) + list(option.get("tags", [])),
                 sanity_cost=penalty,
             )
         )
