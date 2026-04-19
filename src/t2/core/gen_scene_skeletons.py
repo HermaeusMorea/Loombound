@@ -1,7 +1,7 @@
-"""Offline script: generate the T1 cache (per-saga waypoint scene skeletons).
+"""Offline script: generate scene skeletons (per-saga waypoint option structure).
 
 Called automatically by generate_saga.py after the saga graph is built.
-Can also be run standalone to regenerate T1 cache for an existing saga.
+Can also be run standalone to regenerate scene skeletons for an existing saga.
 
 Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect

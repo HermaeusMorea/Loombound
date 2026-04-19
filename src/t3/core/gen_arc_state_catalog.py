@@ -1,8 +1,8 @@
-"""Offline script: generate the T2 cache (global arc-state palette).
+"""Offline script: generate the arc-state catalog (global arc-state palette).
 
 One-time setup. Calls Claude Opus once to produce ~50 entries covering the full
 space of dramatic arc combinations. The result is loaded into Claude's prompt
-cache at runtime so the M2 arc classifier (Haiku) can pick from it cheaply.
+cache at runtime so the M2 decision engine (Haiku) can pick from it cheaply.
 
 Output: data/arc_state_catalog.json
 
