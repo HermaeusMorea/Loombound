@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.runtime.saga import choose_index
+from src.runtime.play_runtime import choose_index
 from src.t0.core import AssetValidationError, validate_encounter_asset, validate_waypoint_asset
 
 

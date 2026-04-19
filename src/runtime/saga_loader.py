@@ -42,7 +42,7 @@ class LoadedSagaBundle:
 
 def load_saga_bundle(saga_path: Path) -> LoadedSagaBundle:
     """Load saga JSON and all supporting per-saga assets for a play session."""
-    from src.runtime.saga import load_rules as _load_rules
+    from src.runtime.play_runtime import load_rules as _load_rules
 
     saga = json.loads(saga_path.read_text(encoding="utf-8"))
     saga_id = saga.get("saga_id", "")

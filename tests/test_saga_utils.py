@@ -2,7 +2,7 @@ import io
 import pytest
 
 from src.t0.memory import CoreStateView, MetaStateView
-from src.runtime.saga import make_run, choose_index, resolve_asset_path, sync_encounter_resources
+from src.runtime.play_runtime import make_run, choose_index, resolve_asset_path, sync_encounter_resources
 from src.runtime.session import Run, Encounter
 
 

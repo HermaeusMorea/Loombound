@@ -20,7 +20,7 @@ from src.t0.core import (
 )
 from src.t2.core import PrefetchCache
 from src.t2.core.collector import build_classifier_input
-from src.runtime.saga import choose_index, sync_encounter_resources
+from src.runtime.play_runtime import choose_index, sync_encounter_resources
 
 
 def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> dict:
