@@ -74,13 +74,17 @@ C2（Haiku，离线）
 ```
 src/
   runtime/         ← 组装点，import 全部层
-    play_cli.py
+    play_cli.py          ← CLI 主循环（_play_node、main）
+    play_encounter.py    ← encounter 执行层（_play_encounter、_overlay_effects）
     session.py
     saga.py
 
   t3/              ← C3（Opus）+ A3 数据结构
     core/
-      generate_campaign.py   ← saga 生成逻辑
+      generate_saga.py     ← saga 生成 orchestration
+      saga_prompt.py       ← tool schema、_build_user_msg、cost helpers
+      saga_validate.py     ← graph 校验（validate_graph、_normalise）
+      saga_write.py        ← 落盘（write_saga、print_graph）
       gen_a2_cache_table.py  ← A2 cache table 生成
 
   t2/              ← C2（Haiku）+ A2 数据结构

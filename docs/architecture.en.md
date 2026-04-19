@@ -74,13 +74,17 @@ Rule: **lower layers do not import higher layers**. `runtime/` is the sole assem
 ```
 src/
   runtime/         ← assembly point, imports all layers
-    play_cli.py
+    play_cli.py          ← CLI main loop (_play_node, main)
+    play_encounter.py    ← encounter execution layer (_play_encounter, _overlay_effects)
     session.py
     saga.py
 
   t3/              ← C3 (Opus) + A3 data structures
     core/
-      generate_campaign.py   ← saga generation logic
+      generate_saga.py     ← saga generation orchestration
+      saga_prompt.py       ← tool schema, _build_user_msg, cost helpers
+      saga_validate.py     ← graph validation (validate_graph, _normalise)
+      saga_write.py        ← file writing (write_saga, print_graph)
       gen_a2_cache_table.py  ← A2 cache table generation
 
   t2/              ← C2 (Haiku) + A2 data structures
