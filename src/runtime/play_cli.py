@@ -239,9 +239,9 @@ def main() -> None:
 
     saga = load_json_asset(args.saga)
     saga_id_str = saga.get("saga_id", "")
-    campaigns_dir_rt = REPO_ROOT / "data" / "sagas"
+    sagas_dir = REPO_ROOT / "data" / "sagas"
 
-    _rules_path = campaigns_dir_rt / f"{saga_id_str}_rules.json"
+    _rules_path = sagas_dir / f"{saga_id_str}_rules.json"
     rules = load_rules(_rules_path) if _rules_path.exists() else []
     if not rules:
         log.warning("No rules found for saga '%s' — rule selection disabled.", saga_id_str)
@@ -269,7 +269,7 @@ def main() -> None:
         run.memory.tables.load_scene_skeletons(scene_skeletons_path)
 
     narration_table: dict | None = None
-    _narration_path = campaigns_dir_rt / f"{saga_id_str}_narration_table.json"
+    _narration_path = sagas_dir / f"{saga_id_str}_narration_table.json"
     if _narration_path.exists():
         narration_table = json.loads(_narration_path.read_text(encoding="utf-8"))
         log.info("Loaded narration table: %d theme(s).", len(narration_table))
@@ -278,8 +278,7 @@ def main() -> None:
     m2_classifier: M2Classifier | None = None
     if run.memory.tables.arc_state_catalog:
         saga_id = saga.get("saga_id", "")
-        campaigns_dir = REPO_ROOT / "data" / "sagas"
-        toll_lexicon_path = campaigns_dir / f"{saga_id}_toll_lexicon.json"
+        toll_lexicon_path = sagas_dir / f"{saga_id}_toll_lexicon.json"
         toll_lexicon = json.loads(toll_lexicon_path.read_text(encoding="utf-8")) if toll_lexicon_path.exists() else []
         toll_lexicon_json = json.dumps(toll_lexicon, ensure_ascii=False) if toll_lexicon else ""
         rules_json = json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)

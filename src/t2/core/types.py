@@ -3,8 +3,8 @@
 Two-layer asset model:
   WaypointSeedPack      — Slow Core output (Claude): high-density structured plan
                       for one node, containing multiple EncounterSeed entries.
-  ResolvedEncounter — Fast Core output (gemma4): full encounter JSON dict
-                        ready for validate_arbitration_asset → runtime.
+  ResolvedEncounter — Fast Core output (C1/qwen2.5:7b local): full encounter JSON dict
+                        ready for validate_waypoint_asset → runtime.
 
 Prefetch layer:
   PrefetchEntry     — one node's prefetch state, held by PrefetchCache.

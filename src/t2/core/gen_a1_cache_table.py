@@ -1,6 +1,6 @@
 """Offline script: generate the T1 cache (per-saga waypoint scene skeletons).
 
-Called automatically by generate_campaign.py after the saga graph is built.
+Called automatically by generate_saga.py after the saga graph is built.
 Can also be run standalone to regenerate T1 cache for an existing saga.
 
 Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
@@ -324,7 +324,7 @@ def write_scene_skeletons(scene_skeletons: list[dict], saga_id: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Public step function (called by generate_campaign.py)
+# Public step function (called by generate_saga.py)
 # ---------------------------------------------------------------------------
 
 def generate_scene_skeletons_step(
