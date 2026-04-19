@@ -25,6 +25,8 @@ from dataclasses import dataclass
 
 import anthropic
 
+from src.shared import config
+
 log = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
@@ -196,9 +198,9 @@ _NO_MATCH_ID = -1
 @dataclass
 class M2ClassifierConfig:
     api_key: str | None = None
-    model: str = "claude-haiku-4-5-20251001"
-    max_tokens: int = 220   # entry_id + selected_rule_id + per-option toll + h/m/s
-    timeout: float = 30.0
+    model: str = config.M2_MODEL
+    max_tokens: int = config.M2_MAX_TOKENS
+    timeout: float = config.M2_TIMEOUT
 
 
 class M2Classifier:
@@ -264,9 +266,9 @@ class M2Classifier:
                                     "type": "string",
                                     "description": "toll id from the saga toll lexicon. Assign this first, then set h/m/s consistent with it.",
                                 },
-                                "h": {"type": "integer", "description": "health_delta", "minimum": -15, "maximum": 10},
-                                "m": {"type": "integer", "description": "money_delta",  "minimum": -15, "maximum": 15},
-                                "s": {"type": "integer", "description": "sanity_delta", "minimum": -10, "maximum": 5},
+                                "h": {"type": "integer", "description": "health_delta", "minimum": config.HEALTH_DELTA_MIN, "maximum": config.HEALTH_DELTA_MAX},
+                                "m": {"type": "integer", "description": "money_delta",  "minimum": config.MONEY_DELTA_MIN,  "maximum": config.MONEY_DELTA_MAX},
+                                "s": {"type": "integer", "description": "sanity_delta", "minimum": config.SANITY_DELTA_MIN, "maximum": config.SANITY_DELTA_MAX},
                             },
                             "required": ["id", "v", "h", "m", "s"],
                             "additionalProperties": False,
@@ -320,9 +322,9 @@ class M2Classifier:
                 if not opt_id or not v:
                     return None
                 effects_map[opt_id] = {
-                    "health_delta": max(-15, min(10, int(item["h"]))),
-                    "money_delta":  max(-15, min(15, int(item["m"]))),
-                    "sanity_delta": max(-10, min(5,  int(item["s"]))),
+                    "health_delta": max(config.HEALTH_DELTA_MIN, min(config.HEALTH_DELTA_MAX, int(item["h"]))),
+                    "money_delta":  max(config.MONEY_DELTA_MIN,  min(config.MONEY_DELTA_MAX,  int(item["m"]))),
+                    "sanity_delta": max(config.SANITY_DELTA_MIN, min(config.SANITY_DELTA_MAX, int(item["s"]))),
                     "toll":         v,
                 }
             return entry_id, selected_rule_id, effects_map
@@ -356,7 +358,7 @@ class M2Classifier:
         user_blocks = self._build_user_blocks()
         user_blocks.append({"type": "text", "text": quasi_state + arb_hint})
 
-        _MAX_RETRIES = 2
+        _MAX_RETRIES = config.M2_MAX_RETRIES
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 response = await self._client.messages.create(

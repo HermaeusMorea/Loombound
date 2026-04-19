@@ -27,6 +27,7 @@ from pathlib import Path
 
 import anthropic
 
+from src.shared import config
 from src.shared.dotenv import load_dotenv
 from src.shared.llm_utils import (
     ts as _ts,
@@ -36,7 +37,7 @@ from src.shared.llm_utils import (
     REPO_ROOT,
 )
 
-_T1_CACHE_BATCH_SIZE = 3
+_T1_CACHE_BATCH_SIZE = config.T1_CACHE_BATCH_SIZE
 
 
 # ---------------------------------------------------------------------------

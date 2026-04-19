@@ -11,6 +11,7 @@ Slow Core never sees exact numbers — only bands and narrative signals.
 
 from __future__ import annotations
 
+from src.shared import config
 from src.t0.memory.models import CoreStateView, WaypointSummary
 from src.t1.memory.a1_store import A1Entry
 from src.t0.memory.types import WaypointMemory, RunMemory
@@ -27,13 +28,14 @@ def _band(value: int | None, lo: int, hi: int) -> str:
     if hi <= lo:
         return "moderate"
     ratio = (value - lo) / (hi - lo)
-    if ratio <= 0.2:
+    t1, t2, t3, t4 = config.BAND_THRESHOLDS
+    if ratio <= t1:
         return "very_low"
-    elif ratio <= 0.4:
+    elif ratio <= t2:
         return "low"
-    elif ratio <= 0.6:
+    elif ratio <= t3:
         return "moderate"
-    elif ratio <= 0.8:
+    elif ratio <= t4:
         return "high"
     else:
         return "very_high"
@@ -78,11 +80,11 @@ def build_a1_entry(
     # resource_trajectory: sanity lost this node + cumulative mood
     sanity_lost = waypoint_memory.sanity_lost_in_node
     severity = run_memory.narrator_mood.severity
-    if sanity_lost >= 3 or severity >= 4:
+    if sanity_lost >= config.SANITY_CRITICAL_THRESHOLD or severity >= config.MOOD_SEVERITY_HIGH:
         resource_trajectory = "critical"
-    elif sanity_lost >= 2 or severity >= 2:
+    elif sanity_lost >= config.SANITY_DEPLETING_THRESHOLD or severity >= config.MOOD_LENIENCY_LOW:
         resource_trajectory = "depleting"
-    elif sanity_lost == 0 and run_memory.narrator_mood.leniency >= 2:
+    elif sanity_lost == 0 and run_memory.narrator_mood.leniency >= config.MOOD_LENIENCY_LOW:
         resource_trajectory = "recovering"
     else:
         resource_trajectory = "stable"
@@ -128,7 +130,7 @@ def _build_state_sections(
     sections: list[str] = []
 
     h_band = _band(core_state.health, 0, core_state.max_health or 100)
-    m_band = _band(core_state.money, 0, 15)
+    m_band = _band(core_state.money, 0, config.MONEY_MAX)
     s_band = _band(core_state.sanity, 0, 100)
 
     prev = previous_core_state
@@ -156,19 +158,19 @@ def _build_state_sections(
     if run_memory.theme_counters:
         top_themes = sorted(
             run_memory.theme_counters.items(), key=lambda kv: kv[1], reverse=True
-        )[:3]
+        )[:config.THEME_TOP_N]
         theme_str = ", ".join(f"{t}×{n}" for t, n in top_themes)
         sections.append(f"  dominant themes: {theme_str}")
 
     if run_memory.important_incidents:
-        recent = run_memory.important_incidents[-3:]
+        recent = run_memory.important_incidents[-config.INCIDENT_HISTORY_N:]
         sections.append("\n## Recent incidents")
         for inc in recent:
             sections.append(f"  - {inc}")
 
     if run_memory.recent_shocks:
         sections.append("\n## Recent destabilizing choices")
-        for shock in run_memory.recent_shocks[-3:]:
+        for shock in run_memory.recent_shocks[-config.SHOCK_HISTORY_N:]:
             sections.append(
                 f"  - [{shock.scene_type}] option={shock.option_id}"
                 f"  sanity={shock.sanity_delta}"
@@ -176,7 +178,7 @@ def _build_state_sections(
 
     if waypoint_history:
         sections.append(f"\n## Waypoint trajectory ({len(waypoint_history)} completed)")
-        for summary in waypoint_history[-4:]:
+        for summary in waypoint_history[-config.WAYPOINT_HISTORY_N:]:
             flags = ", ".join(summary.important_flags) if summary.important_flags else "none"
             sections.append(
                 f"  [{summary.waypoint_type}] depth={summary.depth}"
@@ -200,7 +202,7 @@ def _build_state_sections(
                 "  active flags: "
                 + ", ".join(current_waypoint_memory.important_flags[-4:])
             )
-        for choice in current_waypoint_memory.choices_made[-2:]:
+        for choice in current_waypoint_memory.choices_made[-config.CHOICE_HISTORY_N:]:
             flags = ", ".join(choice.local_flags) if choice.local_flags else "none"
             sections.append(
                 f"  - [{choice.scene_type}] option={choice.player_choice or 'unknown'}"
@@ -209,7 +211,7 @@ def _build_state_sections(
 
     if run_memory.a1.entries:
         sections.append("\n## Scene history (M1 — last 3 nodes)")
-        for line in run_memory.a1.to_prompt_lines(n=3):
+        for line in run_memory.a1.to_prompt_lines(n=config.A1_ENTRY_N):
             sections.append(line)
 
     return sections
@@ -223,7 +225,7 @@ def _effect_calibration(core_state: CoreStateView) -> str:
     """
     max_h = core_state.max_health or 100
     h_band = _band(core_state.health, 0, max_h)
-    m_band = _band(core_state.money, 0, 15)
+    m_band = _band(core_state.money, 0, config.MONEY_MAX)
     s_band = _band(core_state.sanity, 0, 100)
 
     # Health: more room to lose when high, more room to gain when low
