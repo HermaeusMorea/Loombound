@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 from src.shared.dotenv import load_dotenv
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = REPO_ROOT / "data"
-_SAGAS_DIR = DATA_DIR / "sagas"
+from src.shared.artifacts import (
+    resolve_saga_ref,
+    remove_saga_artifacts,
+    clean_all_saga_data,
+)
+from src.shared.llm_utils import REPO_ROOT
 
 _USAGE = """\
 loombound — Loombound saga CLI
@@ -70,7 +70,7 @@ def main() -> None:
         i = 0
         while i < len(rest):
             if rest[i] == "--saga" and i + 1 < len(rest):
-                new_args += ["--saga", _resolve_saga(rest[i + 1])]
+                new_args += ["--saga", str(resolve_saga_ref(rest[i + 1]))]
                 i += 2
             else:
                 new_args.append(rest[i])
@@ -105,18 +105,6 @@ def main() -> None:
         sys.exit(1)
 
 
-def _resolve_saga(id_or_path: str) -> str:
-    p = Path(id_or_path)
-    if p.is_absolute() or id_or_path.startswith("./"):
-        return str(p)
-    if id_or_path.startswith("data/sagas/"):
-        return str(REPO_ROOT / id_or_path)
-    if p.exists():
-        return str(p.resolve())
-    stem = p.stem if p.suffix == ".json" else id_or_path
-    return str(_SAGAS_DIR / f"{stem}.json")
-
-
 def _run_module(module: str, extra: list[str]) -> None:
     os.chdir(REPO_ROOT)
     os.execvp(sys.executable, [sys.executable, "-m", module, *extra])
@@ -141,61 +129,21 @@ def _cmd_clean(args: list[str]) -> None:
             sys.exit(1)
 
     if saga_id:
-        saga_file = Path(_resolve_saga(saga_id))
-        stem = saga_file.stem
-        nodes_dir = DATA_DIR / "waypoints" / stem
-        removed = False
-
-        if saga_file.exists():
-            saga_file.unlink()
-            print(f"Removed {saga_file}")
-            removed = True
-        for suffix in ("_rules.json", "_toll_lexicon.json", "_narration_table.json"):
-            related = _SAGAS_DIR / f"{stem}{suffix}"
-            if related.exists():
-                related.unlink()
-                print(f"Removed {related}")
-                removed = True
-        if nodes_dir.exists():
-            shutil.rmtree(nodes_dir)
-            print(f"Removed {nodes_dir}/")
-            removed = True
-        if not removed:
-            print(f"Nothing to clean for saga '{stem}'.")
+        saga_file = resolve_saga_ref(saga_id)
+        removed = remove_saga_artifacts(saga_file)
+        if removed:
+            for p in removed:
+                print(f"Removed {p}")
+        else:
+            print(f"Nothing to clean for saga '{saga_file.stem}'.")
     else:
         print("Cleaning all saga data (keeping data/a2_cache_table.json)...")
-        removed = False
-        if _SAGAS_DIR.exists():
-            for f in _SAGAS_DIR.glob("*.json"):
-                if _is_git_tracked(f):
-                    print(f"  Skipped {f.name} (tracked by git)")
-                    continue
-                f.unlink()
-                print(f"  Removed {f}")
-                removed = True
-        waypoints_dir = DATA_DIR / "waypoints"
-        if waypoints_dir.exists():
-            for d in waypoints_dir.iterdir():
-                if not d.is_dir():
-                    continue
-                if any(_is_git_tracked(f) for f in d.rglob("*") if f.is_file()):
-                    print(f"  Skipped {d.name}/ (contains git-tracked files)")
-                    continue
-                shutil.rmtree(d)
-                print(f"  Removed {d}/")
-                removed = True
-        if not removed:
-            print("Nothing to clean.")
-        else:
-            print("Done.")
-
-
-def _is_git_tracked(path: Path) -> bool:
-    result = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", str(path)],
-        cwd=REPO_ROOT, capture_output=True,
-    )
-    return result.returncode == 0
+        removed, skipped = clean_all_saga_data()
+        for p in skipped:
+            print(f"  Skipped {p}")
+        for p in removed:
+            print(f"  Removed {p}")
+        print("Done." if removed else "Nothing to clean.")
 
 
 if __name__ == "__main__":
