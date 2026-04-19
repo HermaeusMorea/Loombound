@@ -1,5 +1,5 @@
-"""A2 data models: bearing entries, toll lexicon."""
+"""Runtime table store: arc-state catalog and scene skeleton data models."""
 
-from .a2_store import A2Entry, A2WaypointEncounterSkeleton, A2WaypointSkeletonEntry, A2Store
+from .a2_store import ArcStateEntry, EncounterSkeleton, WaypointSkeletonEntry, RuntimeTableStore
 
-__all__ = ["A2Entry", "A2WaypointEncounterSkeleton", "A2WaypointSkeletonEntry", "A2Store"]
+__all__ = ["ArcStateEntry", "EncounterSkeleton", "WaypointSkeletonEntry", "RuntimeTableStore"]

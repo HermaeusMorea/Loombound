@@ -39,7 +39,7 @@ from src.runtime.play_encounter import _overlay_effects, _play_encounter
 
 log = logging.getLogger(__name__)
 
-T2_CACHE_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
+ARC_STATE_CATALOG_PATH = REPO_ROOT / "data" / "arc_state_catalog.json"
 
 
 
@@ -262,14 +262,14 @@ def main() -> None:
         tone=saga.get("tone") or None,
     )
 
-    # Load T2 cache (arc palette) and T1 cache (node skeletons) if available
+    # Load arc-state catalog (A2) and scene skeletons (A1) if available
     saga_dir = REPO_ROOT / "data" / "waypoints" / saga_id_str
-    a1_cache_table_path = saga_dir / "a1_cache_table.json"
+    scene_skeletons_path = saga_dir / "scene_skeletons.json"
 
-    if T2_CACHE_PATH.exists():
-        run.memory.a2.load_a2_cache_table(T2_CACHE_PATH)
-    if a1_cache_table_path.exists():
-        run.memory.a2.load_a1_cache_table(a1_cache_table_path)
+    if ARC_STATE_CATALOG_PATH.exists():
+        run.memory.tables.load_arc_state_catalog(ARC_STATE_CATALOG_PATH)
+    if scene_skeletons_path.exists():
+        run.memory.tables.load_scene_skeletons(scene_skeletons_path)
 
     narration_table: dict | None = None
     _narration_path = campaigns_dir_rt / f"{saga_id_str}_narration_table.json"
@@ -277,9 +277,9 @@ def main() -> None:
         narration_table = json.loads(_narration_path.read_text(encoding="utf-8"))
         log.info("Loaded narration table: %d theme(s).", len(narration_table))
 
-    # Build M2Classifier if A2 cache is loaded (provides the cached prefix)
+    # Build M2Classifier if arc-state catalog is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
-    if run.memory.a2.a2_cache_table:
+    if run.memory.tables.arc_state_catalog:
         saga_id = saga.get("saga_id", "")
         campaigns_dir = REPO_ROOT / "data" / "sagas"
         toll_lexicon_path = campaigns_dir / f"{saga_id}_toll_lexicon.json"
@@ -289,8 +289,8 @@ def main() -> None:
         m2_cfg = M2ClassifierConfig(api_key=api_key)
         m2_classifier = M2Classifier(
             config=m2_cfg,
-            a2_cache_table_json=run.memory.a2.a2_cache_table_prompt_json(),
-            a1_cache_table_index_json=run.memory.a2.a1_cache_table_index_json() if run.memory.a2.a1_cache_table else "",
+            arc_state_catalog_json=run.memory.tables.arc_state_catalog_json(),
+            scene_option_index_json=run.memory.tables.scene_option_index_json() if run.memory.tables.scene_skeletons else "",
             toll_lexicon_json=toll_lexicon_json,
             rules_json=rules_json,
         )

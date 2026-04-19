@@ -31,7 +31,7 @@ from src.shared.llm_utils import (
     REPO_ROOT,
 )
 
-OUTPUT_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
+OUTPUT_PATH = REPO_ROOT / "data" / "arc_state_catalog.json"
 
 
 _SYSTEM_PROMPT = """\

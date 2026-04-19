@@ -7,7 +7,7 @@ Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
 containing scene_concept, sanity_axis, and option intents — no numeric effect
 values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 
-Output: data/waypoints/<saga_id>/t1_cache_table.json
+Output: data/waypoints/<saga_id>/scene_skeletons.json
 
 Usage (standalone):
     python -m src.t2.core.gen_a1_cache_table data/sagas/my_saga.json
@@ -87,7 +87,7 @@ _SKELETON_ITEM = {
 }
 
 _T1_CACHE_TOOL = {
-    "name": "generate_t1_cache_table",
+    "name": "generate_scene_skeletons",
     "description": "Submit scene skeletons for ALL saga waypoints at once.",
     "input_schema": {
         "type": "object",
@@ -119,7 +119,7 @@ You are a narrative scene designer for a roguelite game.
 Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
 
 Rules:
-- Call generate_t1_cache_table exactly once with ALL the nodes given to you in this message.
+- Call generate_scene_skeletons exactly once with ALL the nodes given to you in this message.
 - Each node must have EXACTLY the number of encounters specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
 - sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
@@ -131,7 +131,7 @@ Rules:
 # Prompt builder + validator
 # ---------------------------------------------------------------------------
 
-def _build_t1_cache_table_user_msg(
+def _build_scene_skeletons_user_msg(
     nodes_raw: list[dict],
     title: str,
     tone: str,
@@ -171,7 +171,7 @@ def _build_t1_cache_table_user_msg(
     return user_msg, expected
 
 
-def _validate_t1_cache_table_response(raw: dict, expected: dict[str, int]) -> list[str]:
+def _validate_scene_skeletons_response(raw: dict, expected: dict[str, int]) -> list[str]:
     """Return a list of validation error strings (empty = valid).
 
     Checks both structure (node presence, encounter count) and content
@@ -211,7 +211,7 @@ def _validate_t1_cache_table_response(raw: dict, expected: dict[str, int]) -> li
 # Haiku API call
 # ---------------------------------------------------------------------------
 
-async def _generate_t1_cache_table(
+async def _generate_scene_skeletons(
     nodes_raw: list[dict],
     saga_id: str,
     tone: str,
@@ -237,7 +237,7 @@ async def _generate_t1_cache_table(
     remaining_nodes = list(nodes_raw)
 
     for attempt in range(1, max_retries + 1):
-        retry_msg, expected = _build_t1_cache_table_user_msg(remaining_nodes, title, tone, intro, lang)
+        retry_msg, expected = _build_scene_skeletons_user_msg(remaining_nodes, title, tone, intro, lang)
         try:
             response = await client.messages.create(
                 model=model,
@@ -245,7 +245,7 @@ async def _generate_t1_cache_table(
                 system=_T1_CACHE_SYSTEM,
                 messages=[{"role": "user", "content": retry_msg}],
                 tools=[_T1_CACHE_TOOL],
-                tool_choice={"type": "tool", "name": "generate_t1_cache_table"},
+                tool_choice={"type": "tool", "name": "generate_scene_skeletons"},
             )
         except Exception as exc:
             print(f"  [T1 cache attempt {attempt}] API error: {exc}")
@@ -255,12 +255,12 @@ async def _generate_t1_cache_table(
 
         u = response.usage
         try:
-            raw = _extract_tool_input(response, "generate_t1_cache_table")
+            raw = _extract_tool_input(response, "generate_scene_skeletons")
         except RuntimeError:
             print(f"  [T1 cache attempt {attempt}] no tool call returned, retrying...")
             continue
 
-        errors = _validate_t1_cache_table_response(raw, expected)
+        errors = _validate_scene_skeletons_response(raw, expected)
         result_nodes = raw.get("waypoints", [])
 
         if errors:
@@ -279,11 +279,11 @@ async def _generate_t1_cache_table(
 
         # Stamp node metadata client-side (keeps T1 cache self-contained)
         node_meta = {n["waypoint_id"]: n for n in nodes_raw}
-        t1_cache_table: list[dict] = []
+        scene_skeletons: list[dict] = []
         for n in accumulated + result_nodes:
             nid = n["waypoint_id"]
             meta = node_meta.get(nid, {})
-            t1_cache_table.append({
+            scene_skeletons.append({
                 "waypoint_id":    nid,
                 "waypoint_type":  meta.get("waypoint_type", ""),
                 "label":      meta.get("label", ""),
@@ -303,10 +303,10 @@ async def _generate_t1_cache_table(
             *[
                 f"  {row['waypoint_id']} (arb×{len(row['encounters'])}): "
                 + (row['encounters'][0].get('scene_concept', '')[:90] if row.get('encounters') else '(empty)')
-                for row in t1_cache_table
+                for row in scene_skeletons
             ],
         ])
-        return t1_cache_table
+        return scene_skeletons
 
     return None
 
@@ -315,11 +315,11 @@ async def _generate_t1_cache_table(
 # File writer
 # ---------------------------------------------------------------------------
 
-def write_t1_cache_table(t1_cache_table: list[dict], saga_id: str) -> Path:
+def write_scene_skeletons(scene_skeletons: list[dict], saga_id: str) -> Path:
     out_dir = REPO_ROOT / "data" / "waypoints" / saga_id
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "a1_cache_table.json"
-    out_path.write_text(json.dumps(t1_cache_table, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_path = out_dir / "scene_skeletons.json"
+    out_path.write_text(json.dumps(scene_skeletons, ensure_ascii=False, indent=2), encoding="utf-8")
     return out_path
 
 
@@ -327,7 +327,7 @@ def write_t1_cache_table(t1_cache_table: list[dict], saga_id: str) -> Path:
 # Public step function (called by generate_campaign.py)
 # ---------------------------------------------------------------------------
 
-def generate_t1_cache_table_step(
+def generate_scene_skeletons_step(
     data: dict,
     node_count: int,
     lang: str,
@@ -345,7 +345,7 @@ def generate_t1_cache_table_step(
         for b_idx, batch in enumerate(batches, start=1):
             batch_ids = [n["waypoint_id"] for n in batch]
             print(f"  Batch {b_idx}/{len(batches)}: {batch_ids}")
-            result = await _generate_t1_cache_table(
+            result = await _generate_scene_skeletons(
                 nodes_raw=batch,
                 saga_id=data["saga_id"],
                 tone=data.get("tone", ""),
@@ -361,11 +361,11 @@ def generate_t1_cache_table_step(
                 print(f"  Batch {b_idx} failed.", file=sys.stderr)
         return results, failed
 
-    t1_cache_table_all, any_failed = asyncio.run(_run_batches())
+    scene_skeletons_all, any_failed = asyncio.run(_run_batches())
 
-    if t1_cache_table_all:
-        t1_path = write_t1_cache_table(t1_cache_table_all, data["saga_id"])
-        print(f"  Written: {t1_path} ({len(t1_cache_table_all)} nodes)")
+    if scene_skeletons_all:
+        t1_path = write_scene_skeletons(scene_skeletons_all, data["saga_id"])
+        print(f"  Written: {t1_path} ({len(scene_skeletons_all)} nodes)")
     if any_failed:
         print("  Some batches failed — re-run gen to regenerate T1 cache.", file=sys.stderr)
 
@@ -408,7 +408,7 @@ def main() -> None:
         "intro":       saga.get("intro", ""),
         "waypoints":       nodes_list,
     }
-    generate_t1_cache_table_step(data, len(nodes_list), args.lang, api_key)
+    generate_scene_skeletons_step(data, len(nodes_list), args.lang, api_key)
 
 
 if __name__ == "__main__":

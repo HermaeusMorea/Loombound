@@ -213,14 +213,14 @@ class M2Classifier:
     def __init__(
         self,
         config: M2ClassifierConfig | None = None,
-        a2_cache_table_json: str = "[]",
-        a1_cache_table_index_json: str = "",
+        arc_state_catalog_json: str = "[]",
+        scene_option_index_json: str = "",
         toll_lexicon_json: str = "",
         rules_json: str = "",
     ) -> None:
         self._cfg = config or M2ClassifierConfig()
-        self._a2_cache_table_json = a2_cache_table_json
-        self._a1_cache_table_index_json = a1_cache_table_index_json
+        self._arc_state_catalog_json = arc_state_catalog_json
+        self._scene_option_index_json = scene_option_index_json
         self._toll_lexicon_json = toll_lexicon_json
         self._rules_json = rules_json
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
@@ -286,11 +286,11 @@ class M2Classifier:
         blocks: list[dict] = [
             {
                 "type": "text",
-                "text": f"T2 cache (arc state catalogue):\n{self._a2_cache_table_json}",
+                "text": f"Arc-state catalog:\n{self._arc_state_catalog_json}",
                 "cache_control": {"type": "ephemeral"},
             },
         ]
-        if self._a1_cache_table_index_json:
+        if self._scene_option_index_json:
             rules_suffix = (
                 f"\n\nSaga rules (select one per encounter):\n{self._rules_json}"
                 if self._rules_json else ""
@@ -302,8 +302,8 @@ class M2Classifier:
             blocks.append({
                 "type": "text",
                 "text": (
-                    f"A1 option index (waypoint option structure for this saga, no effect values):\n"
-                    f"{self._a1_cache_table_index_json}{rules_suffix}{toll_suffix}"
+                    f"Scene option index (waypoint option structure for this saga, no effect values):\n"
+                    f"{self._scene_option_index_json}{rules_suffix}{toll_suffix}"
                 ),
                 "cache_control": {"type": "ephemeral"},
             })
@@ -408,13 +408,13 @@ class M2Classifier:
 
         return _NO_MATCH_ID, "", {}, _empty_usage
 
-    def update_a2_cache_table(self, a2_cache_table_json: str) -> None:
-        """Replace the cached T2 cache JSON (e.g. after offline regeneration)."""
-        self._a2_cache_table_json = a2_cache_table_json
+    def update_arc_state_catalog(self, arc_state_catalog_json: str) -> None:
+        """Replace the arc-state catalog JSON (e.g. after offline regeneration)."""
+        self._arc_state_catalog_json = arc_state_catalog_json
 
-    def update_a1_cache_table_index(self, a1_cache_table_index_json: str, toll_lexicon_json: str = "") -> None:
-        """Replace the A1 option index JSON and toll lexicon (e.g. after saga switch)."""
-        self._a1_cache_table_index_json = a1_cache_table_index_json
+    def update_scene_option_index(self, scene_option_index_json: str, toll_lexicon_json: str = "") -> None:
+        """Replace the scene option index JSON and toll lexicon (e.g. after saga switch)."""
+        self._scene_option_index_json = scene_option_index_json
         self._toll_lexicon_json = toll_lexicon_json
 
     def update_rules(self, rules_json: str) -> None:

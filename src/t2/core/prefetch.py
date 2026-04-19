@@ -34,7 +34,7 @@ import traceback
 from typing import Any
 
 from src.t0.memory.models import CoreStateView, WaypointSummary
-from src.t2.memory.a2_store import A2Store
+from src.t2.memory.a2_store import RuntimeTableStore
 from src.t0.memory.types import WaypointMemory, RunMemory
 from src.shared.llm_utils import (
     ts as _ts,
@@ -317,8 +317,8 @@ class PrefetchCache:
         arc_id_snapshot: int,
     ) -> None:
         try:
-            if not run_memory.a2.has_caches():
-                reason = "a2_cache_table/a1_cache_table not loaded"
+            if not run_memory.tables.has_caches():
+                reason = "arc_state_catalog/scene_skeletons not loaded"
                 log.warning("Prefetch: '%s' skipped — %s.", target_waypoint_id, reason)
                 with self._lock:
                     entry = self._cache.get(target_waypoint_id)
@@ -360,13 +360,13 @@ class PrefetchCache:
         No Haiku call here — arc tendency comes from arc_id_snapshot which was
         captured at trigger() time from _current_arc_id.
         """
-        # Step 1: T2 cache lookup for arc tendency
-        arc_row = run_memory.a2.lookup_arc(arc_id_snapshot)
+        # Step 1: arc-state catalog lookup for arc tendency
+        arc_row = run_memory.tables.lookup_arc(arc_id_snapshot)
         if arc_row is None:
             # Fallback to entry 0 if snapshot id is missing
-            arc_row = run_memory.a2.lookup_arc(0)
+            arc_row = run_memory.tables.lookup_arc(0)
         if arc_row is None:
-            reason = f"a2_cache_table missing entry_id={arc_id_snapshot} and no entry 0"
+            reason = f"arc_state_catalog missing entry_id={arc_id_snapshot} and no entry 0"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_waypoint_id, reason)
             with self._lock:
                 entry = self._cache.get(target_waypoint_id)
@@ -374,10 +374,10 @@ class PrefetchCache:
                     entry.mark_failed(reason)
             return
 
-        # Step 2: T1 cache lookup
-        node_entry = run_memory.a2.lookup_waypoint(target_waypoint_id)
+        # Step 2: scene skeletons lookup
+        node_entry = run_memory.tables.lookup_waypoint(target_waypoint_id)
         if node_entry is None or not node_entry.encounters:
-            reason = f"a1_cache_table missing waypoint_id={target_waypoint_id}"
+            reason = f"scene_skeletons missing waypoint_id={target_waypoint_id}"
             log.warning("Prefetch[preloaded]: '%s' — %s.", target_waypoint_id, reason)
             with self._lock:
                 entry = self._cache.get(target_waypoint_id)
@@ -386,7 +386,7 @@ class PrefetchCache:
             return
 
         _md_log([
-            f"## [{_ts()}] A1 CACHE LOOKUP — waypoint `{target_waypoint_id}` (arc_id={arc_id_snapshot})",
+            f"## [{_ts()}] SCENE SKELETON LOOKUP — waypoint `{target_waypoint_id}` (arc_id={arc_id_snapshot})",
             f"waypoint_type: {node_entry.waypoint_type}",
             f"label: {node_entry.label}",
             f"encounters: {len(node_entry.encounters)}",

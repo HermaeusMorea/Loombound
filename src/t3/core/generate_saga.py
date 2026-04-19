@@ -27,7 +27,7 @@ import anthropic
 
 from src.shared.dotenv import load_dotenv
 from src.shared.llm_utils import ts as _ts, md_log as _md_log, extract_tool_input as _extract_tool_input
-from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step
+from src.t2.core.gen_a1_cache_table import generate_scene_skeletons_step
 from src.t3.core.saga_prompt import (
     _SYSTEM_PROMPT,
     _TOOL,
@@ -226,7 +226,7 @@ def main() -> None:
     # ── Step 2: generate T1 cache (Haiku, batched 3 nodes per call) ────────
 
     if not args.skip_t1_cache and anthropic_key:
-        generate_t1_cache_table_step(data, node_count, args.lang, anthropic_key)
+        generate_scene_skeletons_step(data, node_count, args.lang, anthropic_key)
 
     saga_id = data['saga_id']
     print(f"\nSAGA_ID={saga_id}")

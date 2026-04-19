@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from src.t1.memory.a1_store import A1Store
-from src.t2.memory.a2_store import A2Store
+from src.t2.memory.a2_store import RuntimeTableStore
 
 
 @dataclass(slots=True)
@@ -91,4 +91,4 @@ class RunMemory:
     persona: JudgePersonaState = field(default_factory=JudgePersonaState)
     # cache stores
     a1: A1Store = field(default_factory=A1Store)
-    a2: A2Store = field(default_factory=A2Store)
+    tables: RuntimeTableStore = field(default_factory=RuntimeTableStore)

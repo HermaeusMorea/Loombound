@@ -1,13 +1,14 @@
-"""A2 store — runtime bearing entries plus per-waypoint encounter skeletons.
+"""Runtime narrative table store — arc-state catalog and waypoint scene skeletons.
 
-Two caches:
-  A2 cache  (data/a2_cache_table.json): saga-agnostic bearing catalogue.
-            Loaded at game startup and cached into every C2 (Haiku) call.
+Two tables:
+  Arc-state catalog  (data/arc_state_catalog.json): saga-agnostic arc-state entries.
+            Loaded at game startup and injected as a cached prefix into every M2 call.
+            Previously referred to as the A2 cache in design docs.
 
-  A1 cache  (data/waypoints/<saga_id>/a1_cache_table.json): per-saga waypoint skeletons.
+  Scene skeletons  (data/waypoints/<saga_id>/scene_skeletons.json): per-saga skeletons.
             Each row is keyed by saga waypoint_id and stores one or more encounter
-            skeletons for that waypoint. These skeletons are later modulated by the
-            runtime bearing selected by C2.
+            skeletons for that waypoint. Modulated at runtime by the arc state chosen by M2.
+            Previously referred to as the A1 cache in design docs.
 """
 
 from __future__ import annotations
@@ -18,8 +19,8 @@ from pathlib import Path
 
 
 @dataclass(slots=True)
-class A2Entry:
-    """One entry in the A2 cache — bearing classification only, no narrative content."""
+class ArcStateEntry:
+    """One entry in the arc-state catalog (A2) — classification dimensions only."""
 
     entry_id: int
     arc_trajectory: str
@@ -38,7 +39,7 @@ class A2Entry:
 
 
 @dataclass(slots=True)
-class A2WaypointEncounterSkeleton:
+class EncounterSkeleton:
     """One preloaded encounter skeleton for a saga waypoint encounter slot."""
 
     scene_type: str
@@ -56,51 +57,49 @@ class A2WaypointEncounterSkeleton:
 
 
 @dataclass(slots=True)
-class A2WaypointSkeletonEntry:
-    """One entry in the A1 cache — keyed by saga waypoint_id."""
+class WaypointSkeletonEntry:
+    """One entry in the scene skeletons table — keyed by saga waypoint_id."""
 
     waypoint_id: str
     waypoint_type: str
     label: str
     map_blurb: str
-    encounters: list[A2WaypointEncounterSkeleton] = field(default_factory=list)
+    encounters: list[EncounterSkeleton] = field(default_factory=list)
 
 
 @dataclass
-class A2Store:
-    """Holds A2 cache, waypoint-keyed A1 cache, and runtime bearing classification history."""
+class RuntimeTableStore:
+    """Holds the arc-state catalog (A2) and scene skeletons (A1) for runtime use."""
 
-    a2_cache_table: dict[int, A2Entry] = field(default_factory=dict)
-    a1_cache_table: dict[str, A2WaypointSkeletonEntry] = field(default_factory=dict)
+    arc_state_catalog: dict[int, ArcStateEntry] = field(default_factory=dict)
+    scene_skeletons: dict[str, WaypointSkeletonEntry] = field(default_factory=dict)
     current_id: int | None = None
     history: list[tuple[str, int]] = field(default_factory=list)
 
-    def load_a2_cache_table(self, path: Path) -> None:
-        """Load A2 cache (bearing palette) from JSON. Expected format: list of A2Entry dicts."""
-
+    def load_arc_state_catalog(self, path: Path) -> None:
+        """Load arc-state catalog from JSON (list of ArcStateEntry dicts)."""
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.a2_cache_table = {}
+        self.arc_state_catalog = {}
         for row in data:
-            entry = A2Entry(
+            entry = ArcStateEntry(
                 entry_id=int(row["entry_id"]),
                 arc_trajectory=row["arc_trajectory"],
                 world_pressure=row["world_pressure"],
                 narrative_pacing=row["narrative_pacing"],
                 pending_intent=row["pending_intent"],
             )
-            self.a2_cache_table[entry.entry_id] = entry
+            self.arc_state_catalog[entry.entry_id] = entry
 
-    def load_a1_cache_table(self, path: Path) -> None:
-        """Load A1 cache (waypoint-keyed encounter skeletons) from JSON."""
-
+    def load_scene_skeletons(self, path: Path) -> None:
+        """Load scene skeletons from JSON (per-waypoint encounter skeletons)."""
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.a1_cache_table = {}
+        self.scene_skeletons = {}
         for row in data:
             waypoint_id = row.get("waypoint_id", "")
             if not waypoint_id:
                 continue
             encounters = [
-                A2WaypointEncounterSkeleton(
+                EncounterSkeleton(
                     scene_type=arb.get("scene_type", ""),
                     scene_concept=arb.get("scene_concept", ""),
                     sanity_axis=arb.get("sanity_axis", ""),
@@ -109,7 +108,7 @@ class A2Store:
                 for arb in row.get("encounters", [])
                 if isinstance(arb, dict)
             ]
-            self.a1_cache_table[waypoint_id] = A2WaypointSkeletonEntry(
+            self.scene_skeletons[waypoint_id] = WaypointSkeletonEntry(
                 waypoint_id=waypoint_id,
                 waypoint_type=row.get("waypoint_type", ""),
                 label=row.get("label", ""),
@@ -118,40 +117,32 @@ class A2Store:
             )
 
     def update(self, waypoint_id: str, bearing_id: int) -> None:
-        """Record the bearing classification result for a waypoint."""
-
         self.current_id = bearing_id
         self.history.append((waypoint_id, bearing_id))
 
-    def lookup_arc(self, bearing_id: int) -> A2Entry | None:
-        """Look up an A2 cache entry by entry_id."""
+    def lookup_arc(self, bearing_id: int) -> ArcStateEntry | None:
+        return self.arc_state_catalog.get(bearing_id)
 
-        return self.a2_cache_table.get(bearing_id)
-
-    def lookup_waypoint(self, waypoint_id: str) -> A2WaypointSkeletonEntry | None:
-        """Look up an A1 cache entry (waypoint skeleton) by saga waypoint_id."""
-
-        return self.a1_cache_table.get(waypoint_id)
+    def lookup_waypoint(self, waypoint_id: str) -> WaypointSkeletonEntry | None:
+        return self.scene_skeletons.get(waypoint_id)
 
     def has_caches(self) -> bool:
-        """True if both A2 cache and A1 cache are loaded."""
+        """True if both arc-state catalog and scene skeletons are loaded."""
+        return bool(self.arc_state_catalog) and bool(self.scene_skeletons)
 
-        return bool(self.a2_cache_table) and bool(self.a1_cache_table)
-
-    def a2_cache_table_prompt_json(self) -> str:
-        """Serialize A2 cache to compact JSON for the C2 classifier prefix."""
-
-        rows = [e.to_dict() for e in sorted(self.a2_cache_table.values(), key=lambda e: e.entry_id)]
+    def arc_state_catalog_json(self) -> str:
+        """Serialize arc-state catalog to compact JSON for the M2 classifier cached prefix."""
+        rows = [e.to_dict() for e in sorted(self.arc_state_catalog.values(), key=lambda e: e.entry_id)]
         return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
 
-    def a1_cache_table_index_json(self) -> str:
-        """Serialize A1 cache structure (without effects) for the per-saga cached prefix.
+    def scene_option_index_json(self) -> str:
+        """Serialize scene skeletons as an option index for the per-saga cached prefix.
 
-        A1 option index = A1 cache stripped to option_id + intent only — C2 uses this
-        to assign per-option effect values at runtime without seeing placeholder values.
+        Strips to option_id + intent only — M2 uses this to assign per-option effect
+        values without seeing placeholder values.
         """
         rows = []
-        for waypoint_id, entry in sorted(self.a1_cache_table.items()):
+        for waypoint_id, entry in sorted(self.scene_skeletons.items()):
             arbs = []
             for idx, arb in enumerate(entry.encounters):
                 options = [

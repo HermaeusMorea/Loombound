@@ -34,7 +34,7 @@ SUBCOMMANDS
       Remove saga files. --all removes everything in data/sagas/ and data/waypoints/.
 
   clean-palette
-      Delete data/a2_cache_table.json.
+      Delete data/arc_state_catalog.json.
 
   clean-logs
       Truncate logs/llm.md to empty.
@@ -81,7 +81,7 @@ def main() -> None:
         _run_script("scripts/report_llm_usage.py", rest)
 
     elif subcmd == "clean-palette":
-        target = DATA_DIR / "a2_cache_table.json"
+        target = DATA_DIR / "arc_state_catalog.json"
         if target.exists():
             target.unlink()
             print(f"Deleted {target}")
@@ -137,7 +137,7 @@ def _cmd_clean(args: list[str]) -> None:
         else:
             print(f"Nothing to clean for saga '{saga_file.stem}'.")
     else:
-        print("Cleaning all saga data (keeping data/a2_cache_table.json)...")
+        print("Cleaning all saga data (keeping data/arc_state_catalog.json)...")
         removed, skipped = clean_all_saga_data()
         for p in skipped:
             print(f"  Skipped {p}")

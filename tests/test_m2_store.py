@@ -1,10 +1,10 @@
 import json
 
-from src.t2.memory.a2_store import A2Store
+from src.t2.memory.a2_store import RuntimeTableStore
 
 
-def test_m2_store_loads_node_keyed_a1_cache_table(tmp_path) -> None:
-    path = tmp_path / "a1_cache_table.json"
+def test_m2_store_loads_node_keyed_scene_skeletons(tmp_path) -> None:
+    path = tmp_path / "scene_skeletons.json"
     path.write_text(
         json.dumps(
             [
@@ -34,8 +34,8 @@ def test_m2_store_loads_node_keyed_a1_cache_table(tmp_path) -> None:
         encoding="utf-8",
     )
 
-    store = A2Store()
-    store.load_a1_cache_table(path)
+    store = RuntimeTableStore()
+    store.load_scene_skeletons(path)
 
     node = store.lookup_waypoint("ruined_market")
     assert node is not None
