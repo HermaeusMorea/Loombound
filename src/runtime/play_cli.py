@@ -139,7 +139,6 @@ def _prefetch_targets(
     saga: dict[str, object],
     target_ids: list[str],
     run,
-    current_waypoint_memory=None,
 ) -> None:
     """Trigger prefetch for a list of saga waypoint IDs."""
 
@@ -160,9 +159,7 @@ def _prefetch_targets(
                     target_waypoint_id=target_id,
                     core_state=run.core_state,
                     run_memory=run.memory,
-                    waypoint_history=list(run.waypoint_history),
                     encounter_count=arb_count,
-                    current_waypoint_memory=current_waypoint_memory,
                 )
         except (AssetValidationError, ValueError) as exc:
             log.warning("Prefetch: skipping '%s' — node spec invalid: %s", target_id, exc)
@@ -329,7 +326,7 @@ def main() -> None:
                     run=run,
                 )
 
-            completed_node_memory = _play_node(
+            _play_node(
                 run,
                 saga,
                 saga_waypoint,
@@ -347,7 +344,6 @@ def main() -> None:
                     saga=saga,
                     target_ids=lookahead_targets,
                     run=run,
-                    current_waypoint_memory=completed_node_memory,
                 )
 
             if not next_waypoints:

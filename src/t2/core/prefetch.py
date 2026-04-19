@@ -33,9 +33,9 @@ import time
 import traceback
 from typing import Any
 
-from src.t0.memory.models import CoreStateView, WaypointSummary
+from src.t0.memory.models import CoreStateView
 from src.t2.memory.a2_store import RuntimeTableStore
-from src.t0.memory.types import WaypointMemory, RunMemory
+from src.t0.memory.types import RunMemory
 from src.shared.llm_utils import (
     ts as _ts,
     md_log as _md_log,
@@ -162,9 +162,7 @@ class PrefetchCache:
         target_waypoint_id: str,
         core_state: CoreStateView,
         run_memory: RunMemory,
-        waypoint_history: list[WaypointSummary],
         encounter_count: int,
-        current_waypoint_memory: WaypointMemory | None = None,
     ) -> None:
         """Start background generation for target_waypoint_id if not already running.
 
