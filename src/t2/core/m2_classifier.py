@@ -19,13 +19,13 @@ Token budget per call (after cache warm):
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 
 import anthropic
 
 from src.shared import config
+from src.shared.llm_utils import extract_tool_input as _extract_tool_input
 
 log = logging.getLogger(__name__)
 
@@ -384,22 +384,22 @@ class M2Classifier:
                     u.input_tokens, cache_created, cache_read, u.output_tokens, attempt + 1,
                 )
 
-                for block in response.content:
-                    if block.type == "tool_use" and block.name == "select_arc_and_effects":
-                        raw = block.input
-                        if isinstance(raw, str):
-                            raw = json.loads(raw)
+                try:
+                    raw = _extract_tool_input(response, "select_arc_and_effects")
+                except RuntimeError:
+                    log.warning("M2Classifier: no tool call on attempt %d, retrying", attempt + 1)
+                    continue
 
-                        parsed = self._parse_effects(raw)
-                        if parsed is None and needs_effects:
-                            log.warning("M2Classifier: invalid format on attempt %d, retrying", attempt + 1)
-                            break
-                        entry_id, rule_id, effects_map = parsed if parsed else (_NO_MATCH_ID, "", {})
-                        log.info(
-                            "M2Classifier: entry_id=%d rule=%r effects for %d option(s)",
-                            entry_id, rule_id, len(effects_map),
-                        )
-                        return entry_id, rule_id, effects_map, usage
+                parsed = self._parse_effects(raw)
+                if parsed is None and needs_effects:
+                    log.warning("M2Classifier: invalid format on attempt %d, retrying", attempt + 1)
+                    continue
+                entry_id, rule_id, effects_map = parsed if parsed else (_NO_MATCH_ID, "", {})
+                log.info(
+                    "M2Classifier: entry_id=%d rule=%r effects for %d option(s)",
+                    entry_id, rule_id, len(effects_map),
+                )
+                return entry_id, rule_id, effects_map, usage
 
             except Exception as exc:
                 log.error("M2Classifier: attempt %d failed: %s", attempt + 1, exc)
