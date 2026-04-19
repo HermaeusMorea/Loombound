@@ -39,12 +39,10 @@ from src.t0.memory.types import WaypointMemory, RunMemory
 from src.shared.llm_utils import (
     ts as _ts,
     md_log as _md_log,
-    OPUS_INPUT_COST as _OPUS_INPUT_COST,
-    OPUS_OUTPUT_COST as _OPUS_OUTPUT_COST,
-    OPUS_CACHE_READ_COST as _OPUS_CACHE_READ_COST,
     HAIKU_INPUT_COST as _HAIKU_INPUT_COST,
     HAIKU_OUTPUT_COST as _HAIKU_OUTPUT_COST,
 )
+from .arc_state import ArcStateTracker
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -141,18 +139,11 @@ class PrefetchCache:
         fast_cfg = fast_cfg or C1Config()
         fast_cfg.lang = lang
         self._fast = C1Expander(fast_cfg)
-        self._m2_classifier = m2_classifier
+        self._arc = ArcStateTracker(m2_classifier) if m2_classifier else None
 
         # Node content cache
         self._cache: dict[str, PrefetchEntry] = {}
         self._lock = threading.Lock()
-
-        # Per-choice arc state tracking
-        self._current_arc_id: int = 0   # updated after each Opus response
-        self._pending_effects: dict[str, dict[str, dict]] = {}  # "node:arb" → effects_map
-        self._pending_rule_ids: dict[str, str] = {}             # "node:arb" → rule_id
-        self._effects_events: dict[str, threading.Event] = {}   # "node:arb" → Event
-        self._arc_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Public interface — node content prefetch
@@ -194,7 +185,7 @@ class PrefetchCache:
                  target_waypoint_id, encounter_count)
 
         # Snapshot the arc_id at trigger time — C1 uses this for tendency
-        arc_id_snapshot = self._current_arc_id
+        arc_id_snapshot = self._arc.current_arc_id if self._arc else 0
 
         # Deep-copy state so background thread doesn't race with main loop
         state_snapshot = copy.deepcopy(core_state)
@@ -291,7 +282,7 @@ class PrefetchCache:
                 entry.mark_stale()
 
     # ------------------------------------------------------------------
-    # Public interface — per-choice arc state updates
+    # Public interface — per-choice arc state updates (delegates to ArcStateTracker)
     # ------------------------------------------------------------------
 
     def update_arc_state(
@@ -300,39 +291,8 @@ class PrefetchCache:
         next_waypoint_id: str | None,
         next_arb_idx: int | None,
     ) -> None:
-        """Fire-and-forget Opus call after each player choice.
-
-        Args:
-            quasi:             Current game state description (build_classifier_input output).
-            next_waypoint_id:  Waypoint the next encounter belongs to.
-                               None = last arb of a waypoint transition (effects not needed yet).
-            next_arb_idx:      0-based index of the next encounter in next_waypoint_id.
-                               None = no next arb in same waypoint (only update entry_id).
-
-        Both must be non-None to produce effects. If either is None, Opus still
-        classifies the arc state (updates _current_arc_id) but returns no effects.
-        """
-        if self._m2_classifier is None:
-            return
-
-        effects_key: str | None = None
-        if next_waypoint_id is not None and next_arb_idx is not None:
-            effects_key = f"{next_waypoint_id}:{next_arb_idx}"
-            with self._arc_lock:
-                event = threading.Event()
-                self._effects_events[effects_key] = event
-
-        quasi_copy = quasi  # string is immutable, no deep copy needed
-
-        def _run() -> None:
-            asyncio.run(self._run_arc_update(quasi_copy, next_waypoint_id, next_arb_idx, effects_key))
-
-        t = threading.Thread(
-            target=_run,
-            name=f"m2-{next_waypoint_id}-{next_arb_idx}",
-            daemon=True,
-        )
-        t.start()
+        if self._arc:
+            self._arc.update_arc_state(quasi, next_waypoint_id, next_arb_idx)
 
     def consume_arb_effects(
         self,
@@ -340,93 +300,9 @@ class PrefetchCache:
         arb_idx: int,
         timeout: float = 8.0,
     ) -> tuple[dict[str, dict], str]:
-        """Wait for and consume M2-assigned effects and rule selection for a specific encounter.
-
-        Returns (effects_map, selected_rule_id).
-        effects_map: {option_id: {"health_delta": int, "money_delta": int, "sanity_delta": int}}
-        selected_rule_id: rule id string, or "" if M2 selected none.
-        Both are empty/blank on cache miss or timeout.
-        """
-        effects_key = f"{waypoint_id}:{arb_idx}"
-
-        with self._arc_lock:
-            event = self._effects_events.get(effects_key)
-
-        if event is not None:
-            event.wait(timeout=timeout)
-
-        with self._arc_lock:
-            effects = self._pending_effects.pop(effects_key, {})
-            rule_id = self._pending_rule_ids.pop(effects_key, "")
-            self._effects_events.pop(effects_key, None)
-
-        if not effects:
-            log.debug("Prefetch: no M2 effects for '%s' arb %d.", waypoint_id, arb_idx)
-        else:
-            log.info("Prefetch: consumed M2 effects for '%s' arb %d (%d option(s)) rule=%r.",
-                     waypoint_id, arb_idx, len(effects), rule_id)
-        return effects, rule_id
-
-    # ------------------------------------------------------------------
-    # Internal: Opus arc update
-    # ------------------------------------------------------------------
-
-    async def _run_arc_update(
-        self,
-        quasi: str,
-        next_waypoint_id: str | None,
-        next_arb_idx: int | None,
-        effects_key: str | None,
-    ) -> None:
-        """Call M2Classifier, update _current_arc_id, store effects."""
-        label = f"{next_waypoint_id}:{next_arb_idx}" if next_waypoint_id else "entry_id_only"
-        _md_log([
-            f"## [{_ts()}] M2 ARC UPDATE REQUEST — {label}",
-            "```",
-            quasi,
-            "```",
-        ])
-
-        try:
-            entry_id, rule_id, effects_map, usage = await self._m2_classifier.classify(  # type: ignore[union-attr]
-                quasi,
-                next_waypoint_id=next_waypoint_id,
-                next_arb_idx=next_arb_idx,
-            )
-        except Exception as exc:
-            log.error("M2 arc update failed: %s", exc)
-            if effects_key:
-                with self._arc_lock:
-                    event = self._effects_events.get(effects_key)
-                    if event:
-                        event.set()
-            return
-
-        _inp = usage.get("input", 0)
-        _out = usage.get("output", 0)
-        _cr  = usage.get("cache_read", 0)
-        _cc  = usage.get("cache_created", 0)
-        _cost  = _inp * _OPUS_INPUT_COST + _out * _OPUS_OUTPUT_COST + _cr * _OPUS_CACHE_READ_COST
-        _saved = _cr * (_OPUS_INPUT_COST - _OPUS_CACHE_READ_COST)
-        _md_log([
-            f"## [{_ts()}] M2 ARC UPDATE RESPONSE — {label} entry_id={entry_id} rule={rule_id!r}",
-            f"tokens — input: {_inp}  output: {_out}  cache_created: {_cc}  cache_read: {_cr}",
-            f"cost: ${_cost:.4f}  cache_savings: ${_saved:.4f}",
-            f"effects: {len(effects_map)} option(s)",
-        ])
-
-        with self._arc_lock:
-            if entry_id >= 0:
-                self._current_arc_id = entry_id
-                log.info("M2: arc_id updated → %d", entry_id)
-            if effects_key and effects_map:
-                self._pending_effects[effects_key] = effects_map
-            if effects_key and rule_id:
-                self._pending_rule_ids[effects_key] = rule_id
-            if effects_key:
-                event = self._effects_events.get(effects_key)
-                if event:
-                    event.set()
+        if self._arc:
+            return self._arc.consume_arb_effects(waypoint_id, arb_idx, timeout)
+        return {}, ""
 
     # ------------------------------------------------------------------
     # Internal async generation pipeline — preloaded path
