@@ -1,19 +1,7 @@
 """Prompt building and tool schema for Opus saga graph generation."""
 from __future__ import annotations
 
-_OPUS_INPUT_COST   = 5.0  / 1_000_000
-_OPUS_OUTPUT_COST  = 25.0 / 1_000_000
-_OPUS_CACHE_READ_COST = 0.50 / 1_000_000
-_HAIKU_INPUT_COST  = 0.80 / 1_000_000
-_HAIKU_OUTPUT_COST = 4.0  / 1_000_000
-
-
-def _opus_cost(inp: int, out: int) -> float:
-    return inp * _OPUS_INPUT_COST + out * _OPUS_OUTPUT_COST
-
-
-def _haiku_cost(inp: int, out: int) -> float:
-    return inp * _HAIKU_INPUT_COST + out * _HAIKU_OUTPUT_COST
+from src.shared.llm_utils import opus_cost as _opus_cost, haiku_cost as _haiku_cost
 
 
 _SYSTEM_PROMPT = """\

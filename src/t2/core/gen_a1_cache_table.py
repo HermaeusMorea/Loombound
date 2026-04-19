@@ -23,51 +23,20 @@ import asyncio
 import json
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
 
 from src.shared.dotenv import load_dotenv
-
-REPO_ROOT = (
-    Path(os.environ["LOOMBOUND_ROOT"]).resolve()
-    if os.environ.get("LOOMBOUND_ROOT")
-    else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
-    if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).resolve().parents[3]
+from src.shared.llm_utils import (
+    ts as _ts,
+    md_log as _md_log,
+    haiku_cost as _haiku_cost,
+    coerce_json as _coerce_json,
+    REPO_ROOT,
 )
-_LLM_LOG = REPO_ROOT / "logs" / "llm.md"
-
-_HAIKU_INPUT_COST  = 0.80 / 1_000_000
-_HAIKU_OUTPUT_COST = 4.0  / 1_000_000
 
 _T1_CACHE_BATCH_SIZE = 3
-
-
-# ---------------------------------------------------------------------------
-# Shared utilities
-# ---------------------------------------------------------------------------
-
-def _ts() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def _md_log(lines: list[str]) -> None:
-    _LLM_LOG.parent.mkdir(parents=True, exist_ok=True)
-    block = "\n".join(lines) + "\n\n"
-    with _LLM_LOG.open("a", encoding="utf-8") as fh:
-        fh.write(block)
-
-
-def _haiku_cost(inp: int, out: int) -> float:
-    return inp * _HAIKU_INPUT_COST + out * _HAIKU_OUTPUT_COST
-
-
-def _coerce_json(raw: object) -> dict:
-    if isinstance(raw, str):
-        return json.loads(raw)
-    return json.loads(json.dumps(raw))
 
 
 # ---------------------------------------------------------------------------

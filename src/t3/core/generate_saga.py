@@ -19,15 +19,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
 
 from src.shared.dotenv import load_dotenv
+from src.shared.llm_utils import ts as _ts, md_log as _md_log, coerce_json as _coerce_json
 from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step
 from src.t3.core.saga_prompt import (
     _SYSTEM_PROMPT,
@@ -38,33 +37,6 @@ from src.t3.core.saga_prompt import (
 )
 from src.t3.core.saga_validate import _normalise, validate_graph
 from src.t3.core.saga_write import print_graph, write_saga
-
-REPO_ROOT = (
-    Path(os.environ["LOOMBOUND_ROOT"]).resolve()
-    if os.environ.get("LOOMBOUND_ROOT")
-    else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
-    if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).resolve().parents[3]
-)
-_LLM_LOG = REPO_ROOT / "logs" / "llm.md"
-
-
-def _ts() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def _md_log(lines: list[str]) -> None:
-    _LLM_LOG.parent.mkdir(parents=True, exist_ok=True)
-    block = "\n".join(lines) + "\n\n"
-    with _LLM_LOG.open("a", encoding="utf-8") as fh:
-        fh.write(block)
-
-
-def _coerce_json(raw: object) -> dict:
-    """Normalise tool call output to a plain dict (handles str and Pydantic models)."""
-    if isinstance(raw, str):
-        return json.loads(raw)
-    return json.loads(json.dumps(raw))
 
 
 def _log_saga_core_usage(

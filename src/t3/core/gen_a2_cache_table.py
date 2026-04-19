@@ -22,36 +22,15 @@ from pathlib import Path
 
 import anthropic
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-ENV_PATH = REPO_ROOT / ".env"
+from src.shared.dotenv import load_dotenv
+from src.shared.llm_utils import (
+    ts as _ts,
+    md_log as _md_log,
+    opus_cost as _opus_cost,
+    REPO_ROOT,
+)
+
 OUTPUT_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
-_LLM_LOG = REPO_ROOT / "logs" / "llm.md"
-_OPUS_INPUT_COST  = 5.0  / 1_000_000
-_OPUS_OUTPUT_COST = 25.0 / 1_000_000
-
-
-def _md_log(lines: list[str]) -> None:
-    from datetime import datetime, timezone
-    _LLM_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with _LLM_LOG.open("a", encoding="utf-8") as fh:
-        fh.write("\n".join(lines) + "\n\n")
-
-
-def _ts() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def _load_dotenv() -> None:
-    if not ENV_PATH.exists():
-        return
-    with ENV_PATH.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, val = line.partition("=")
-            os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
 
 _SYSTEM_PROMPT = """\
@@ -163,7 +142,7 @@ def generate(count: int = 50) -> list[dict]:
                 raw = json.loads(raw)
             entries = raw["entries"]
             u = response.usage
-            cost = u.input_tokens * _OPUS_INPUT_COST + u.output_tokens * _OPUS_OUTPUT_COST
+            cost = _opus_cost(u.input_tokens, u.output_tokens)
             print(f"Generated {len(entries)} arc palette entries.")
             print(
                 f"Usage — input: {u.input_tokens}  output: {u.output_tokens}  "
@@ -185,7 +164,7 @@ def generate(count: int = 50) -> list[dict]:
 
 
 def main() -> None:
-    _load_dotenv()
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Generate T2 cache (global arc-state palette).")
     parser.add_argument("--count", type=int, default=50, help="Target number of entries (default: 50).")

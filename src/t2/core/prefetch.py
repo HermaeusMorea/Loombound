@@ -27,18 +27,24 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
-import os
 import sys
 import threading
 import time
 import traceback
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from src.t0.memory.models import CoreStateView, WaypointSummary
 from src.t2.memory.a2_store import A2Store
 from src.t0.memory.types import WaypointMemory, RunMemory
+from src.shared.llm_utils import (
+    ts as _ts,
+    md_log as _md_log,
+    OPUS_INPUT_COST as _OPUS_INPUT_COST,
+    OPUS_OUTPUT_COST as _OPUS_OUTPUT_COST,
+    OPUS_CACHE_READ_COST as _OPUS_CACHE_READ_COST,
+    HAIKU_INPUT_COST as _HAIKU_INPUT_COST,
+    HAIKU_OUTPUT_COST as _HAIKU_OUTPUT_COST,
+)
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -47,35 +53,6 @@ from .m2_classifier import M2Classifier
 from .types import EncounterSeed, EncounterOptionSeed, WaypointSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
-
-_OPUS_INPUT_COST       = 5.0  / 1_000_000
-_OPUS_OUTPUT_COST      = 25.0 / 1_000_000
-_OPUS_CACHE_READ_COST  = 0.50 / 1_000_000  # 10% of input rate
-_HAIKU_INPUT_COST      = 0.80 / 1_000_000
-_HAIKU_OUTPUT_COST     = 4.0  / 1_000_000
-
-_REPO_ROOT = (
-    Path(os.environ["LOOMBOUND_ROOT"]).resolve()
-    if os.environ.get("LOOMBOUND_ROOT")
-    else Path(os.environ["BLACK_ARCHIVE_ROOT"]).resolve()
-    if os.environ.get("BLACK_ARCHIVE_ROOT")
-    else Path(__file__).parents[3]
-)
-_LOG_FILE = _REPO_ROOT / "logs" / "llm.md"
-_log_lock = threading.Lock()
-
-
-def _ts() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
-
-def _md_log(lines: list[str]) -> None:
-    """Append a fenced block to logs/llm.md. Thread-safe."""
-    block = "\n".join(lines) + "\n\n"
-    with _log_lock:
-        _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with _LOG_FILE.open("a", encoding="utf-8") as f:
-            f.write(block)
 
 
 def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
