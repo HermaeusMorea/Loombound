@@ -1,6 +1,8 @@
 """Encounter execution layer for the Loombound runtime."""
 from __future__ import annotations
 
+import copy
+
 from src.t0.memory import EncounterResult, append_node_event, record_choice
 from src.t0.memory.models import NarrationBlock
 from src.t0.core import (
@@ -21,13 +23,14 @@ from src.t2.core.collector import build_classifier_input
 from src.runtime.saga import choose_index, sync_encounter_resources
 
 
-def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
-    """Patch Opus-assigned numeric effect values into a payload's option metadata in-place.
+def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> dict:
+    """Return a new payload with Opus-assigned numeric effect values patched in.
 
     Only the three stat keys are touched; add_events / add_marks written by
-    C1-generated content is preserved. The payload dict is mutated directly.
+    C1-generated content is preserved.
     """
-    for opt in payload.get("options", []):
+    patched = copy.deepcopy(payload)
+    for opt in patched.get("options", []):
         opt_id = opt.get("option_id", "")
         if opt_id in opus_effects:
             eff = opt.setdefault("metadata", {}).setdefault("effects", {})
@@ -36,6 +39,7 @@ def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> None:
             toll = opus_effects[opt_id].get("toll", "")
             if toll:
                 opt["toll"] = toll
+    return patched
 
 
 def _play_encounter(
@@ -55,7 +59,7 @@ def _play_encounter(
     if prefetch is not None:
         m2_effects, m2_rule_id = prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
         if m2_effects:
-            _overlay_effects(payload, m2_effects)
+            payload = _overlay_effects(payload, m2_effects)
 
     encounter = waypoint.load_current_encounter(payload)
     sync_encounter_resources(run, encounter)
