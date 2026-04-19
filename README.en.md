@@ -10,6 +10,8 @@ A roguelite narrative engine driven by a three-layer AI architecture.
 
 `Loombound` is not the end product. It is a runnable vertical demo built to answer one question: if a program needs to continuously handle states like "meaning", "tendency", "narrative pressure", and "consequence semantics" that traditional software cannot natively express, how should the system be structured?
 
+The choice of a narrative game as the demo vehicle is not because the goal is to make games — it is because games are unusually good at exposing the genuinely hard problems of a semantic system.
+
 → If you only have time to read one document, start with [LANGUAGE.en.md](docs/LANGUAGE.en.md).
 
 `LANGUAGE.en.md` is not a terminology appendix — it is the conceptual entry point for this project. It defines how Loombound describes semantic layers, processing cores, runtime objects, and how these things flow through the system.
@@ -93,6 +95,31 @@ Measured data: deep_mine_cult_act1 (4 waypoints, 8 choices). C2 costs ~$0.0019 p
 `./loombound report` outputs a live cost breakdown including a 1000-play projection.
 
 → Full cost breakdown: [docs/llm-architecture.en.md](docs/llm-architecture.en.md#cost-analysis)
+
+### Runtime Speed
+
+Ideal latency for each phase using the prompt-cache table-lookup pattern:
+
+| Phase | When | Model | Ideal latency |
+|---|---|---|---|
+| **arc-palette** | One-time | Claude Opus (C3) | 30–90 seconds |
+| **Saga generation** | Per saga | Claude Opus + Haiku (C3 + C2) | 1–3 minutes |
+| **Bearing classification** | Per choice (background) | Claude Haiku (C2, prompt cache hit) | **1–2 seconds** |
+| **Scene expansion** | Per encounter (background prefetch) | qwen2.5:7b local (C1) | **2–10 seconds** (with GPU) |
+
+C2's 1–2 seconds is dominated by network round-trip plus very short output (~10–30 tokens for the bearing ID). After a prompt cache hit, the cached table size has no effect on latency — only the new input tokens and output generation matter. With a capable GPU, C1 and C2 operate in the same latency range; both run in the background, so players rarely wait on them.
+
+**C1 local speed depends entirely on hardware.** qwen2.5:7b requires ~4–5 GB VRAM to load at full precision:
+
+| Environment | Speed | Time per scene (~200 output tokens) |
+|---|---|---|
+| GPU (RTX 3060 / 4060 tier) | 20–50 token/s | ~4–10 seconds |
+| GPU (RTX 4090 / A100 tier) | 60–100 token/s | ~2–3 seconds |
+| CPU fallback (no GPU or insufficient VRAM) | 2–8 token/s | 16–37 seconds |
+
+The author's local GPU is not up to the task — measured C1 latency falls in the 16–37 second range due to CPU inference fallback. The latency figures in the logs reflect this condition. With a card that can hold a 7b model in VRAM, C1 drops to 2–10 seconds.
+
+**The bottleneck in saga generation is Haiku, not Opus.** Back-calculating from output token counts: Opus generates the saga graph in ~1,170 tokens (~40 seconds); Haiku generates the A1 cache table in ~6,275 tokens (~63 seconds) — every waypoint requires a full scene_concept, sanity_axis, and option structure, so 6 waypoints accumulate ~5× the output volume of Opus. Using Haiku instead of a faster model is a deliberate cost decision: Haiku's output rate is roughly 1/19th of Opus's, and saga generation can run in the background while play has already started — a full saga takes several minutes to play through, so generation finishes well before it's needed.
 
 ### Data Files
 

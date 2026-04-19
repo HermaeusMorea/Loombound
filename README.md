@@ -10,6 +10,8 @@ Roguelite 叙事游戏引擎，三层 AI 架构驱动。
 
 `Loombound` 不是最终目标产品，而是一个可运行的垂直 demo——用来验证：如果程序需要长期处理"意义"、"倾向"、"叙事压力"、"后果语义"这类传统软件难以原生表达的状态，系统结构应该如何设计。
 
+之所以选择叙事游戏作为 demo，不是因为目标只是在做游戏，而是因为游戏非常适合暴露语义系统真正困难的问题。
+
 → 如果你只打算先读一个文档，请先读 [LANGUAGE.md](docs/LANGUAGE.md)。
 
 `LANGUAGE.md` 不是术语附录，而是这个项目的核心概念入口。
@@ -96,6 +98,31 @@ Opus 仅出现在离线阶段（arc-palette 和 saga 生成），运行时全程
 `./loombound report` 实时输出带 1000 局投影的成本报表。
 
 → 详细推算：[docs/llm-architecture.md](docs/llm-architecture.md#成本分析)
+
+### 运行速度
+
+利用 prompt cache 的"表格查询"模式后，各阶段的理想延迟：
+
+| 阶段 | 触发时机 | 模型 | 理想延迟 |
+|---|---|---|---|
+| **arc-palette** | 一次性 | Claude Opus（C3） | 30–90 秒 |
+| **saga 生成** | 每个 saga | Claude Opus + Haiku（C3 + C2） | 1–3 分钟 |
+| **bearing 分类** | 每次选择（后台） | Claude Haiku（C2，prompt cache 命中） | **1–2 秒** |
+| **场景展开** | 每次 encounter（后台预载） | qwen2.5:7b 本地（C1） | **2–10 秒**（有 GPU） |
+
+C2 的 1–2 秒主要是网络往返 + 极短输出（bearing ID 约 10–30 tokens）；prompt cache 命中后无论缓存表格多大延迟都不会增加。C1 在有 GPU 时与 C2 处于同一数量级，两者都在后台运行，玩家通常等不到它们。
+
+**C1 本地速度取决于硬件。** qwen2.5:7b 全精度加载约需 4–5 GB 显存：
+
+| 运行环境 | 速度 | 每场景约需时间 |
+|---|---|---|
+| GPU（RTX 3060 / 4060 级别） | 20–50 token/s | ~4–10 秒 |
+| GPU（RTX 4090 / A100 级别） | 60–100 token/s | ~2–3 秒 |
+| CPU 回落（无 GPU 或显存不足） | 2–8 token/s | 16–37 秒 |
+
+作者本地显卡不够格，实测 C1 场景展开在 16–37 秒之间（CPU 推理回落）；日志里的延迟数据反映的是这个条件。换一块能承载 7b 模型的显卡后，C1 延迟将降至 2–10 秒。
+
+**saga 生成的瓶颈是 Haiku，不是 Opus。** 从输出 token 量反推：Opus 生成 saga 图约 ~1,170 tokens（~40 秒），Haiku 生成 A1 cache table 约 ~6,275 tokens（~63 秒）——每个 waypoint 都要完整输出 scene_concept、sanity_axis 和选项结构，6 个 waypoint 累计输出量约是 Opus 的 5×。使用 Haiku 而非更快的模型是主动的成本选择：Haiku 输出费率约为 Opus 的 1/19，且 saga 生成完全可以在开始游玩后台进行——打通一个 saga 通常需要数分钟，生成早已结束。
 
 ### 数据文件
 
