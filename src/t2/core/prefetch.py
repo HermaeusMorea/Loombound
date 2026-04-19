@@ -47,7 +47,7 @@ from .arc_state import ArcStateTracker
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.t1.core import C1Expander, C1Config
-from .m2_classifier import M2Classifier
+from .m2_decision_engine import M2DecisionEngine
 from .types import EncounterSeed, EncounterOptionSeed, WaypointSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
@@ -133,13 +133,13 @@ class PrefetchCache:
         self,
         fast_cfg: "C1Config | None" = None,
         lang: str = "en",
-        m2_classifier: M2Classifier | None = None,
+        m2_engine: M2DecisionEngine | None = None,
     ) -> None:
         from src.t1.core import C1Expander, C1Config
         fast_cfg = fast_cfg or C1Config()
         fast_cfg.lang = lang
         self._fast = C1Expander(fast_cfg)
-        self._arc = ArcStateTracker(m2_classifier) if m2_classifier else None
+        self._arc = ArcStateTracker(m2_engine) if m2_classifier else None
 
         # Node content cache
         self._cache: dict[str, PrefetchEntry] = {}

@@ -197,14 +197,14 @@ _NO_MATCH_ID = -1
 
 
 @dataclass
-class M2ClassifierConfig:
+class M2DecisionConfig:
     api_key: str | None = None
     model: str = config.M2_MODEL
     max_tokens: int = config.M2_MAX_TOKENS
     timeout: float = config.M2_TIMEOUT
 
 
-class M2Classifier:
+class M2DecisionEngine:
     """Classifies current game arc state and assigns per-option effects for the next encounter.
 
     Called once per player choice (after each encounter completes). The call is
@@ -213,13 +213,13 @@ class M2Classifier:
 
     def __init__(
         self,
-        config: M2ClassifierConfig | None = None,
+        config: M2DecisionConfig | None = None,
         arc_state_catalog_json: str = "[]",
         scene_option_index_json: str = "",
         toll_lexicon_json: str = "",
         rules_json: str = "",
     ) -> None:
-        self._cfg = config or M2ClassifierConfig()
+        self._cfg = config or M2DecisionConfig()
         self._arc_state_catalog_json = arc_state_catalog_json
         self._scene_option_index_json = scene_option_index_json
         self._toll_lexicon_json = toll_lexicon_json
@@ -360,29 +360,29 @@ class M2Classifier:
                     "cache_read": cache_read,
                 }
                 log.info(
-                    "M2Classifier: input=%d cache_created=%d cache_read=%d output=%d (attempt %d)",
+                    "M2DecisionEngine: input=%d cache_created=%d cache_read=%d output=%d (attempt %d)",
                     u.input_tokens, cache_created, cache_read, u.output_tokens, attempt + 1,
                 )
 
                 try:
                     raw = _extract_tool_input(response, "select_arc_and_effects")
                 except RuntimeError:
-                    log.warning("M2Classifier: no tool call on attempt %d, retrying", attempt + 1)
+                    log.warning("M2DecisionEngine: no tool call on attempt %d, retrying", attempt + 1)
                     continue
 
                 parsed = self._parse_effects(raw)
                 if parsed is None and needs_effects:
-                    log.warning("M2Classifier: invalid format on attempt %d, retrying", attempt + 1)
+                    log.warning("M2DecisionEngine: invalid format on attempt %d, retrying", attempt + 1)
                     continue
                 entry_id, rule_id, effects_map = parsed if parsed else (_NO_MATCH_ID, "", {})
                 log.info(
-                    "M2Classifier: entry_id=%d rule=%r effects for %d option(s)",
+                    "M2DecisionEngine: entry_id=%d rule=%r effects for %d option(s)",
                     entry_id, rule_id, len(effects_map),
                 )
                 return entry_id, rule_id, effects_map, usage
 
             except Exception as exc:
-                log.error("M2Classifier: attempt %d failed: %s", attempt + 1, exc)
+                log.error("M2DecisionEngine: attempt %d failed: %s", attempt + 1, exc)
                 if attempt == _MAX_RETRIES:
                     return _NO_MATCH_ID, "", {}, _empty_usage
 

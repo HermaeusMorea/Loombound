@@ -18,7 +18,7 @@ from src.shared.llm_utils import (
     OPUS_OUTPUT_COST as _OPUS_OUTPUT_COST,
     OPUS_CACHE_READ_COST as _OPUS_CACHE_READ_COST,
 )
-from .m2_classifier import M2Classifier
+from .m2_decision_engine import M2DecisionEngine
 from .types import EncounterSlot
 
 log = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ class ArcStateTracker:
     current_arc_id property → latest classified T2 cache entry_id.
     """
 
-    def __init__(self, m2_classifier: M2Classifier) -> None:
-        self._m2_classifier = m2_classifier
+    def __init__(self, m2_engine: M2DecisionEngine) -> None:
+        self._engine = m2_engine
         self._current_arc_id: int = 0
         self._pending_effects: dict[EncounterSlot, dict[str, dict]] = {}
         self._pending_rule_ids: dict[EncounterSlot, str] = {}
@@ -114,7 +114,7 @@ class ArcStateTracker:
         ])
 
         try:
-            entry_id, rule_id, effects_map, usage = await self._m2_classifier.classify(
+            entry_id, rule_id, effects_map, usage = await self._engine.classify(
                 quasi,
                 next_waypoint_id=next_waypoint_id,
                 next_arb_idx=next_arb_idx,

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from src.shared.dotenv import load_dotenv
 from src.t0.memory import append_node_event, update_after_node
-from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
+from src.t2.core import M2DecisionEngine, M2DecisionConfig, PrefetchCache
 from src.t2.core.collector import build_classifier_input, build_scene_history_entry
 from src.t1.core import C1Config
 from src.t0.core import (
@@ -258,12 +258,12 @@ def main() -> None:
     )
 
     # Build M2Classifier if arc-state catalog is loaded (provides the cached prefix)
-    m2_classifier: M2Classifier | None = None
+    m2_engine: M2DecisionEngine | None = None
     if bundle.tables.arc_state_catalog:
-        m2_cfg = M2ClassifierConfig(api_key=api_key)
-        m2_classifier = M2Classifier(config=m2_cfg, **bundle.m2_classifier_args())
+        m2_cfg = M2DecisionConfig(api_key=api_key)
+        m2_engine = M2DecisionEngine(config=m2_cfg, **bundle.m2_engine_args())
 
-    prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
+    prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_engine=m2_engine)
     prefetch.warmup()
 
     current_waypoint_id = saga["start_waypoint_id"]

@@ -23,8 +23,8 @@ class LoadedSagaBundle:
     toll_lexicon: list[dict]
     tables: RuntimeTableStore = field(default_factory=RuntimeTableStore)
 
-    def m2_classifier_args(self) -> dict[str, str]:
-        """Return keyword arguments for M2Classifier (static cached context tiers)."""
+    def m2_engine_args(self) -> dict[str, str]:
+        """Return keyword arguments for M2DecisionEngine (static cached context tiers)."""
         toll_lexicon_json = json.dumps(self.toll_lexicon, ensure_ascii=False) if self.toll_lexicon else ""
         rules_json = (
             json.dumps({"rules": [dataclasses.asdict(r) for r in self.rules]}, ensure_ascii=False)
