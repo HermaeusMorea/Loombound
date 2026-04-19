@@ -91,8 +91,7 @@ src/
       collector.py           ← tendency state 构建
       types.py               ← EncounterSeed / PrefetchEntry
     memory/
-      a2_store.py            ← A2 cache table / A1 cache table / A1 option index 加载
-      types.py               ← A2Entry、A1Entry、A1Store、A2Store
+      a2_store.py            ← A2 cache table / A1 cache table / A1 option index 加载（含 A2Entry、A1Entry、A1Store、A2Store）
 
   t1/              ← C1（qwen2.5:7b）+ A1 数据结构
     core/
@@ -107,13 +106,16 @@ src/
       enforcement.py         ← toll → sanity_cost 计算
       rule_matcher.py        ← RuleTemplate 匹配
       rule_selector.py       ← 候选规则排序（freshness penalty + priority）
+      rule_state.py          ← 运行时规则系统状态（Run / Waypoint 级别）
       context_builder.py     ← EncounterContext 构建
-      state_adapter.py       ← 外部内容 → 内部对象边界
+      signals.py             ← encounter 输入的确定性信号提取
+      effects.py             ← 选项 effects 应用（health / money / sanity delta）
       cli.py                 ← 终端渲染（HUD、选项、narration）
     memory/
       models.py              ← CoreState、EncounterContext、OptionResult 等核心模型
       types.py               ← WaypointMemory、NodeChoiceRecord 等
-      arbitration.py         ← Encounter 生命周期
+      encounter.py           ← Encounter 数据结构与生命周期
+      run_memory.py          ← RunMemory 操作
       recording.py           ← 选择记录写回
 ```
 

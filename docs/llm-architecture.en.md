@@ -6,7 +6,7 @@ The LLM is a required content layer but does not replace the deterministic kerne
 
 | Owner | Responsibility |
 |---|---|
-| **kernel (C0)** | State structure, valid updates, rule selection, replay consistency |
+| **kernel (C0)** | State structure, valid updates, rule enforcement, replay consistency |
 | **LLM (C1/C2/C3)** | Content asset generation, scene text expansion, bearing classification, option value assignment |
 
 All LLM output must be normalized through `state_adapter` before entering the runtime.
@@ -205,7 +205,7 @@ The `## Effect delta calibration` section is generated per-call by `collector.py
 ### LLM may not write directly
 
 - CoreState numeric field application (executed by kernel)
-- Final RuleTemplate selection
+- Final RuleTemplate enforcement (C2 may nominate a rule ID; kernel applies it — deterministic select_rule is the fallback)
 - Structural fields of Run / Waypoint / Encounter
 
 ---

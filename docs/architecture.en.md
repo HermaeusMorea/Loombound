@@ -91,8 +91,7 @@ src/
       collector.py           ← tendency state construction
       types.py               ← EncounterSeed / PrefetchEntry
     memory/
-      a2_store.py            ← A2 cache table / A1 cache table / A1 option index loader
-      types.py               ← A2Entry, A1Entry, A1Store, A2Store
+      a2_store.py            ← A2 cache table / A1 cache table / A1 option index loader (includes A2Entry, A1Entry, A1Store, A2Store)
 
   t1/              ← C1 (qwen2.5:7b) + A1 data structures
     core/
@@ -107,13 +106,16 @@ src/
       enforcement.py         ← toll → sanity_cost calculation
       rule_matcher.py        ← RuleTemplate matching
       rule_selector.py       ← candidate rule ranking (freshness penalty + priority)
+      rule_state.py          ← runtime rule system state (Run / Waypoint level)
       context_builder.py     ← EncounterContext construction
-      state_adapter.py       ← external content → internal object boundary
+      signals.py             ← deterministic signal extraction from encounter input
+      effects.py             ← option effects application (health / money / sanity delta)
       cli.py                 ← terminal rendering (HUD, options, narration)
     memory/
       models.py              ← CoreState, EncounterContext, OptionResult and other core models
       types.py               ← WaypointMemory, NodeChoiceRecord, etc.
-      arbitration.py         ← Encounter lifecycle
+      encounter.py           ← Encounter data structure and lifecycle
+      run_memory.py          ← RunMemory operations
       recording.py           ← choice record write-back
 ```
 

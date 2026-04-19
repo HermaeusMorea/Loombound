@@ -6,7 +6,7 @@ LLM 是必需内容层，但不替代确定性 kernel。职责边界：
 
 | 负责方 | 职责 |
 |---|---|
-| **kernel（C0）** | 状态结构、合法更新、规则选择、replay 一致性 |
+| **kernel（C0）** | 状态结构、合法更新、规则执行、replay 一致性 |
 | **LLM（C1/C2/C3）** | 内容资产生成、场景文本展开、bearing 分类、选项数值分配 |
 
 所有 LLM 输出必须经过 `state_adapter` 正规化后才能进入运行时。
@@ -205,7 +205,7 @@ C2 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": -1,
 ### LLM 不可直接写入
 
 - CoreState 数值字段的最终应用（由 kernel 执行）
-- RuleTemplate 的最终选择
+- RuleTemplate 的最终执行（C2 可提名规则 ID，kernel 负责应用；确定性 select_rule 为回退路径）
 - Run / Waypoint / Encounter 的结构字段
 
 ---
