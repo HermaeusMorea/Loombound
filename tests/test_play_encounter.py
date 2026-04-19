@@ -2,30 +2,17 @@ import pytest
 
 from src.t0.memory import CoreStateView, MetaStateView, RuleTemplate
 from src.runtime.session import Run
-from src.runtime.play_cli import _play_encounter
-
-# ---------------------------------------------------------------------------
-# Patch targets (all bound in src.runtime.play_cli namespace)
-# ---------------------------------------------------------------------------
-
-_PATCHES = [
-    "src.runtime.play_cli.choose_index",
-    "src.runtime.play_cli.pause",
-    "src.runtime.play_cli.render_encounter_view",
-    "src.runtime.play_cli.render_choices",
-    "src.runtime.play_cli.render_input_panel",
-    "src.runtime.play_cli.render_result",
-]
+from src.runtime.play_encounter import _play_encounter
 
 
 @pytest.fixture(autouse=True)
 def _silence_io(monkeypatch):
-    monkeypatch.setattr("src.runtime.play_cli.choose_index", lambda *_: 0)
-    monkeypatch.setattr("src.runtime.play_cli.pause", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_encounter_view", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_choices", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_input_panel", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_result", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.choose_index", lambda *_: 0)
+    monkeypatch.setattr("src.runtime.play_encounter.pause", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_encounter_view", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_choices", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_input_panel", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_result", lambda *_: None)
 
 
 # ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import pytest
 from src.t0.memory import CoreStateView, MetaStateView
 from src.runtime.session import Run
 from src.runtime.play_cli import _play_node
+import src.runtime.play_encounter  # noqa: F401 — imported to enable monkeypatching
 
 
 # ---------------------------------------------------------------------------
@@ -14,12 +15,13 @@ from src.runtime.play_cli import _play_node
 @pytest.fixture(autouse=True)
 def _silence_io(monkeypatch):
     monkeypatch.setattr("src.runtime.play_cli.choose_index", lambda *_: 0)
-    monkeypatch.setattr("src.runtime.play_cli.pause", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.choose_index", lambda *_: 0)
+    monkeypatch.setattr("src.runtime.play_encounter.pause", lambda *_: None)
     monkeypatch.setattr("src.runtime.play_cli.render_node_header", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_encounter_view", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_choices", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_input_panel", lambda *_: None)
-    monkeypatch.setattr("src.runtime.play_cli.render_result", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_encounter_view", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_choices", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_input_panel", lambda *_: None)
+    monkeypatch.setattr("src.runtime.play_encounter.render_result", lambda *_: None)
 
 
 # ---------------------------------------------------------------------------
