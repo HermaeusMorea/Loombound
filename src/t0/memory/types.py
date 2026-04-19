@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.t1.memory.a1_store import A1Store
+from src.t1.memory.scene_history_store import SceneHistoryStore
 from src.t2.memory.a2_store import RuntimeTableStore
 
 
@@ -90,5 +90,5 @@ class RunMemory:
     persona_summary: str = ""
     persona: JudgePersonaState = field(default_factory=JudgePersonaState)
     # cache stores
-    a1: A1Store = field(default_factory=A1Store)
+    scene_history: SceneHistoryStore = field(default_factory=SceneHistoryStore)
     tables: RuntimeTableStore = field(default_factory=RuntimeTableStore)

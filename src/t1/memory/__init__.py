@@ -1,5 +1,5 @@
-"""A1 data models: scene skeletons, option structures."""
+"""Scene history data models: per-waypoint tendency summaries."""
 
-from .a1_store import A1Entry, A1Store
+from .scene_history_store import SceneHistoryEntry, SceneHistoryStore
 
-__all__ = ["A1Entry", "A1Store"]
+__all__ = ["SceneHistoryEntry", "SceneHistoryStore"]

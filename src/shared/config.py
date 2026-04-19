@@ -30,7 +30,7 @@ INCIDENT_HISTORY_N = 3
 SHOCK_HISTORY_N    = 3
 WAYPOINT_HISTORY_N = 4
 CHOICE_HISTORY_N   = 2
-A1_ENTRY_N         = 3
+SCENE_HISTORY_N    = 3
 
-# ── A1 cache generation ───────────────────────────────────────────────────────
+# ── scene skeletons generation ────────────────────────────────────────────────
 T1_CACHE_BATCH_SIZE = 3

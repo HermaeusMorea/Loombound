@@ -1,8 +1,8 @@
-"""A1 store — Fast Core scene-level tendency context.
+"""Scene history store — per-waypoint tendency context for the M2 decision engine.
 
 Written deterministically after each waypoint ends (no LLM required).
-Translates A0 precise values into tendency labels and accumulates
-a sliding window of scene history for C2 classifier context.
+Translates precise resource values into tendency labels and accumulates
+a sliding window of scene history for classifier context.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
-class A1Entry:
+class SceneHistoryEntry:
     """Scene-level semantic summary of one completed waypoint."""
 
     waypoint_id: str
@@ -27,18 +27,18 @@ class A1Entry:
 
 
 @dataclass
-class A1Store:
-    """Sliding-window store of A1 entries, maintained by C1 (Collector)."""
+class SceneHistoryStore:
+    """Sliding-window store of scene history entries, maintained by the Collector."""
 
-    entries: list[A1Entry] = field(default_factory=list)
+    entries: list[SceneHistoryEntry] = field(default_factory=list)
     max_entries: int = 10
 
-    def push(self, entry: A1Entry) -> None:
+    def push(self, entry: SceneHistoryEntry) -> None:
         self.entries.append(entry)
         if len(self.entries) > self.max_entries:
             self.entries = self.entries[-self.max_entries:]
 
-    def recent(self, n: int = 5) -> list[A1Entry]:
+    def recent(self, n: int = 5) -> list[SceneHistoryEntry]:
         return self.entries[-n:]
 
     def to_prompt_lines(self, n: int = 3) -> list[str]:

@@ -11,7 +11,7 @@ from pathlib import Path
 from src.shared.dotenv import load_dotenv
 from src.t0.memory import append_node_event, update_after_node
 from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
-from src.t2.core.collector import build_classifier_input, build_a1_entry
+from src.t2.core.collector import build_classifier_input, build_scene_history_entry
 from src.t1.core import C1Config
 from src.t0.core import (
     render_map_hud,
@@ -123,7 +123,7 @@ def _play_node(
         sanity_lost=waypoint.memory.sanity_lost_in_node,
     )
     update_after_node(run.memory, waypoint.memory)
-    run.memory.a1.push(build_a1_entry(run.core_state, run.memory, waypoint.memory))
+    run.memory.scene_history.push(build_scene_history_entry(run.core_state, run.memory, waypoint.memory))
     summary = waypoint.build_summary(sanity_delta=waypoint.memory.sanity_lost_in_node)
     run.close_current_waypoint(summary=summary)
     return waypoint.memory

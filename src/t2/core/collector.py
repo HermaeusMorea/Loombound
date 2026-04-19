@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from src.shared import config
 from src.t0.memory.models import CoreStateView, WaypointSummary
-from src.t1.memory.a1_store import A1Entry
+from src.t1.memory.scene_history_store import SceneHistoryEntry
 from src.t0.memory.types import WaypointMemory, RunMemory
 
 
@@ -55,12 +55,12 @@ def _direction(value: int | None, previous: int | None) -> str:
 # M1 entry builder (deterministic — no LLM)
 # ---------------------------------------------------------------------------
 
-def build_a1_entry(
+def build_scene_history_entry(
     core_state: CoreStateView,
     run_memory: RunMemory,
     waypoint_memory: WaypointMemory,
-) -> A1Entry:
-    """Translate completed waypoint A0 data into a tendency-level A1Entry.
+) -> SceneHistoryEntry:
+    """Translate completed waypoint data into a tendency-level SceneHistoryEntry.
 
     All logic is deterministic; no LLM is involved.
     Called from play_cli immediately after update_after_node().
@@ -104,7 +104,7 @@ def build_a1_entry(
     else:
         narrative_thread = ""
 
-    return A1Entry(
+    return SceneHistoryEntry(
         waypoint_id=waypoint_memory.waypoint_id,
         scene_type=waypoint_memory.waypoint_type,
         pressure_level=pressure_level,
@@ -209,9 +209,9 @@ def _build_state_sections(
                 f" sanity={choice.sanity_delta} flags={flags}"
             )
 
-    if run_memory.a1.entries:
-        sections.append("\n## Scene history (M1 — last 3 nodes)")
-        for line in run_memory.a1.to_prompt_lines(n=config.A1_ENTRY_N):
+    if run_memory.scene_history.entries:
+        sections.append("\n## Scene history (last 3 waypoints)")
+        for line in run_memory.scene_history.to_prompt_lines(n=config.SCENE_HISTORY_N):
             sections.append(line)
 
     return sections

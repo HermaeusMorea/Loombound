@@ -1,8 +1,8 @@
-from src.t1.memory.a1_store import A1Store, A1Entry
+from src.t1.memory.scene_history_store import SceneHistoryStore, SceneHistoryEntry
 
 
-def _entry(waypoint_id: str, depth: int = 1) -> A1Entry:
-    return A1Entry(
+def _entry(waypoint_id: str, depth: int = 1) -> SceneHistoryEntry:
+    return SceneHistoryEntry(
         waypoint_id=waypoint_id,
         scene_type="crossroads",
         pressure_level="moderate",
@@ -14,13 +14,13 @@ def _entry(waypoint_id: str, depth: int = 1) -> A1Entry:
 
 
 def test_push_appends_entry() -> None:
-    store = A1Store()
+    store = SceneHistoryStore()
     store.push(_entry("wp1"))
     assert len(store.entries) == 1
 
 
 def test_push_respects_max_entries_window() -> None:
-    store = A1Store(max_entries=3)
+    store = SceneHistoryStore(max_entries=3)
     for i in range(5):
         store.push(_entry(f"wp{i}"))
     assert len(store.entries) == 3
@@ -29,7 +29,7 @@ def test_push_respects_max_entries_window() -> None:
 
 
 def test_recent_returns_last_n() -> None:
-    store = A1Store()
+    store = SceneHistoryStore()
     for i in range(6):
         store.push(_entry(f"wp{i}"))
     result = store.recent(3)
@@ -38,14 +38,14 @@ def test_recent_returns_last_n() -> None:
 
 
 def test_recent_clamps_to_available() -> None:
-    store = A1Store()
+    store = SceneHistoryStore()
     store.push(_entry("wp0"))
     result = store.recent(10)
     assert len(result) == 1
 
 
 def test_to_prompt_lines_format() -> None:
-    store = A1Store()
+    store = SceneHistoryStore()
     store.push(_entry("wp1", depth=2))
     lines = store.to_prompt_lines(n=1)
     assert len(lines) == 1
