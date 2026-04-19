@@ -73,6 +73,7 @@ def _md_log(lines: list[str]) -> None:
     """Append a fenced block to logs/llm.md. Thread-safe."""
     block = "\n".join(lines) + "\n\n"
     with _log_lock:
+        _LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with _LOG_FILE.open("a", encoding="utf-8") as f:
             f.write(block)
 

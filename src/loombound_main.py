@@ -24,6 +24,7 @@ SUBCOMMANDS
       Generate a saga graph (Opus) + A1 cache skeletons (Haiku).
 
   run [--saga ID_OR_PATH] [--fast MODEL] [--lang zh] [--nodes N]
+      ID_OR_PATH: saga id (e.g. deep_mine_cult_act1), absolute path, or any relative path.
       Launch the game. Requires ANTHROPIC_API_KEY.
 
   report [--saga ID]
@@ -110,6 +111,8 @@ def _resolve_saga(id_or_path: str) -> str:
         return str(p)
     if id_or_path.startswith("data/sagas/"):
         return str(REPO_ROOT / id_or_path)
+    if p.exists():
+        return str(p.resolve())
     stem = p.stem if p.suffix == ".json" else id_or_path
     return str(_SAGAS_DIR / f"{stem}.json")
 
@@ -173,10 +176,14 @@ def _cmd_clean(args: list[str]) -> None:
         waypoints_dir = DATA_DIR / "waypoints"
         if waypoints_dir.exists():
             for d in waypoints_dir.iterdir():
-                if d.is_dir():
-                    shutil.rmtree(d)
-                    print(f"  Removed {d}/")
-                    removed = True
+                if not d.is_dir():
+                    continue
+                if any(_is_git_tracked(f) for f in d.rglob("*") if f.is_file()):
+                    print(f"  Skipped {d.name}/ (contains git-tracked files)")
+                    continue
+                shutil.rmtree(d)
+                print(f"  Removed {d}/")
+                removed = True
         if not removed:
             print("Nothing to clean.")
         else:
