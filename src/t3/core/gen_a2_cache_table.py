@@ -27,6 +27,7 @@ from src.shared.llm_utils import (
     ts as _ts,
     md_log as _md_log,
     opus_cost as _opus_cost,
+    extract_tool_input as _extract_tool_input,
     REPO_ROOT,
 )
 
@@ -135,32 +136,26 @@ def generate(count: int = 50) -> list[dict]:
         tool_choice={"type": "tool", "name": "generate_arc_palette"},
     )
 
-    for block in response.content:
-        if block.type == "tool_use" and block.name == "generate_arc_palette":
-            raw = block.input
-            if isinstance(raw, str):
-                raw = json.loads(raw)
-            entries = raw["entries"]
-            u = response.usage
-            cost = _opus_cost(u.input_tokens, u.output_tokens)
-            print(f"Generated {len(entries)} arc palette entries.")
-            print(
-                f"Usage — input: {u.input_tokens}  output: {u.output_tokens}  "
-                f"cache_created: {getattr(u, 'cache_creation_input_tokens', 0)}  "
-                f"cache_read: {getattr(u, 'cache_read_input_tokens', 0)}  "
-                f"cost: ${cost:.4f}"
-            )
-            _md_log([
-                f"## [{_ts()}] ARC PALETTE GENERATED",
-                f"model: claude-opus-4-6",
-                f"entries: {len(entries)}",
-                f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
-                f"cost: ${cost:.4f}",
-                "dimensions: arc_trajectory × world_pressure × narrative_pacing × pending_intent",
-            ])
-            return entries
-
-    raise RuntimeError("Claude did not call generate_arc_palette — no tool_use block found.")
+    raw = _extract_tool_input(response, "generate_arc_palette")
+    entries = raw["entries"]
+    u = response.usage
+    cost = _opus_cost(u.input_tokens, u.output_tokens)
+    print(f"Generated {len(entries)} arc palette entries.")
+    print(
+        f"Usage — input: {u.input_tokens}  output: {u.output_tokens}  "
+        f"cache_created: {getattr(u, 'cache_creation_input_tokens', 0)}  "
+        f"cache_read: {getattr(u, 'cache_read_input_tokens', 0)}  "
+        f"cost: ${cost:.4f}"
+    )
+    _md_log([
+        f"## [{_ts()}] ARC PALETTE GENERATED",
+        f"model: claude-opus-4-6",
+        f"entries: {len(entries)}",
+        f"tokens — input: {u.input_tokens}  output: {u.output_tokens}",
+        f"cost: ${cost:.4f}",
+        "dimensions: arc_trajectory × world_pressure × narrative_pacing × pending_intent",
+    ])
+    return entries
 
 
 def main() -> None:

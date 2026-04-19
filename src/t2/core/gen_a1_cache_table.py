@@ -33,7 +33,7 @@ from src.shared.llm_utils import (
     ts as _ts,
     md_log as _md_log,
     haiku_cost as _haiku_cost,
-    coerce_json as _coerce_json,
+    extract_tool_input as _extract_tool_input,
     REPO_ROOT,
 )
 
@@ -254,13 +254,9 @@ async def _generate_t1_cache_table(
             continue
 
         u = response.usage
-        raw: dict | None = None
-        for block in response.content:
-            if block.type == "tool_use" and block.name == "generate_t1_cache_table":
-                raw = _coerce_json(block.input)
-                break
-
-        if raw is None:
+        try:
+            raw = _extract_tool_input(response, "generate_t1_cache_table")
+        except RuntimeError:
             print(f"  [T1 cache attempt {attempt}] no tool call returned, retrying...")
             continue
 

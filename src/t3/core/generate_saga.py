@@ -26,7 +26,7 @@ from pathlib import Path
 import anthropic
 
 from src.shared.dotenv import load_dotenv
-from src.shared.llm_utils import ts as _ts, md_log as _md_log, coerce_json as _coerce_json
+from src.shared.llm_utils import ts as _ts, md_log as _md_log, extract_tool_input as _extract_tool_input
 from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step
 from src.t3.core.saga_prompt import (
     _SYSTEM_PROMPT,
@@ -98,23 +98,17 @@ async def _generate_anthropic(
     print(f"  Usage: input={u.input_tokens}  output={u.output_tokens}  "
           f"(~${_opus_cost(u.input_tokens, u.output_tokens):.4f})")
 
-    for block in response.content:
-        if block.type == "tool_use" and block.name == "create_saga":
-            raw = _coerce_json(block.input)
-            _log_saga_core_usage(
-                provider="anthropic", model=model, theme=theme,
-                node_count=node_count, lang=lang,
-                tone_hint=tone_hint, worldview_hint=worldview_hint,
-                saga_id=raw["saga_id"],
-                title=raw.get("title", raw["saga_id"]),
-                usage_input=u.input_tokens,
-                usage_output=u.output_tokens,
-            )
-            return raw
-
-    raise RuntimeError(
-        f"No create_saga tool call in response. stop_reason={response.stop_reason}"
+    raw = _extract_tool_input(response, "create_saga")
+    _log_saga_core_usage(
+        provider="anthropic", model=model, theme=theme,
+        node_count=node_count, lang=lang,
+        tone_hint=tone_hint, worldview_hint=worldview_hint,
+        saga_id=raw["saga_id"],
+        title=raw.get("title", raw["saga_id"]),
+        usage_input=u.input_tokens,
+        usage_output=u.output_tokens,
     )
+    return raw
 
 
 # ---------------------------------------------------------------------------

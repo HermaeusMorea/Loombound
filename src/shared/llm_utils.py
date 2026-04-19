@@ -51,3 +51,15 @@ def coerce_json(raw: object) -> dict:
     if isinstance(raw, str):
         return json.loads(raw)
     return json.loads(json.dumps(raw))
+
+
+def extract_tool_input(response: object, tool_name: str) -> dict:
+    """Return the input dict from the first matching tool_use block.
+
+    Raises RuntimeError if no matching block is found.
+    """
+    for block in getattr(response, "content", []):
+        if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == tool_name:
+            return coerce_json(block.input)
+    stop = getattr(response, "stop_reason", "unknown")
+    raise RuntimeError(f"No {tool_name!r} tool call in response. stop_reason={stop}")
