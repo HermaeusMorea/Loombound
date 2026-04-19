@@ -6,10 +6,10 @@ import argparse
 import dataclasses
 import json
 import logging
-import os
 import sys
 from pathlib import Path
 
+from src.shared.dotenv import load_dotenv
 from src.t0.memory import EncounterResult
 from src.t0.core import apply_option_effects, enforce_rule
 from src.t2.core import M2Classifier, M2ClassifierConfig, PrefetchCache
@@ -49,30 +49,6 @@ log = logging.getLogger(__name__)
 
 T2_CACHE_PATH = REPO_ROOT / "data" / "a2_cache_table.json"
 
-
-
-
-# ---------------------------------------------------------------------------
-# .env loader (no external dependency needed)
-# ---------------------------------------------------------------------------
-
-def _load_dotenv() -> None:
-    """Load KEY=VALUE pairs from .env at repo root into os.environ.
-
-    Uses os.environ.setdefault so existing shell exports are never overwritten.
-    """
-    env_path = REPO_ROOT / ".env"
-    if not env_path.exists():
-        return
-    with env_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, val = line.partition("=")
-            key = key.strip()
-            val = val.strip().strip('"').strip("'")
-            os.environ.setdefault(key, val)
 
 
 
@@ -364,7 +340,7 @@ def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -
 
 
 def main() -> None:
-    _load_dotenv()
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Play a Loombound saga. Requires ANTHROPIC_API_KEY and ollama (qwen2.5:7b).")
     parser.add_argument("--saga", type=Path, default=None, help="Path to a saga JSON file.")

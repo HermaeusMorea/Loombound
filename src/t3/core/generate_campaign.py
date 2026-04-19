@@ -27,6 +27,7 @@ from pathlib import Path
 
 import anthropic
 
+from src.shared.dotenv import load_dotenv
 from src.t2.core.gen_a1_cache_table import generate_t1_cache_table_step
 
 REPO_ROOT = (
@@ -38,23 +39,6 @@ REPO_ROOT = (
 )
 _LLM_LOG = REPO_ROOT / "logs" / "llm.md"
 
-
-
-# ---------------------------------------------------------------------------
-# .env loader
-# ---------------------------------------------------------------------------
-
-def _load_dotenv() -> None:
-    env_path = REPO_ROOT / ".env"
-    if not env_path.exists():
-        return
-    with env_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
 def _ts() -> str:
@@ -651,7 +635,7 @@ def _step1_generate_graph(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    _load_dotenv()
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Generate a Loombound saga.")
     parser.add_argument(

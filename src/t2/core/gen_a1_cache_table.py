@@ -28,6 +28,8 @@ from pathlib import Path
 
 import anthropic
 
+from src.shared.dotenv import load_dotenv
+
 REPO_ROOT = (
     Path(os.environ["LOOMBOUND_ROOT"]).resolve()
     if os.environ.get("LOOMBOUND_ROOT")
@@ -46,19 +48,6 @@ _T1_CACHE_BATCH_SIZE = 3
 # ---------------------------------------------------------------------------
 # Shared utilities
 # ---------------------------------------------------------------------------
-
-def _load_dotenv() -> None:
-    env_path = REPO_ROOT / ".env"
-    if not env_path.exists():
-        return
-    with env_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
-
 
 def _ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -420,7 +409,7 @@ def generate_t1_cache_table_step(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    _load_dotenv()
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Generate T1 cache for an existing saga.")
     parser.add_argument("saga", type=Path, help="Path to saga JSON file.")

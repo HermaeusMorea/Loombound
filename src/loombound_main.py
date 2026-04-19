@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from src.shared.dotenv import load_dotenv
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 _SAGAS_DIR = DATA_DIR / "sagas"
@@ -47,7 +49,7 @@ EXAMPLES
 
 
 def main() -> None:
-    _load_dotenv()
+    load_dotenv()
 
     args = sys.argv[1:]
     if not args or args[0] in ("--help", "-h", "help"):
@@ -113,19 +115,13 @@ def _resolve_saga(id_or_path: str) -> str:
 
 
 def _run_module(module: str, extra: list[str]) -> None:
-    result = subprocess.run(
-        [sys.executable, "-m", module] + extra,
-        cwd=REPO_ROOT,
-    )
-    sys.exit(result.returncode)
+    os.chdir(REPO_ROOT)
+    os.execvp(sys.executable, [sys.executable, "-m", module, *extra])
 
 
 def _run_script(script: str, extra: list[str]) -> None:
-    result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / script)] + extra,
-        cwd=REPO_ROOT,
-    )
-    sys.exit(result.returncode)
+    os.chdir(REPO_ROOT)
+    os.execvp(sys.executable, [sys.executable, str(REPO_ROOT / script), *extra])
 
 
 def _cmd_clean(args: list[str]) -> None:
@@ -195,14 +191,5 @@ def _is_git_tracked(path: Path) -> bool:
     return result.returncode == 0
 
 
-def _load_dotenv() -> None:
-    env_path = REPO_ROOT / ".env"
-    if not env_path.exists():
-        return
-    with env_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+if __name__ == "__main__":
+    main()
