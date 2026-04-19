@@ -26,6 +26,7 @@ import anthropic
 
 from src.shared import config
 from src.shared.llm_utils import extract_tool_input as _extract_tool_input
+from .m2_context import build_m2_context
 
 log = logging.getLogger(__name__)
 
@@ -282,33 +283,6 @@ class M2Classifier:
             "cache_control": {"type": "ephemeral"},
         }
 
-    def _build_user_blocks(self) -> list[dict]:
-        blocks: list[dict] = [
-            {
-                "type": "text",
-                "text": f"Arc-state catalog:\n{self._arc_state_catalog_json}",
-                "cache_control": {"type": "ephemeral"},
-            },
-        ]
-        if self._scene_option_index_json:
-            rules_suffix = (
-                f"\n\nSaga rules (select one per encounter):\n{self._rules_json}"
-                if self._rules_json else ""
-            )
-            toll_suffix = (
-                f"\n\nToll lexicon for this saga:\n{self._toll_lexicon_json}"
-                if self._toll_lexicon_json else ""
-            )
-            blocks.append({
-                "type": "text",
-                "text": (
-                    f"Scene option index (waypoint option structure for this saga, no effect values):\n"
-                    f"{self._scene_option_index_json}{rules_suffix}{toll_suffix}"
-                ),
-                "cache_control": {"type": "ephemeral"},
-            })
-        return blocks
-
     @staticmethod
     def _parse_effects(raw: dict) -> tuple[int, str, dict[str, dict]] | None:
         """Parse and validate tool output. Returns None if format is invalid."""
@@ -355,8 +329,14 @@ class M2Classifier:
             "\n\nNo next encounter — output empty effects list and empty selected_rule_id."
         )
 
-        user_blocks = self._build_user_blocks()
-        user_blocks.append({"type": "text", "text": quasi_state + arb_hint})
+        bundle = build_m2_context(
+            arc_state_catalog_json=self._arc_state_catalog_json,
+            scene_option_index_json=self._scene_option_index_json,
+            rules_json=self._rules_json,
+            toll_lexicon_json=self._toll_lexicon_json,
+            quasi_state=quasi_state,
+            arb_hint=arb_hint,
+        )
 
         _MAX_RETRIES = config.M2_MAX_RETRIES
         for attempt in range(_MAX_RETRIES + 1):
@@ -365,7 +345,7 @@ class M2Classifier:
                     model=self._cfg.model,
                     max_tokens=self._cfg.max_tokens,
                     system=[{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-                    messages=[{"role": "user", "content": user_blocks}],
+                    messages=[{"role": "user", "content": bundle.to_user_content()}],
                     tools=[self._tool],
                     tool_choice={"type": "tool", "name": "select_arc_and_effects"},
                 )
