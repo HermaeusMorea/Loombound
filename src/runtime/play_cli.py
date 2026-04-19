@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
-import json
 import logging
 import os
 import sys
@@ -262,16 +260,8 @@ def main() -> None:
     # Build M2Classifier if arc-state catalog is loaded (provides the cached prefix)
     m2_classifier: M2Classifier | None = None
     if bundle.tables.arc_state_catalog:
-        toll_lexicon_json = json.dumps(bundle.toll_lexicon, ensure_ascii=False) if bundle.toll_lexicon else ""
-        rules_json = json.dumps({"rules": [dataclasses.asdict(r) for r in rules]}, ensure_ascii=False)
         m2_cfg = M2ClassifierConfig(api_key=api_key)
-        m2_classifier = M2Classifier(
-            config=m2_cfg,
-            arc_state_catalog_json=bundle.tables.arc_state_catalog_json(),
-            scene_option_index_json=bundle.tables.scene_option_index_json() if bundle.tables.scene_skeletons else "",
-            toll_lexicon_json=toll_lexicon_json,
-            rules_json=rules_json,
-        )
+        m2_classifier = M2Classifier(config=m2_cfg, **bundle.m2_classifier_args())
 
     prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_classifier=m2_classifier)
     prefetch.warmup()
