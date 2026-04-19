@@ -19,6 +19,7 @@ from src.shared.llm_utils import (
     OPUS_CACHE_READ_COST as _OPUS_CACHE_READ_COST,
 )
 from .m2_classifier import M2Classifier
+from .types import EncounterSlot
 
 log = logging.getLogger(__name__)
 
@@ -34,9 +35,9 @@ class ArcStateTracker:
     def __init__(self, m2_classifier: M2Classifier) -> None:
         self._m2_classifier = m2_classifier
         self._current_arc_id: int = 0
-        self._pending_effects: dict[str, dict[str, dict]] = {}
-        self._pending_rule_ids: dict[str, str] = {}
-        self._effects_events: dict[str, threading.Event] = {}
+        self._pending_effects: dict[EncounterSlot, dict[str, dict]] = {}
+        self._pending_rule_ids: dict[EncounterSlot, str] = {}
+        self._effects_events: dict[EncounterSlot, threading.Event] = {}
         self._arc_lock = threading.Lock()
 
     @property
@@ -51,9 +52,9 @@ class ArcStateTracker:
         next_arb_idx: int | None,
     ) -> None:
         """Fire-and-forget M2 call after each player choice."""
-        effects_key: str | None = None
+        effects_key: EncounterSlot | None = None
         if next_waypoint_id is not None and next_arb_idx is not None:
-            effects_key = f"{next_waypoint_id}:{next_arb_idx}"
+            effects_key = EncounterSlot(waypoint_id=next_waypoint_id, arb_idx=next_arb_idx)
             with self._arc_lock:
                 event = threading.Event()
                 self._effects_events[effects_key] = event
@@ -77,7 +78,7 @@ class ArcStateTracker:
         timeout: float = 8.0,
     ) -> tuple[dict[str, dict], str]:
         """Wait for and consume M2-assigned effects and rule selection."""
-        effects_key = f"{waypoint_id}:{arb_idx}"
+        effects_key = EncounterSlot(waypoint_id=waypoint_id, arb_idx=arb_idx)
 
         with self._arc_lock:
             event = self._effects_events.get(effects_key)
@@ -102,7 +103,7 @@ class ArcStateTracker:
         quasi: str,
         next_waypoint_id: str | None,
         next_arb_idx: int | None,
-        effects_key: str | None,
+        effects_key: EncounterSlot | None,
     ) -> None:
         label = f"{next_waypoint_id}:{next_arb_idx}" if next_waypoint_id else "entry_id_only"
         _md_log([

@@ -83,10 +83,21 @@ class WaypointSeedPack:
 class ResolvedEncounter:
     """Fast Core output: one complete encounter JSON dict.
 
-    payload passes validate_arbitration_asset and is consumed directly
+    payload passes validate_waypoint_asset and is consumed directly
     by the existing runtime pipeline (load_current_encounter / _play_encounter).
     """
     payload: dict[str, Any] = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Arc state key
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class EncounterSlot:
+    """Typed key identifying one encounter within a waypoint (replaces "wid:idx" strings)."""
+    waypoint_id: str
+    arb_idx: int
 
 
 # ---------------------------------------------------------------------------
