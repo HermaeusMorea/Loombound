@@ -6,6 +6,9 @@ from src.t0.memory import RuleEvaluation
 from src.t0.memory import RunMemory
 from src.t0.core.rule_state import RuleSystem
 
+_FRESHNESS_BASE = 0.1
+_FRESHNESS_FACTOR = 0.02
+
 
 def _compute_selection_score(
     evaluation: RuleEvaluation,
@@ -20,7 +23,7 @@ def _compute_selection_score(
         ids = rule_system.recently_used_rule_ids
         last_pos = len(ids) - 1 - ids[::-1].index(evaluation.rule.id)
         recent_distance = last_pos + 1  # 1=oldest in window, N=most recently used
-        freshness_penalty = 0.1 + (0.02 * recent_distance)
+        freshness_penalty = _FRESHNESS_BASE + (_FRESHNESS_FACTOR * recent_distance)
 
     return (-freshness_penalty, evaluation.rule.priority, evaluation.rule.id)
 

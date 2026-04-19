@@ -13,7 +13,7 @@ EncounterStatus = Literal["pending", "evaluated", "applied"]
 
 @dataclass(slots=True)
 class Encounter:
-    """A judgeable unit owned by either a Run or a Node."""
+    """A judgeable unit owned by either a Run or a Waypoint."""
 
     encounter_id: str
     owner_kind: OwnerKind

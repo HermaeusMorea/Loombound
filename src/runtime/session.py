@@ -3,152 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Any, Literal
+from typing import Any
 
+from src.t0.memory.encounter import Encounter
 from src.t0.memory.models import (
-    EncounterContext,
-    EncounterResult,
     CoreStateView,
     MetaStateView,
     WaypointSummary,
 )
 from src.t0.memory.types import WaypointMemory, RunMemory
 from src.t0.core.rule_state import WaypointRuleState, RuleSystem
-
-
-OwnerKind = Literal["run", "node"]
-EncounterStatus = Literal["pending", "evaluated", "applied"]
-
-
-@dataclass(slots=True)
-class Encounter:
-    """A judgeable unit owned by either a Run or a Waypoint."""
-
-    encounter_id: str
-    owner_kind: OwnerKind
-    owner_id: str
-    context: EncounterContext
-    options: list[dict[str, Any]] = field(default_factory=list)
-    selected_option_id: str | None = None
-    status: EncounterStatus = "pending"
-    result: EncounterResult | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def empty_for_owner(
-        cls,
-        *,
-        encounter_id: str,
-        owner_kind: OwnerKind,
-        owner_id: str,
-        scene_type: str,
-        depth: int,
-        act: int = 1,
-        core_state_view: CoreStateView | None = None,
-        meta_state_view: MetaStateView | None = None,
-    ) -> "Encounter":
-        """Create an empty encounter shell owned by a Run or Waypoint."""
-
-        return cls(
-            encounter_id=encounter_id,
-            owner_kind=owner_kind,
-            owner_id=owner_id,
-            context=EncounterContext.empty(
-                context_id=encounter_id,
-                scene_type=scene_type,
-                depth=depth,
-                act=act,
-                core_state_view=core_state_view,
-                meta_state_view=meta_state_view,
-            ),
-        )
-
-    @classmethod
-    def from_dict(
-        cls,
-        payload: dict[str, Any],
-        *,
-        owner_kind: OwnerKind,
-        owner_id: str,
-    ) -> "Encounter":
-        """Build an encounter from JSON shaped around context plus options."""
-
-        context = EncounterContext.from_dict(payload)
-        return cls(
-            encounter_id=payload.get("encounter_id", context.context_id),
-            owner_kind=owner_kind,
-            owner_id=owner_id,
-            context=context,
-            options=[dict(item) for item in payload.get("options", [])],
-            metadata=payload.get("metadata", {}),
-        )
-
-    def update_context(self, **changes: Any) -> None:
-        """Update the attached encounter context in place."""
-
-        self.context.update(**changes)
-
-    def load_from_dict(self, payload: dict[str, Any]) -> None:
-        """Populate or refresh this encounter from a structured payload."""
-
-        context = EncounterContext.from_dict(payload)
-        self.encounter_id = payload.get("encounter_id", context.context_id)
-        self.context = context
-        self.options = [dict(item) for item in payload.get("options", [])]
-        self.metadata = payload.get("metadata", {})
-        self.selected_option_id = None
-        self.result = None
-        self.status = "pending"
-
-    def replace_options(self, options: list[dict[str, Any]]) -> None:
-        """Replace the full option set for this encounter."""
-
-        self.options = [dict(item) for item in options]
-        if self.selected_option_id and self.get_option(self.selected_option_id) is None:
-            self.selected_option_id = None
-
-    def upsert_option(self, option: dict[str, Any]) -> None:
-        """Insert or replace one option by option_id."""
-
-        option_id = option["option_id"]
-        for index, current in enumerate(self.options):
-            if current["option_id"] == option_id:
-                self.options[index] = dict(option)
-                return
-        self.options.append(dict(option))
-
-    def remove_option(self, option_id: str) -> None:
-        """Remove one option if it exists."""
-
-        self.options = [item for item in self.options if item["option_id"] != option_id]
-        if self.selected_option_id == option_id:
-            self.selected_option_id = None
-
-    def select_option(self, option_id: str) -> None:
-        """Record the currently chosen option for this encounter."""
-
-        if self.get_option(option_id) is None:
-            raise ValueError(f"Unknown option_id '{option_id}' for encounter '{self.encounter_id}'.")
-        self.selected_option_id = option_id
-
-    def get_option(self, option_id: str) -> dict[str, Any] | None:
-        """Return the matching option payload, if present."""
-
-        for item in self.options:
-            if item["option_id"] == option_id:
-                return item
-        return None
-
-    def set_result(self, result: EncounterResult) -> None:
-        """Attach the evaluated result produced by the deterministic pipeline."""
-
-        self.result = result
-        self.status = "evaluated"
-
-    def mark_applied(self) -> None:
-        """Mark the encounter as fully consumed by its owner."""
-
-        self.status = "applied"
 
 
 @dataclass(slots=True)

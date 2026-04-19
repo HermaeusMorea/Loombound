@@ -142,29 +142,28 @@ def _play_encounter(
 
     # M2 rule selection is primary; deterministic evaluation is the fallback.
     m2_rule = next((r for r in rules if r.id == m2_rule_id), None) if m2_rule_id else None
-    selected = (
-        type("_Sel", (), {"rule": m2_rule})()  # lightweight wrapper matching select_rule output
-        if m2_rule else
-        select_rule(evaluations, rule_system=run.rule_system, run_memory=run.memory)
+    _sel_eval = None if m2_rule else select_rule(
+        evaluations, rule_system=run.rule_system, run_memory=run.memory
     )
+    selected_rule = m2_rule or (_sel_eval.rule if _sel_eval else None)
 
-    waypoint.rule_state.record_selected_rule(selected.rule.id if selected else None)
+    waypoint.rule_state.record_selected_rule(selected_rule.id if selected_rule else None)
     waypoint.rule_state.record_selection_trace(
         build_selection_trace(evaluations, rule_system=run.rule_system, run_memory=run.memory)
     )
-    run.rule_system.record_selected_rule(selected.rule.id if selected else None)
+    run.rule_system.record_selected_rule(selected_rule.id if selected_rule else None)
     append_node_event(
         waypoint.memory,
         "rule_selected",
         encounter_id=encounter.encounter_id,
-        selected_rule_id=selected.rule.id if selected else None,
+        selected_rule_id=selected_rule.id if selected_rule else None,
         matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
         source="m2" if m2_rule else "kernel",
     )
 
-    option_results = enforce_rule(encounter, selected.rule if selected else None)
+    option_results = enforce_rule(encounter, selected_rule)
 
-    rule_theme = selected.rule.theme if selected else "neutral"
+    rule_theme = selected_rule.theme if selected_rule else "neutral"
     narration_text = ""
     if narration_table is not None:
         narration_text = (
@@ -173,7 +172,7 @@ def _play_encounter(
             or ""
         )
 
-    render_encounter_view(run, encounter, selected.rule if selected else None)
+    render_encounter_view(run, encounter, selected_rule)
     render_choices(option_results)
     render_input_panel("Choose an option")
 
@@ -185,8 +184,8 @@ def _play_encounter(
     record_choice(
         waypoint.memory,
         encounter=encounter,
-        selected_rule_id=selected.rule.id if selected else None,
-        selected_rule_theme=selected.rule.theme if selected else None,
+        selected_rule_id=selected_rule.id if selected_rule else None,
+        selected_rule_theme=selected_rule.theme if selected_rule else None,
         selected_result=chosen_result,
     )
     append_node_event(
@@ -216,7 +215,7 @@ def _play_encounter(
     applied_notes = apply_option_effects(run, selected_option, chosen_result)
     encounter.set_result(
         EncounterResult(
-            selected_rule_id=selected.rule.id if selected else None,
+            selected_rule_id=selected_rule.id if selected_rule else None,
             matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
             option_results=option_results,
             sanity_delta=chosen_result.sanity_cost,
@@ -229,7 +228,7 @@ def _play_encounter(
         waypoint.memory,
         "encounter_finalized",
         encounter_id=encounter.encounter_id,
-        selected_rule_id=selected.rule.id if selected else None,
+        selected_rule_id=selected_rule.id if selected_rule else None,
         player_choice=chosen_result.option_id,
     )
 
@@ -266,6 +265,13 @@ def _play_node(
     if prefetch:
         prefetch.wait_for(cache_key)
     prefetched = prefetch.consume(cache_key) if prefetch else None
+    if prefetched is None and prefetch:
+        err = prefetch.get_error(cache_key)
+        if err:
+            raise RuntimeError(
+                f"Prefetch failed for waypoint '{cache_key}': {err}\n"
+                "Check logs/llm.md for details."
+            )
 
     if prefetched and len(prefetched) == total_arbs:
         payloads = prefetched

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.t0.memory.models import OptionPayload
+
 if TYPE_CHECKING:
     from src.runtime.session import Run
 
@@ -17,16 +19,20 @@ def _clamp(value: int, minimum: int = 0, maximum: int | None = None) -> int:
     return value
 
 
-def apply_option_effects(run: Run, option: dict[str, Any], selected_result: Any) -> list[str]:
+def apply_option_effects(run: Run, option: OptionPayload, selected_result: Any) -> list[str]:
     """Apply authored option effects plus the judged sanity cost to the active run."""
 
     effects = option.get("metadata", {}).get("effects", {})
     notes: list[str] = []
 
-    health_delta = int(effects.get("health_delta", 0))
-    money_delta = int(effects.get("money_delta", 0))
-    direct_sanity_delta = int(effects.get("sanity_delta", 0))
-    sanity_loss = int(selected_result.sanity_cost)
+    # Pre-validate all delta values before any state mutation.
+    try:
+        health_delta = int(effects.get("health_delta", 0))
+        money_delta = int(effects.get("money_delta", 0))
+        direct_sanity_delta = int(effects.get("sanity_delta", 0))
+        sanity_loss = int(selected_result.sanity_cost)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"apply_option_effects: invalid effect value — {exc}") from exc
 
     if run.core_state.health is not None:
         run.core_state.health = _clamp(run.core_state.health + health_delta, 0, run.core_state.max_health or 100)

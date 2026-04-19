@@ -6,6 +6,13 @@ from collections import Counter
 
 from src.t0.memory import Encounter
 
+_LOW_HEALTH = 4
+_HIGH_HEALTH = 8
+_LOW_MONEY = 3
+_HIGH_MONEY = 9
+_LOW_SANITY = 4
+_HIGH_SANITY = 8
+
 
 def build_signals(encounter: Encounter) -> dict[str, object]:
     # Collapse raw context into a small set of reusable, deterministic facts.
@@ -23,12 +30,12 @@ def build_signals(encounter: Encounter) -> dict[str, object]:
         "has_safe_option": option_tags.get("safe", 0) > 0,
         "has_greedy_option": option_tags.get("greedy", 0) > 0,
         "has_volatile_option": option_tags.get("volatile", 0) > 0 or option_tags.get("occult", 0) > 0,
-        "low_health": health <= 4,
-        "high_health": health >= 8,
-        "low_money": money <= 3,
-        "high_money": money >= 9,
-        "low_sanity": sanity <= 4,
-        "high_sanity": sanity >= 8,
+        "low_health": health <= _LOW_HEALTH,
+        "high_health": health >= _HIGH_HEALTH,
+        "low_money": money <= _LOW_MONEY,
+        "high_money": money >= _HIGH_MONEY,
+        "low_sanity": sanity <= _LOW_SANITY,
+        "high_sanity": sanity >= _HIGH_SANITY,
     }
 
 

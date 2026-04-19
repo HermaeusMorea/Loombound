@@ -3,7 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypedDict
+
+
+class OptionEffects(TypedDict, total=False):
+    health_delta: int
+    money_delta: int
+    sanity_delta: int
+    add_marks: list[str]
+    add_events: list[str]
+    add_traumas: list[str]
+
+
+class OptionMetadata(TypedDict, total=False):
+    effects: OptionEffects
+
+
+class OptionPayload(TypedDict, total=False):
+    option_id: str          # required
+    label: str
+    tags: list[str]
+    toll: str
+    intent: str
+    metadata: OptionMetadata
 
 
 @dataclass(slots=True)

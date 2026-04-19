@@ -297,6 +297,14 @@ class PrefetchCache:
                  waypoint_id, arb_count)
         return resolved
 
+    def get_error(self, waypoint_id: str) -> str | None:
+        """Return the error message if the last generation attempt for this waypoint failed."""
+        with self._lock:
+            entry = self._cache.get(waypoint_id)
+            if entry and entry.status == "failed":
+                return entry.error
+        return None
+
     def invalidate(self, waypoint_id: str) -> None:
         """Mark a cached entry as stale (e.g. after a major state change)."""
         with self._lock:
