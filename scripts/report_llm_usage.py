@@ -77,7 +77,7 @@ RE_COMPLETE = re.compile(
 )
 
 # Offline events
-RE_CAMPAIGN_CORE = re.compile(r"^## \[(?P<ts>[^\]]+)\] CAMPAIGN CORE RESPONSE — `(?P<campaign>[^`]+)`$")
+RE_SAGA_CORE = re.compile(r"^## \[(?P<ts>[^\]]+)\] (?:SAGA|CAMPAIGN) CORE RESPONSE — `(?P<campaign>[^`]+)`$")
 RE_T1_CACHE       = re.compile(r"^## \[(?P<ts>[^\]]+)\] (?:T1|A1) CACHE RESPONSE — `(?P<campaign>[^`]+)`")
 RE_T1_CACHE_NODE  = re.compile(r"^## \[(?P<ts>[^\]]+)\] T1 CACHE NODE RESPONSE — `(?P<node>[^`]+)`")
 RE_ARC_PALETTE   = re.compile(r"^## \[(?P<ts>[^\]]+)\] ARC PALETTE GENERATED$")
@@ -122,7 +122,7 @@ class ArcPaletteEvent:
 
 
 @dataclass
-class CampaignCoreEvent:
+class SagaCoreEvent:
     line_no: int
     timestamp: datetime
     saga_id: str
@@ -158,7 +158,7 @@ class RequestEvent:
     line_no: int
     timestamp: datetime
     node_id: str
-    campaign_candidates: set[str]
+    saga_candidates: set[str]
 
 
 @dataclass
@@ -166,7 +166,7 @@ class RunGroup:
     start_line: int
     end_line: int
     request_events: list[RequestEvent]
-    campaign_candidates: set[str]
+    saga_candidates: set[str]
 
 
 @dataclass
@@ -228,10 +228,10 @@ class RunReport:
     start_timestamp: datetime
     end_timestamp: datetime
     saga_id: str | None
-    campaign_title: str | None
+    saga_title: str | None
     node_order: list[str]
     arc_palette: ArcPaletteEvent | None = None
-    campaign_core: CampaignCoreEvent | None = None
+    saga_core: SagaCoreEvent | None = None
     t1_cache_table: T1CacheEvent | None = None
     t1_cache_table_node_events: list[T1CacheEvent] = field(default_factory=list)
     slow_calls: int = 0
@@ -288,20 +288,20 @@ class RunReport:
 
     @property
     def opus_total_input(self) -> int:
-        core_in = self.campaign_core.input_tokens if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0
+        core_in = self.saga_core.input_tokens if self.saga_core and _is_opus(self.saga_core.model or "") else 0
         pal_in  = self.arc_palette.input_tokens if self.arc_palette else 0
         return core_in + pal_in
 
     @property
     def opus_total_output(self) -> int:
-        core_out = self.campaign_core.output_tokens if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0
+        core_out = self.saga_core.output_tokens if self.saga_core and _is_opus(self.saga_core.model or "") else 0
         pal_out  = self.arc_palette.output_tokens if self.arc_palette else 0
         return core_out + pal_out
 
     @property
     def opus_total_cost(self) -> float:
         pal_cost  = self.arc_palette.cost if self.arc_palette else 0.0
-        core_cost = self.campaign_core.cost if self.campaign_core and _is_opus(self.campaign_core.model or "") else 0.0
+        core_cost = self.saga_core.cost if self.saga_core and _is_opus(self.saga_core.model or "") else 0.0
         return pal_cost + core_cost
 
     @property
@@ -310,7 +310,7 @@ class RunReport:
             tb_cost = sum(e.cost for e in self.t1_cache_table_node_events)
         else:
             tb_cost = self.t1_cache_table.cost if self.t1_cache_table else 0.0
-        core_cost = self.campaign_core.cost if self.campaign_core and not _is_opus(self.campaign_core.model or "") else 0.0
+        core_cost = self.saga_core.cost if self.saga_core and not _is_opus(self.saga_core.model or "") else 0.0
         return tb_cost + core_cost + self.m2_cost
 
     @property
@@ -347,7 +347,7 @@ def load_campaign_metadata(
 ) -> tuple[dict[str, set[str]], dict[str, str], dict[str, set[str]]]:
     node_index: dict[str, set[str]] = {}
     titles: dict[str, str] = {}
-    campaign_nodes: dict[str, set[str]] = {}
+    saga_nodes: dict[str, set[str]] = {}
     for path in sorted(saga_dir.glob("*.json")):
         try:
             with path.open(encoding="utf-8") as fh:
@@ -360,10 +360,10 @@ def load_campaign_metadata(
         saga_id = data.get("saga_id", path.stem)
         titles[saga_id] = data.get("title", saga_id)
         waypoints = data.get("waypoints", data.get("nodes", {}))
-        campaign_nodes[saga_id] = set(waypoints)
+        saga_nodes[saga_id] = set(waypoints)
         for node_id in waypoints:
             node_index.setdefault(node_id, set()).add(saga_id)
-    return node_index, titles, campaign_nodes
+    return node_index, titles, saga_nodes
 
 
 def parse_arc_palette_events(lines: list[str]) -> list[ArcPaletteEvent]:
@@ -387,13 +387,13 @@ def parse_arc_palette_events(lines: list[str]) -> list[ArcPaletteEvent]:
     return events
 
 
-def parse_campaign_core_events(lines: list[str]) -> list[CampaignCoreEvent]:
-    events: list[CampaignCoreEvent] = []
-    pending: CampaignCoreEvent | None = None
+def parse_saga_core_events(lines: list[str]) -> list[SagaCoreEvent]:
+    events: list[SagaCoreEvent] = []
+    pending: SagaCoreEvent | None = None
     for idx, line in enumerate(lines, start=1):
-        m = RE_CAMPAIGN_CORE.match(line)
+        m = RE_SAGA_CORE.match(line)
         if m:
-            pending = CampaignCoreEvent(
+            pending = SagaCoreEvent(
                 line_no=idx,
                 timestamp=parse_timestamp(m.group("ts")),
                 saga_id=m.group("campaign"),
@@ -416,7 +416,7 @@ def parse_campaign_core_events(lines: list[str]) -> list[CampaignCoreEvent]:
                 pending.input_tokens  = int(tok.group("input"))
                 pending.output_tokens = int(tok.group("output"))
                 pending = None
-        if line.startswith("## [") and not RE_CAMPAIGN_CORE.match(line):
+        if line.startswith("## [") and not RE_SAGA_CORE.match(line):
             pending = None
     return events
 
@@ -494,7 +494,7 @@ def parse_request_events(lines: list[str], node_index: dict[str, set[str]]) -> l
             line_no=idx,
             timestamp=ts,
             node_id=node,
-            campaign_candidates=set(node_index.get(node, set())),
+            saga_candidates=set(node_index.get(node, set())),
         ))
     return events
 
@@ -504,11 +504,11 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
         return []
     runs: list[RunGroup] = []
     current_events: list[RequestEvent] = [requests[0]]
-    current_candidates = set(requests[0].campaign_candidates)
+    current_candidates = set(requests[0].saga_candidates)
 
     for event in requests[1:]:
         cur = current_candidates
-        ev  = event.campaign_candidates
+        ev  = event.saga_candidates
         if cur and ev:
             intersection = cur & ev
             if intersection:
@@ -524,7 +524,7 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
             start_line=current_events[0].line_no,
             end_line=event.line_no - 1,
             request_events=current_events,
-            campaign_candidates=current_candidates,
+            saga_candidates=current_candidates,
         ))
         current_events = [event]
         current_candidates = set(ev)
@@ -533,7 +533,7 @@ def group_runs(requests: list[RequestEvent], total_lines: int) -> list[RunGroup]
         start_line=current_events[0].line_no,
         end_line=total_lines,
         request_events=current_events,
-        campaign_candidates=current_candidates,
+        saga_candidates=current_candidates,
     ))
     return runs
 
@@ -552,11 +552,11 @@ def _split_arb_id(arb_id: str) -> str:
 def analyze_run(
     lines: list[str],
     run: RunGroup,
-    campaign_titles: dict[str, str],
+    saga_titles: dict[str, str],
     arc_palette_events: list[ArcPaletteEvent] | None = None,
-    campaign_core_events: list[CampaignCoreEvent] | None = None,
+    saga_core_events: list[SagaCoreEvent] | None = None,
     t1_cache_table_events: list[T1CacheEvent] | None = None,
-    campaign_nodes: dict[str, set[str]] | None = None,
+    saga_nodes: dict[str, set[str]] | None = None,
 ) -> RunReport:
     # Determine start timestamp from first request line
     first_line = lines[run.start_line - 1]
@@ -670,8 +670,8 @@ def analyze_run(
 
     # Build RunReport
     saga_id = (
-        next(iter(run.campaign_candidates))
-        if len(run.campaign_candidates) == 1
+        next(iter(run.saga_candidates))
+        if len(run.saga_candidates) == 1
         else None
     )
     report = RunReport(
@@ -680,7 +680,7 @@ def analyze_run(
         start_timestamp=start_ts,
         end_timestamp=end_ts,
         saga_id=saga_id,
-        campaign_title=campaign_titles.get(saga_id, saga_id) if saga_id else None,
+        saga_title=saga_titles.get(saga_id, saga_id) if saga_id else None,
         node_order=node_order,
         node_usage=node_usage,
     )
@@ -691,13 +691,13 @@ def analyze_run(
         if eligible:
             report.arc_palette = eligible[-1]
 
-    if campaign_core_events and saga_id:
+    if saga_core_events and saga_id:
         eligible_cc = [
-            e for e in campaign_core_events
+            e for e in saga_core_events
             if e.saga_id == saga_id and e.timestamp <= start_ts
         ]
         if eligible_cc:
-            report.campaign_core = eligible_cc[-1]
+            report.saga_core = eligible_cc[-1]
 
     if t1_cache_table_events and saga_id:
         eligible_tb = [
@@ -737,19 +737,19 @@ def select_run(
     saga_id: str | None,
     *,
     lines: list[str] | None = None,
-    campaign_titles: dict[str, str] | None = None,
-    campaign_core_events: list[CampaignCoreEvent] | None = None,
+    saga_titles: dict[str, str] | None = None,
+    saga_core_events: list[SagaCoreEvent] | None = None,
 ) -> RunGroup:
     if not runs:
         raise SystemExit("No runtime generation requests found in the log.")
     candidates = runs if saga_id is None else [
-        r for r in runs if saga_id in r.campaign_candidates
+        r for r in runs if saga_id in r.saga_candidates
     ]
     if not candidates:
         raise SystemExit(f"No runs matched campaign '{saga_id}'.")
-    if lines is not None and campaign_titles is not None:
+    if lines is not None and saga_titles is not None:
         for run in reversed(candidates):
-            report = analyze_run(lines, run, campaign_titles)
+            report = analyze_run(lines, run, saga_titles)
             if _has_runtime_usage(report):
                 return run
     return candidates[-1]
@@ -780,7 +780,7 @@ def _row(label: str, model: str, inp: int, out: int, cost: float, extra: str = "
 
 
 def render_report(report: RunReport) -> str:
-    title = report.campaign_title or "(unresolved)"
+    title = report.saga_title or "(unresolved)"
     if report.saga_id:
         title = f"{title}  [{report.saga_id}]"
     dur = int((report.end_timestamp - report.start_timestamp).total_seconds())
@@ -810,8 +810,8 @@ def render_report(report: RunReport) -> str:
                           f"(one-time, {_usd(ap.cost)})"))
         offline_opus_cost += ap.cost
 
-    if report.campaign_core:
-        cc = report.campaign_core
+    if report.saga_core:
+        cc = report.saga_core
         m = cc.model or "?"
         theme_short = (cc.theme or "")[:50]
         lines.append(_row("saga graph", m, cc.input_tokens, cc.output_tokens, cc.cost,
@@ -841,7 +841,7 @@ def render_report(report: RunReport) -> str:
         lines.append("  a1 cache           (not found in log before this run)")
 
     offline_remote_tokens = (
-        (report.campaign_core.input_tokens + report.campaign_core.output_tokens if report.campaign_core else 0)
+        (report.saga_core.input_tokens + report.saga_core.output_tokens if report.saga_core else 0)
         + report.t1_cache_table_input + report.t1_cache_table_output
         + (report.arc_palette.input_tokens + report.arc_palette.output_tokens if report.arc_palette else 0)
     )
@@ -926,8 +926,8 @@ def render_report(report: RunReport) -> str:
     N = 1000
     arc_in   = report.arc_palette.input_tokens if report.arc_palette else 0
     arc_out  = report.arc_palette.output_tokens if report.arc_palette else 0
-    core_in  = report.campaign_core.input_tokens if report.campaign_core else 0
-    core_out = report.campaign_core.output_tokens if report.campaign_core else 0
+    core_in  = report.saga_core.input_tokens if report.saga_core else 0
+    core_out = report.saga_core.output_tokens if report.saga_core else 0
     a1_in    = report.t1_cache_table_input
     a1_out   = report.t1_cache_table_output
 
@@ -1021,9 +1021,9 @@ def main() -> None:
     with args.log.open(encoding="utf-8") as fh:
         lines = [line.rstrip("\n") for line in fh]
 
-    node_index, campaign_titles, campaign_nodes = load_campaign_metadata(args.saga_dir)
+    node_index, saga_titles, saga_nodes = load_campaign_metadata(args.saga_dir)
     arc_palette_events   = parse_arc_palette_events(lines)
-    campaign_core_events = parse_campaign_core_events(lines)
+    saga_core_events = parse_saga_core_events(lines)
     t1_cache_table_events       = parse_t1_cache_table_events(lines, node_index)
     request_events       = parse_request_events(lines, node_index)
     runs = group_runs(request_events, len(lines))
@@ -1032,17 +1032,17 @@ def main() -> None:
         runs,
         args.saga,
         lines=lines,
-        campaign_titles=campaign_titles,
-        campaign_core_events=campaign_core_events,
+        saga_titles=saga_titles,
+        saga_core_events=saga_core_events,
     )
     report = analyze_run(
         lines,
         run,
-        campaign_titles,
+        saga_titles,
         arc_palette_events=arc_palette_events,
-        campaign_core_events=campaign_core_events,
+        saga_core_events=saga_core_events,
         t1_cache_table_events=t1_cache_table_events,
-        campaign_nodes=campaign_nodes,
+        saga_nodes=saga_nodes,
     )
     print(render_report(report))
 

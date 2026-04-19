@@ -62,7 +62,7 @@ def main() -> None:
         _run_module("src.t3.core.gen_a2_cache_table", rest)
 
     elif subcmd == "gen":
-        _run_module("src.t3.core.generate_campaign", rest)
+        _run_module("src.t3.core.generate_saga", rest)
 
     elif subcmd == "run":
         new_args: list[str] = []

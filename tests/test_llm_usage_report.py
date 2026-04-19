@@ -1,7 +1,7 @@
 from report_llm_usage import (
     analyze_run,
     group_runs,
-    parse_campaign_core_events,
+    parse_saga_core_events,
     parse_request_events,
     parse_t1_cache_table_events,
     render_report,
@@ -24,11 +24,11 @@ def test_dynamic_run_report_matches_expected_totals() -> None:
         "## [2026-04-15 10:00:06 UTC] COMPLETE — `demo_node` (2 encounter(s) ready)",
     ]
     node_index = {"demo_node": {"demo_campaign"}}
-    campaign_titles = {"demo_campaign": "Demo Campaign"}
+    saga_titles = {"demo_campaign": "Demo Campaign"}
 
     requests = parse_request_events(lines, node_index)
     runs = group_runs(requests, len(lines))
-    report = analyze_run(lines, runs[0], campaign_titles)
+    report = analyze_run(lines, runs[0], saga_titles)
 
     assert report.saga_id == "demo_campaign"
     assert report.node_order == ["demo_node"]
@@ -41,7 +41,7 @@ def test_dynamic_run_report_matches_expected_totals() -> None:
     assert report.saved_remote_tokens == 195
 
 
-def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
+def test_saga_core_and_table_b_usage_are_tracked_separately() -> None:
     lines = [
         "## [2026-04-15 09:58:00 UTC] CAMPAIGN CORE RESPONSE — `demo_campaign`",
         "provider: anthropic",
@@ -65,26 +65,26 @@ def test_campaign_core_and_table_b_usage_are_tracked_separately() -> None:
         "demo_node_a": {"demo_campaign"},
         "demo_node_b": {"demo_campaign"},
     }
-    campaign_titles = {"demo_campaign": "Demo Campaign"}
-    campaign_nodes = {"demo_campaign": {"demo_node_a", "demo_node_b"}}
+    saga_titles = {"demo_campaign": "Demo Campaign"}
+    saga_nodes = {"demo_campaign": {"demo_node_a", "demo_node_b"}}
 
     requests = parse_request_events(lines, node_index)
     runs = group_runs(requests, len(lines))
-    campaign_core_events = parse_campaign_core_events(lines)
+    saga_core_events = parse_saga_core_events(lines)
     t1_cache_table_events = parse_t1_cache_table_events(lines, node_index)
     report = analyze_run(
         lines,
         runs[0],
-        campaign_titles,
-        campaign_core_events=campaign_core_events,
+        saga_titles,
+        saga_core_events=saga_core_events,
         t1_cache_table_events=t1_cache_table_events,
-        campaign_nodes=campaign_nodes,
+        saga_nodes=saga_nodes,
     )
 
-    assert report.campaign_core is not None
-    assert report.campaign_core.provider == "anthropic"
-    assert report.campaign_core.input_tokens == 1200
-    assert report.campaign_core.output_tokens == 300
+    assert report.saga_core is not None
+    assert report.saga_core.provider == "anthropic"
+    assert report.saga_core.input_tokens == 1200
+    assert report.saga_core.output_tokens == 300
     assert report.t1_cache_table_calls == 2
     assert report.t1_cache_table_nodes == 2
     assert report.t1_cache_table_input == 320
@@ -112,7 +112,7 @@ def test_select_run_prefers_latest_run_with_actual_runtime_usage() -> None:
         "## [2026-04-15 10:05:00 UTC] M2 CLASSIFIER REQUEST — node `demo_node`",
     ]
     node_index = {"demo_node": {"demo_campaign"}}
-    campaign_titles = {"demo_campaign": "Demo Campaign"}
+    saga_titles = {"demo_campaign": "Demo Campaign"}
     requests = parse_request_events(lines, node_index)
     runs = group_runs(requests, len(lines))
 
@@ -120,8 +120,8 @@ def test_select_run_prefers_latest_run_with_actual_runtime_usage() -> None:
         runs,
         "demo_campaign",
         lines=lines,
-        campaign_titles=campaign_titles,
-        campaign_core_events=parse_campaign_core_events(lines),
+        saga_titles=saga_titles,
+        saga_core_events=parse_saga_core_events(lines),
     )
 
     assert selected.start_line == 1
