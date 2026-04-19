@@ -1,6 +1,6 @@
 """Per-choice arc state tracking (M2 Haiku classifier).
 
-Extracted from PrefetchCache so arc state logic is independent of node prefetch.
+Extracted from PrefetchCache so arc state logic is independent of waypoint prefetch.
 The only coupling back to PrefetchCache is the `current_arc_id` property, which
 trigger() reads as a snapshot when kicking off C1 generation.
 """

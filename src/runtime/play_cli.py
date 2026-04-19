@@ -40,14 +40,14 @@ log = logging.getLogger(__name__)
 
 
 
-def _parse_encounters(node_spec: dict) -> tuple[int, list[dict]]:
-    """Return (llm_count, authored_specs) from a node spec's 'encounters' field.
+def _parse_encounters(waypoint_spec: dict) -> tuple[int, list[dict]]:
+    """Return (llm_count, authored_specs) from a waypoint spec's 'encounters' field.
 
     Two formats are supported:
       int   → LLM-generated mode; llm_count = that integer, authored_specs = []
       list  → Authored mode;      llm_count = 0, authored_specs = the list
     """
-    field = node_spec.get("encounters", [])
+    field = waypoint_spec.get("encounters", [])
     if isinstance(field, int):
         return field, []
     return 0, field
@@ -158,7 +158,7 @@ def _prefetch_targets(
                     encounter_count=arb_count,
                 )
         except (AssetValidationError, ValueError) as exc:
-            log.warning("Prefetch: skipping '%s' — node spec invalid: %s", target_id, exc)
+            log.warning("Prefetch: skipping '%s' — waypoint spec invalid: %s", target_id, exc)
 
 
 def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -> list[str]:

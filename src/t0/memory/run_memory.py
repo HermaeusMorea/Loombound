@@ -14,7 +14,7 @@ from .types import (
 
 
 def update_after_node(run_memory: RunMemory, node_memory: WaypointMemory) -> RunMemory:
-    """Promote the important outcome of one finished node into run memory."""
+    """Promote the important outcome of one finished waypoint into run memory."""
 
     run_memory.sanity += node_memory.sanity_lost_in_node
 

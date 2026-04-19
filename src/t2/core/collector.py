@@ -77,7 +77,7 @@ def build_scene_history_entry(
     }
     pressure_level = pressure_map.get(pressure_level, "moderate")
 
-    # resource_trajectory: sanity lost this node + cumulative mood
+    # resource_trajectory: sanity lost this waypoint + cumulative mood
     sanity_lost = waypoint_memory.sanity_lost_in_node
     severity = run_memory.narrator_mood.severity
     if sanity_lost >= config.SANITY_CRITICAL_THRESHOLD or severity >= config.MOOD_SEVERITY_HIGH:
@@ -285,12 +285,12 @@ def build_quasi_description(
     """Build the user-message payload sent to Slow Core (dynamic path).
 
     Args:
-        core_state:           Current precise state after the last node.
+        core_state:           Current precise state after the last waypoint.
         run_memory:           Long-lived run memory (shocks, themes, mood).
-        waypoint_history:         Ordered list of WaypointSummary from completed nodes.
-        target_node_id:       The node ID Slow Core should plan content for.
-        encounter_count:    How many encounters to generate for that node.
-        previous_core_state:  State before the last node — used for direction signals.
+        waypoint_history:     Ordered list of WaypointSummary from completed waypoints.
+        target_node_id:       The waypoint ID Slow Core should plan content for.
+        encounter_count:      How many encounters to generate for that waypoint.
+        previous_core_state:  State before the last waypoint — used for direction signals.
     """
     sections = _build_state_sections(
         core_state,

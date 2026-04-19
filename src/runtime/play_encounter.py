@@ -134,9 +134,9 @@ def _play_encounter(
     )
 
     # Fire-and-forget Opus call: updates arc entry_id + assigns effects for next arb.
-    # Within a node: next_node_id = saga_waypoint_id, next_arb_idx = arb_idx + 1.
-    # Last arb of a node: pass None/None — only entry_id is updated; the main loop
-    # triggers the Opus call for the first arb of the chosen next node.
+    # Within a waypoint: next_waypoint_id = saga_waypoint_id, next_arb_idx = arb_idx + 1.
+    # Last arb of a waypoint: pass None/None — only entry_id is updated; the main loop
+    # triggers the Opus call for the first arb of the chosen next waypoint.
     if prefetch is not None:
         _is_last = arb_idx >= total_arbs - 1
         _next_node = saga_waypoint_id if not _is_last else None

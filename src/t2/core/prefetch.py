@@ -1,9 +1,9 @@
-"""Prefetch cache — background generation of future node content.
+"""Prefetch cache — background generation of future waypoint content.
 
 Strategy (PRISM timing pattern adapted for Loombound):
-  - When player enters Node N, trigger background generation of Node N+1 content.
-  - Generation runs in a daemon thread while the player plays through Node N.
-  - When _play_node loads Node N+1, it checks the cache first.
+  - When player enters Waypoint N, trigger background generation of Waypoint N+1 content.
+  - Generation runs in a daemon thread while the player plays through Waypoint N.
+  - When _play_node loads Waypoint N+1, it checks the cache first.
   - Cache hit  → use LLM-generated encounter payloads instead of authored JSON.
   - Cache miss → fall back to authored JSON as before (no regression).
 
@@ -69,7 +69,7 @@ def _merge_preloaded_seed(
     skeleton: Any,
     arc_row: Any,
 ) -> EncounterSeed:
-    """Blend a T1 cache node skeleton with the runtime T2 cache tendency.
+    """Blend a scene skeleton with the runtime arc-state tendency.
 
     Effects in the seed come from the T1 cache (Haiku-generated placeholders).
     Haiku per-option effects are applied separately at play time via play_cli's
@@ -119,8 +119,8 @@ class PrefetchCache:
 
     Two independent subsystems:
 
-    1. Node content prefetch (C1):
-       trigger() → background thread generates encounter payloads for a future node.
+    1. Waypoint content prefetch (C1):
+       trigger() → background thread generates encounter payloads for a future waypoint.
        consume() → returns payloads (or None on cache miss/failure).
 
     2. Per-choice arc updates (Opus M2):
@@ -146,7 +146,7 @@ class PrefetchCache:
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
-    # Public interface — node content prefetch
+    # Public interface — waypoint content prefetch
     # ------------------------------------------------------------------
 
     def warmup(self) -> None:

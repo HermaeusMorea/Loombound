@@ -1,8 +1,8 @@
-"""M2 arc-state classifier — runtime Claude call (per-choice).
+"""M2 decision engine — runtime Claude call (per-choice).
 
 Called after each player choice to:
-  1. Classify the current arc state → best-fit T2 cache entry_id
-  2. Assign per-option effect values for the NEXT encounter in the current node
+  1. Classify the current arc state → best-fit arc-state catalog entry_id
+  2. Assign per-option effect values for the NEXT encounter in the current waypoint
 
 Cache structure (Anthropic prompt-cache prefix):
   system    — arc classification guide       ~3,000 tokens  (global, cached)

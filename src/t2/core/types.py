@@ -2,12 +2,12 @@
 
 Two-layer asset model:
   WaypointSeedPack      — Slow Core output (Claude): high-density structured plan
-                      for one node, containing multiple EncounterSeed entries.
+                      for one waypoint, containing multiple EncounterSeed entries.
   ResolvedEncounter — Fast Core output (C1/qwen2.5:7b local): full encounter JSON dict
                         ready for validate_waypoint_asset → runtime.
 
 Prefetch layer:
-  PrefetchEntry     — one node's prefetch state, held by PrefetchCache.
+  PrefetchEntry     — one waypoint's prefetch state, held by PrefetchCache.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ class EncounterOptionSeed:
 
 @dataclass
 class EncounterSeed:
-    """Quasi-level plan for one encounter inside a node.
+    """Quasi-level plan for one encounter inside a waypoint.
 
     scene_concept and sanity_axis are the Slow Core's core contribution:
     they give Fast Core the narrative direction needed to write coherent text.
@@ -59,7 +59,7 @@ class EncounterSeed:
 
 @dataclass
 class WaypointSeedPack:
-    """Slow Core output: structured plan for all encounters in one future node.
+    """Slow Core output: structured plan for all encounters in one future waypoint.
 
     One Slow Core API call produces one WaypointSeedPack.
     Fast Core expands each EncounterSeed into a full encounter JSON dict.

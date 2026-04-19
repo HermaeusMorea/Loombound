@@ -41,7 +41,7 @@ class Waypoint:
             self.rule_state = WaypointRuleState()
 
     def initialize_encounter(self) -> Encounter:
-        """Create the node-owned encounter shell when entering the node."""
+        """Create the waypoint-owned encounter shell when entering the waypoint."""
 
         encounter = Encounter.empty_for_owner(
             encounter_id=f"{self.waypoint_type}:{self.waypoint_id}",
@@ -57,12 +57,12 @@ class Waypoint:
         return encounter
 
     def begin_encounter(self, encounter: Encounter) -> None:
-        """Attach an externally created encounter to this node."""
+        """Attach an externally created encounter to this waypoint."""
 
         self.current_encounter = encounter
 
     def load_current_encounter(self, payload: dict[str, Any]) -> Encounter:
-        """Load scene data into the node-owned encounter shell."""
+        """Load scene data into the waypoint-owned encounter shell."""
 
         if self.current_encounter is None:
             self.initialize_encounter()
@@ -82,7 +82,7 @@ class Waypoint:
         return encounter
 
     def build_summary(self, sanity_delta: int = 0, important_flags: list[str] | None = None) -> WaypointSummary:
-        """Build a compact node summary from accumulated node-local state."""
+        """Build a compact waypoint summary from accumulated waypoint-local state."""
 
         memory = self.memory
         encounter_count = len(self.encounter_history)
@@ -146,9 +146,9 @@ class Run:
         return encounter
 
     def start_waypoint(self, waypoint_id: str, waypoint_type: str, depth: int, memory: WaypointMemory | None = None) -> Waypoint:
-        """Create and activate a node under this run."""
+        """Create and activate a waypoint under this run."""
 
-        node = Waypoint(
+        waypoint = Waypoint(
             waypoint_id=waypoint_id,
             waypoint_type=waypoint_type,
             depth=depth,
@@ -160,20 +160,20 @@ class Run:
                 available_rule_ids=[template.id for template in self.rule_system.templates] if self.rule_system else []
             ),
         )
-        node.initialize_encounter()
-        self.current_waypoint = node
-        return node
+        waypoint.initialize_encounter()
+        self.current_waypoint = waypoint
+        return waypoint
 
     def close_current_waypoint(self, summary: WaypointSummary | None = None) -> Waypoint | None:
-        """Archive the current node and optionally store a compact summary."""
+        """Archive the current waypoint and optionally store a compact summary."""
 
         if self.current_waypoint is None:
             return None
-        node = self.current_waypoint
+        waypoint = self.current_waypoint
         if summary is not None:
             self.waypoint_history.append(summary)
         self.current_waypoint = None
-        return node
+        return waypoint
 
     def begin_run_encounter(self, encounter: Encounter) -> None:
         """Replace the current run-owned encounter object."""
