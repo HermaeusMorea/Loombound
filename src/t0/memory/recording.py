@@ -1,4 +1,4 @@
-"""Helpers for recording node-local events and choices."""
+"""Helpers for recording waypoint-local events and choices."""
 
 from __future__ import annotations
 
@@ -7,21 +7,21 @@ from typing import Any
 from .types import WaypointChoiceRecord, NodeEvent, WaypointMemory, ShockRecord
 
 
-def append_node_event(node_memory: WaypointMemory, event_type: str, **payload: Any) -> None:
-    """Append one structured lifecycle event to the active node memory."""
+def append_node_event(waypoint_memory: WaypointMemory, event_type: str, **payload: Any) -> None:
+    """Append one structured lifecycle event to the active waypoint memory."""
 
-    node_memory.events.append(NodeEvent(event_type=event_type, payload=payload))
+    waypoint_memory.events.append(NodeEvent(event_type=event_type, payload=payload))
 
 
 def record_choice(
-    node_memory: WaypointMemory,
+    waypoint_memory: WaypointMemory,
     *,
     encounter: Any,
     selected_rule_id: str | None,
     selected_rule_theme: str | None,
     selected_result: Any,
 ) -> None:
-    """Persist one resolved encounter choice into node-local memory."""
+    """Persist one resolved encounter choice into waypoint-local memory."""
 
     local_flags: list[str] = []
     joined_reasons = " ".join(selected_result.reasons)
@@ -32,7 +32,7 @@ def record_choice(
     if any(token in joined_reasons for token in ("greedy", "luxury", "occult")):
         local_flags.append("chose_greedy_option")
 
-    node_memory.choices_made.append(
+    waypoint_memory.choices_made.append(
         WaypointChoiceRecord(
             context_id=encounter.context.context_id,
             scene_type=encounter.context.scene_type,
@@ -46,7 +46,7 @@ def record_choice(
     )
 
     if selected_result.toll == "destabilizing":
-        node_memory.shocks_in_node.append(
+        waypoint_memory.shocks_in_waypoint.append(
             ShockRecord(
                 context_id=encounter.context.context_id,
                 rule_id=selected_rule_id,
@@ -57,7 +57,7 @@ def record_choice(
             )
         )
 
-    node_memory.sanity_lost_in_node += selected_result.sanity_cost
+    waypoint_memory.sanity_lost_in_waypoint += selected_result.sanity_cost
     for flag in local_flags:
-        if flag not in node_memory.important_flags:
-            node_memory.important_flags.append(flag)
+        if flag not in waypoint_memory.important_flags:
+            waypoint_memory.important_flags.append(flag)

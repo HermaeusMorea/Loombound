@@ -265,25 +265,35 @@ C2 返回 `{"entry_id": N, "effects": [{"id": "opt_a", "h": -2, "m": 0, "s": -1,
 
 ```
 src/t3/core/
-├── generate_campaign.py    ← C3：saga 生成（Opus）
-└── gen_a2_cache_table.py   ← C3：arc-state catalog 生成（Opus，一次性）
+├── generate_saga.py         ← C3：saga 生成（Opus）
+└── gen_arc_state_catalog.py ← C3：arc-state catalog 生成（Opus，一次性）
 
 src/t2/core/
-├── m2_classifier.py        ← C2：运行时 bearing 分类器（Haiku，per-choice）
-├── prefetch.py             ← C1 + C2：后台预载线程 + bearing 状态追踪
-├── gen_a1_cache_table.py   ← C2：scene skeletons 生成（Haiku，per-saga）
-├── collector.py            ← C0 → tendency state 构建
-└── types.py                ← EncounterSeed / PrefetchEntry 数据类型
+├── m2_decision_engine.py    ← C2：运行时 bearing 分类器（Haiku，per-choice）
+├── arc_state.py             ← C2：后台 bearing 分类线程（ArcStateTracker）
+├── prefetch.py              ← C1 + C2：waypoint 内容预载 facade（PrefetchCache）
+├── prefetch_seed_merge.py   ← 纯计算辅助（arc-row → tendency、skeleton 合并）
+├── gen_scene_skeletons.py   ← C2：scene skeletons 生成（Haiku，per-saga）
+├── collector.py             ← C0 → tendency state 构建
+└── types.py                 ← EncounterSeed、PrefetchEntry、EncounterSlot
 
 src/t1/core/
-├── expander.py             ← C1：qwen2.5:7b 场景文本展开
-├── prompts.py              ← C1 prompt 构建
-└── ollama.py               ← C1 transport（ollama /api/chat）
+├── expander.py              ← C1：qwen2.5:7b 场景文本展开
+├── prompts.py               ← C1 prompt 构建
+└── ollama.py                ← C1 transport（ollama /api/chat）
+
+src/t1/memory/
+└── scene_history_store.py   ← SceneHistoryStore / SceneHistoryEntry（waypoint 轨迹）
 
 src/t2/memory/
-├── a2_store.py             ← arc-state catalog / scene skeletons / A1 option index 加载
-└── types.py                ← ArcStateEntry、A1Entry、A1Store、RuntimeTableStore
+└── a2_store.py              ← arc-state catalog / scene skeletons 加载（RuntimeTableStore）
+
+src/runtime/
+├── play_cli.py              ← CLI 主循环
+├── play_encounter.py        ← encounter 执行层
+├── play_bootstrap.py        ← CLI 启动装配（parse_play_args、build_prefetch_cache）
+└── saga_loader.py           ← saga 资产加载（LoadedSagaBundle）
 
 src/t0/memory/
-└── models.py               ← CoreState、EncounterContext、OptionResult 等核心数据模型
+└── models.py                ← CoreState、EncounterContext、OptionResult 等核心数据模型
 ```

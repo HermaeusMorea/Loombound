@@ -57,7 +57,7 @@ def select_rule(
 ) -> RuleEvaluation | None:
     """Choose the winning rule with a stable deterministic tie-break."""
 
-    # The prototype allows at most one active rule per decision node.
+    # The prototype allows at most one active rule per waypoint.
     matched = [item for item in evaluations if item.matched]
     if not matched:
         return None

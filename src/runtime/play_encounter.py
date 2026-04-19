@@ -139,13 +139,13 @@ def _play_encounter(
     # triggers the Opus call for the first arb of the chosen next waypoint.
     if prefetch is not None:
         _is_last = arb_idx >= total_arbs - 1
-        _next_node = saga_waypoint_id if not _is_last else None
+        _next_waypoint = saga_waypoint_id if not _is_last else None
         _next_idx  = arb_idx + 1       if not _is_last else None
         quasi = build_classifier_input(
             run.core_state, run.memory, list(run.waypoint_history),
             current_waypoint_memory=waypoint.memory,
         )
-        prefetch.update_arc_state(quasi, _next_node, _next_idx)
+        prefetch.update_arc_state(quasi, _next_waypoint, _next_idx)
 
     narration = NarrationBlock(text=narration_text)
     applied_notes = apply_option_effects(run, selected_option, chosen_result)

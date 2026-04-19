@@ -69,11 +69,11 @@ def _core(sanity: int = 8, max_health: int = 10) -> CoreStateView:
 
 def _node(sanity_lost: int = 0, shocks: int = 0, flags: list[str] | None = None) -> WaypointMemory:
     m = WaypointMemory(waypoint_id="wp1", waypoint_type="crossroads", depth=2)
-    m.sanity_lost_in_node = sanity_lost
+    m.sanity_lost_in_waypoint = sanity_lost
     if flags:
         m.important_flags = list(flags)
     for _ in range(shocks):
-        m.shocks_in_node.append(ShockRecord(
+        m.shocks_in_waypoint.append(ShockRecord(
             context_id="ctx", rule_id=None, scene_type="crossroads",
             option_id="risk", flags=[], sanity_delta=1,
         ))

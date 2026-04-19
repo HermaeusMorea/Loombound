@@ -1,6 +1,6 @@
 # Loombound
 
-> 中文版文档：[README.md](README.md) 
+> 中文版文档：[README.md](README.md)
 
 A roguelite narrative engine driven by a three-layer AI architecture.
 
@@ -14,9 +14,11 @@ The choice of a narrative game as the demo vehicle is not because the goal is to
 
 → If you only have time to read one document, start with [LANGUAGE.en.md](docs/LANGUAGE.en.md).
 
-`LANGUAGE.en.md` is not a terminology appendix — it is the conceptual entry point for this project. It defines how Loombound describes semantic layers, processing cores, runtime objects, and how these things flow through the system.
+`LANGUAGE.en.md` is not a terminology appendix — it is the conceptual entry point for this project.
+It defines how Loombound describes semantic layers, processing cores, runtime objects, and how these things flow through the system.
 
 → Full writeup: [docs/SEMANTIC_OS.en.md](docs/SEMANTIC_OS.en.md)
+
 
 ## Installation
 
@@ -49,19 +51,20 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 ./loombound arc-palette
 
 # 2. Generate a saga (Opus builds the graph, Haiku generates scene skeleton automatically)
-./loombound gen "Singapore underground hacker community"
-./loombound gen "Solar sail era archaeology" --tone "melancholic, poetic, space mystery with a hint of hope"
-./loombound gen "Debt hunter escape" --worldview "Jupiter orbital colonies ruled jointly by the Debt Guild and the Salvage Church"
+./loombound gen "Singapore underground hacker community" --lang zh
+./loombound gen "Solar sail era archaeology" --tone "melancholic, poetic, space mystery with a hint of hope" --lang zh
+./loombound gen "Debt hunter escape" --worldview "Jupiter orbital colonies ruled jointly by the Debt Guild and the Salvage Church" --lang zh
 
 # 3. Play (preloaded path: Haiku bearing classification + qwen2.5:7b local text expansion)
-# add --lang zh to generate Chinese scene text
-./loombound run
+# --lang zh generates Chinese scene text; omit for English
+./loombound run --lang zh   # Chinese
+./loombound run             # English
 
 # Specify a saga
-./loombound run --saga hunters_night_yharnam_last_lucid
+./loombound run --saga hunters_night_yharnam_last_lucid --lang zh
 
 # Limit waypoints for testing
-./loombound run --nodes 2
+./loombound run --nodes 2 --lang zh
 ```
 
 ---
@@ -74,7 +77,7 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 | **Per saga** | Claude Opus (C3) | Generate saga graph (waypoint topology, toll lexicon, rules, narration_table) |
 | **Per saga** | Claude Haiku (C2) | Generate scene skeletons (per-waypoint scene skeletons: scene_concept, option structure, no numeric values) |
 | **Runtime** | Claude Haiku (C2) | Bearing classifier: after each player choice → bearing ID + per-option effects + tolls for the next encounter (~$0.0013/call after cache hit) |
-| **Runtime** | qwen2.5:7b local (C1) | Scene expander: scene skeleton skeleton + bearing tendency → full scene prose |
+| **Runtime** | qwen2.5:7b local (C1) | Scene expander: scene skeleton + bearing tendency → full scene prose |
 
 Only `ANTHROPIC_API_KEY` + ollama (local qwen2.5:7b) required.
 
@@ -107,11 +110,11 @@ Ideal latency for each phase using the prompt-cache table-lookup pattern:
 | **Bearing classification** | Per choice (background) | Claude Haiku (C2, prompt cache hit) | **1–2 seconds** |
 | **Scene expansion** | Per encounter (background prefetch) | qwen2.5:7b local (C1) | **2–10 seconds** (with GPU) |
 
-C2's 1–2 seconds is dominated by network round-trip plus very short output (~10–30 tokens for the bearing ID). After a prompt cache hit, the cached table size has no effect on latency — only the new input tokens and output generation matter. With a capable GPU, C1 and C2 operate in the same latency range; both run in the background, so players rarely wait on them.
+C2's 1–2 seconds is dominated by network round-trip plus very short output (~10–30 tokens for the bearing ID). After a prompt cache hit, cached table size has no effect on latency. With a capable GPU, C1 and C2 operate in the same latency range; both run in the background, so players rarely wait on them.
 
 **C1 local speed depends entirely on hardware.** qwen2.5:7b requires ~4–5 GB VRAM to load at full precision:
 
-| Environment | Speed | Time per scene (~200 output tokens) |
+| Environment | Speed | Time per scene |
 |---|---|---|
 | GPU (RTX 3060 / 4060 tier) | 20–50 token/s | ~4–10 seconds |
 | GPU (RTX 4090 / A100 tier) | 60–100 token/s | ~2–3 seconds |
@@ -142,8 +145,7 @@ The author's local GPU is not up to the task — measured C1 latency falls in th
 ./loombound arc-palette                    # Generate global bearing enumeration (one-time)
 ./loombound clean-palette                  # Delete bearing enumeration
 
-./loombound gen "theme"                    # Default: Opus saga graph + Haiku scene skeleton
-./loombound gen "theme" --lang zh          # Generate Chinese narrative text
+./loombound gen "theme" --lang zh          # Default: Opus saga graph + Haiku scene skeleton
 ./loombound gen "theme" --skip-t1-cache    # Graph only, skip scene skeleton generation
 ./loombound gen "theme" --nodes 8          # Waypoint count (default: 6)
 ./loombound gen "theme" --tone "..."       # Set atmospheric tone
@@ -168,10 +170,10 @@ The author's local GPU is not up to the task — measured C1 latency falls in th
 ## Prerequisites
 
 ```bash
-cp .env.example .env   # then fill in your API keys
+cp .env.example .env   # fill in your API keys
 ```
 
-- `ANTHROPIC_API_KEY` in `.env` — required for both `gen` and `run`
+- `ANTHROPIC_API_KEY` — required for both `gen` and `run`
 - ollama running (`ollama serve`) with `ollama pull qwen2.5:7b` — required for `run` (C1 local expansion)
 
 > **Claude API required throughout.** `gen` uses Claude Opus (C3) to generate the saga graph; `run` uses Anthropic prompt caching for the C2 classifier. Both require `ANTHROPIC_API_KEY`.
@@ -189,4 +191,4 @@ All LLM calls are recorded in `logs/llm.md` with token counts, cost, and cache h
 
 ---
 
-The C0/C1/C2/C3 processing core hierarchy and A0–A3 data semantic layers used in this project are inspired by the author's another ongoing project.
+The LLM layered architecture used in this game (C0/C1/C2/C3 processing cores, A0–A3 data semantic layers) is inspired by a separate ongoing project by the author.

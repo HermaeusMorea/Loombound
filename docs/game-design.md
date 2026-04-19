@@ -152,6 +152,6 @@ data/
 | `src/t0/core/` | C0 | enforcement、rule_engine、state_adapter、signal_interpretation |
 | `src/t1/core/` | C1 | C1 expander（qwen2.5:7b 场景文字展开）、prompts、ollama transport |
 | `src/t2/memory/` | A2 | bearing 条目、toll lexicon 等数据模型（a2_store） |
-| `src/t2/core/` | C2 | m2_classifier、prefetch、gen_a1_cache_table、collector |
-| `src/t3/core/` | C3 | saga 生成逻辑（generate_campaign、gen_a2_cache_table） |
-| `src/runtime/` | 组装点 | play_cli、session、campaign；可 import 全部层的唯一位置 |
+| `src/t2/core/` | C2 | m2_decision_engine、arc_state、prefetch、prefetch_seed_merge、gen_scene_skeletons、collector |
+| `src/t3/core/` | C3 | saga 生成逻辑（generate_saga、gen_arc_state_catalog） |
+| `src/runtime/` | 组装点 | play_cli、play_encounter、play_bootstrap、saga_loader、session、play_runtime；可 import 全部层的唯一位置 |

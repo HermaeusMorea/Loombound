@@ -1,4 +1,5 @@
-from src.runtime.play_cli import _parse_encounters, _overlay_effects
+from src.runtime.play_cli import _parse_encounters
+from src.runtime.play_encounter import _overlay_effects
 
 
 # ---------------------------------------------------------------------------

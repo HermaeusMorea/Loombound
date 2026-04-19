@@ -47,17 +47,17 @@ def validate_graph(
 
     if expected_node_count is not None and len(node_ids) != expected_node_count:
         errors.append(
-            f"Expected exactly {expected_node_count} unique nodes, got {len(node_ids)}"
+            f"Expected exactly {expected_node_count} unique waypoints, got {len(node_ids)}"
         )
 
-    for node in nodes:
-        for ref in node.get("next_waypoints", []):
+    for waypoint in nodes:
+        for ref in waypoint.get("next_waypoints", []):
             if ref not in node_ids:
                 errors.append(
-                    f"'{node.get('waypoint_id', '<missing>')}' → '{ref}': referenced node does not exist"
+                    f"'{waypoint.get('waypoint_id', '<missing>')}' → '{ref}': referenced waypoint does not exist"
                 )
 
     if not any(not n.get("next_waypoints") for n in nodes):
-        errors.append("No terminal nodes (next_waypoints: []) — saga has no ending")
+        errors.append("No terminal waypoints (next_waypoints: []) — saga has no ending")
 
     return errors

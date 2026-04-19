@@ -288,7 +288,7 @@ def render_run_intro(saga: dict[str, Any]) -> None:
 
 
 def render_node_header(run: Any, saga_waypoint: dict[str, Any]) -> None:
-    """Render the active node header and map blurb."""
+    """Render the active waypoint header and map blurb."""
 
     _clear_screen()
     width = min(_screen_width(), 110)

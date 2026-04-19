@@ -3,7 +3,7 @@
 Strategy (PRISM timing pattern adapted for Loombound):
   - When player enters Waypoint N, trigger background generation of Waypoint N+1 content.
   - Generation runs in a daemon thread while the player plays through Waypoint N.
-  - When _play_node loads Waypoint N+1, it checks the cache first.
+  - When _play_waypoint loads Waypoint N+1, it checks the cache first.
   - Cache hit  → use LLM-generated encounter payloads instead of authored JSON.
   - Cache miss → fall back to authored JSON as before (no regression).
 
@@ -48,66 +48,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from src.t1.core import C1Expander, C1Config
 from .m2_decision_engine import M2DecisionEngine
-from .types import EncounterSeed, EncounterOptionSeed, WaypointSeedPack, PrefetchEntry
+from .prefetch_seed_merge import arc_row_to_tendency as _arc_row_to_tendency, merge_preloaded_seed as _merge_preloaded_seed
+from .types import EncounterSeed, WaypointSeedPack, PrefetchEntry
 
 log = logging.getLogger(__name__)
-
-
-def _arc_row_to_tendency(arc_row: Any) -> dict[str, str]:
-    """Convert a T2 cache entry into a Fast Core tendency payload."""
-
-    return {
-        "entry_id": str(getattr(arc_row, "entry_id", "")),
-        "arc_trajectory": getattr(arc_row, "arc_trajectory", ""),
-        "world_pressure": getattr(arc_row, "world_pressure", ""),
-        "narrative_pacing": getattr(arc_row, "narrative_pacing", ""),
-        "pending_intent": getattr(arc_row, "pending_intent", ""),
-    }
-
-
-def _merge_preloaded_seed(
-    skeleton: Any,
-    arc_row: Any,
-) -> EncounterSeed:
-    """Blend a scene skeleton with the runtime arc-state tendency.
-
-    Effects in the seed come from the T1 cache (Haiku-generated placeholders).
-    Haiku per-option effects are applied separately at play time via play_cli's
-    _overlay_effects, which patches the expanded payload dict directly.
-    """
-    raw_options = skeleton.options or []
-    arb_options = [
-        EncounterOptionSeed(
-            option_id=o.get("option_id", f"opt_{i}"),
-            intent=o.get("intent", ""),
-            tags=o.get("tags", []),
-            effects=o.get("effects", {}),
-        )
-        for i, o in enumerate(raw_options)
-    ]
-
-    tendency = _arc_row_to_tendency(arc_row)
-    tendency_text = (
-        f"arc_trajectory={tendency['arc_trajectory']}, "
-        f"world_pressure={tendency['world_pressure']}, "
-        f"narrative_pacing={tendency['narrative_pacing']}, "
-        f"pending_intent={tendency['pending_intent']}"
-    )
-
-    return EncounterSeed(
-        scene_type=skeleton.scene_type,
-        scene_concept=(
-            f"{skeleton.scene_concept}\n"
-            f"Runtime arc tendency to honor: {tendency_text}."
-        ),
-        sanity_axis=(
-            f"{skeleton.sanity_axis}\n"
-            f"Current dramatic emphasis: {tendency['world_pressure']} pressure, "
-            f"{tendency['narrative_pacing']} pacing, {tendency['pending_intent']} intent."
-        ),
-        options=arb_options,
-        tendency=tendency,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +83,7 @@ class PrefetchCache:
         fast_cfg = fast_cfg or C1Config()
         fast_cfg.lang = lang
         self._fast = C1Expander(fast_cfg)
-        self._arc = ArcStateTracker(m2_engine) if m2_classifier else None
+        self._arc = ArcStateTracker(m2_engine) if m2_engine else None
 
         # Node content cache
         self._cache: dict[str, PrefetchEntry] = {}

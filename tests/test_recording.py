@@ -61,7 +61,7 @@ def test_record_choice_accumulates_sanity() -> None:
                   selected_rule_theme=None, selected_result=_result(sanity_cost=2))
     record_choice(node, encounter=_enc(), selected_rule_id=None,
                   selected_rule_theme=None, selected_result=_result(sanity_cost=3))
-    assert node.sanity_lost_in_node == 5
+    assert node.sanity_lost_in_waypoint == 5
 
 
 def test_record_choice_safe_reason_adds_flag() -> None:
@@ -88,7 +88,7 @@ def test_record_choice_destabilizing_sets_flag_and_shock() -> None:
                   selected_rule_theme=None, selected_result=_result(toll="destabilizing"))
     assert node.choices_made[0].destabilized is True
     assert "took_destabilizing_option" in node.choices_made[0].local_flags
-    assert len(node.shocks_in_node) == 1
+    assert len(node.shocks_in_waypoint) == 1
 
 
 def test_destabilizing_adds_to_important_flags() -> None:
@@ -102,4 +102,4 @@ def test_stable_does_not_add_shock() -> None:
     node = _node()
     record_choice(node, encounter=_enc(), selected_rule_id=None,
                   selected_rule_theme=None, selected_result=_result(toll="stable"))
-    assert node.shocks_in_node == []
+    assert node.shocks_in_waypoint == []

@@ -3,7 +3,7 @@
 Called automatically by generate_saga.py after the saga graph is built.
 Can also be run standalone to regenerate scene skeletons for an existing saga.
 
-Calls Claude Haiku in batches of 3 nodes per call. Produces one entry per node
+Calls Claude Haiku in batches of 3 waypoints per call. Produces one entry per waypoint
 containing scene_concept, sanity_axis, and option intents — no numeric effect
 values. Effect values are assigned at runtime by the M2 arc classifier (Haiku).
 
@@ -119,8 +119,8 @@ You are a narrative scene designer for a roguelite game.
 Your task: generate stable, tendency-flexible scene skeletons for the nodes listed below.
 
 Rules:
-- Call generate_scene_skeletons exactly once with ALL the nodes given to you in this message.
-- Each node must have EXACTLY the number of encounters specified.
+- Call generate_scene_skeletons exactly once with ALL the waypoints given to you in this message.
+- Each waypoint must have EXACTLY the number of encounters specified.
 - scene_concept: what physically happens — specific but not locked to one dramatic outcome.
 - sanity_axis: one short phrase naming the psychological tension (e.g. "loyalty vs survival"). Do NOT analyze or explain it — just name it. Runtime Fast Core will develop it into prose.
 - Do not hardcode a single dramatic tendency; runtime arc state will modulate these later.
@@ -144,15 +144,15 @@ def _build_scene_skeletons_user_msg(
     """
     node_lines = []
     expected: dict[str, int] = {}
-    for node in nodes_raw:
-        nid = node["waypoint_id"]
-        arb_n = int(node.get("encounter_count", 1))
+    for waypoint in nodes_raw:
+        nid = waypoint["waypoint_id"]
+        arb_n = int(waypoint.get("encounter_count", 1))
         expected[nid] = arb_n
         node_lines.append(
-            f"  - waypoint_id: {nid}  waypoint_type: {node.get('waypoint_type', '')}  "
-            f"depth: {node.get('depth', 1)}  encounters_required: {arb_n}\n"
-            f"    label: {node.get('label', '')}\n"
-            f"    map_blurb: {node.get('map_blurb', '')}"
+            f"  - waypoint_id: {nid}  waypoint_type: {waypoint.get('waypoint_type', '')}  "
+            f"depth: {waypoint.get('depth', 1)}  encounters_required: {arb_n}\n"
+            f"    label: {waypoint.get('label', '')}\n"
+            f"    map_blurb: {waypoint.get('map_blurb', '')}"
         )
 
     lang_note = (
@@ -164,8 +164,8 @@ def _build_scene_skeletons_user_msg(
         f"Tone: {tone}\n"
         f"Premise: {intro}\n\n"
         f"{lang_note}"
-        f"Generate T1 cache skeletons for ALL {len(nodes_raw)} nodes listed below.\n"
-        f"Each node must have EXACTLY the specified number of encounters.\n\n"
+        f"Generate T1 cache skeletons for ALL {len(nodes_raw)} waypoints listed below.\n"
+        f"Each waypoint must have EXACTLY the specified number of encounters.\n\n"
         + "\n".join(node_lines)
     )
     return user_msg, expected
@@ -174,18 +174,18 @@ def _build_scene_skeletons_user_msg(
 def _validate_scene_skeletons_response(raw: dict, expected: dict[str, int]) -> list[str]:
     """Return a list of validation error strings (empty = valid).
 
-    Checks both structure (node presence, encounter count) and content
+    Checks both structure (waypoint presence, encounter count) and content
     (non-empty scene_concept, sanity_axis, and option intents/ids).
     """
     result_nodes = raw.get("waypoints", [])
     result_by_id = {n["waypoint_id"]: n for n in result_nodes if isinstance(n, dict)}
     errors: list[str] = []
     for nid, want in expected.items():
-        got_node = result_by_id.get(nid)
-        if got_node is None:
+        got_waypoint = result_by_id.get(nid)
+        if got_waypoint is None:
             errors.append(f"missing waypoint_id={nid}")
             continue
-        arbs = got_node.get("encounters", [])
+        arbs = got_waypoint.get("encounters", [])
         got = len(arbs)
         if got != want:
             errors.append(f"{nid}: expected {want} encounters, got {got}")
@@ -277,7 +277,7 @@ async def _generate_scene_skeletons(
                 return accumulated or None
             continue
 
-        # Stamp node metadata client-side (keeps T1 cache self-contained)
+        # Stamp waypoint metadata client-side (keeps T1 cache self-contained)
         node_meta = {n["waypoint_id"]: n for n in nodes_raw}
         scene_skeletons: list[dict] = []
         for n in accumulated + result_nodes:
@@ -391,10 +391,10 @@ def main() -> None:
     nodes_list = list(saga.get("waypoints", {}).values()) if isinstance(saga["waypoints"], dict) \
         else saga.get("nodes", [])
 
-    for node in nodes_list:
-        if "encounter_count" not in node:
-            node["encounter_count"] = node.get("encounters", 1) if isinstance(
-                node.get("encounters"), int) else 1
+    for waypoint in nodes_list:
+        if "encounter_count" not in waypoint:
+            waypoint["encounter_count"] = waypoint.get("encounters", 1) if isinstance(
+                waypoint.get("encounters"), int) else 1
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:

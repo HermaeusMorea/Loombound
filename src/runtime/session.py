@@ -89,9 +89,9 @@ class Waypoint:
         event_count = len(memory.events) if memory else 0
         chosen_option_ids = [item.player_choice for item in memory.choices_made if item.player_choice] if memory else []
         selected_rule_ids = [item.active_rule_id for item in memory.choices_made if item.active_rule_id] if memory else []
-        shock_count = len(memory.shocks_in_node) if memory else 0
+        shock_count = len(memory.shocks_in_waypoint) if memory else 0
         summary_flags = important_flags or (memory.important_flags.copy() if memory else [])
-        summary_sanity = sanity_delta or (memory.sanity_lost_in_node if memory else 0)
+        summary_sanity = sanity_delta or (memory.sanity_lost_in_waypoint if memory else 0)
         return WaypointSummary(
             waypoint_id=self.waypoint_id,
             waypoint_type=self.waypoint_type,

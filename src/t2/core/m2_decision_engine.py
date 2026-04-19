@@ -213,13 +213,13 @@ class M2DecisionEngine:
 
     def __init__(
         self,
-        config: M2DecisionConfig | None = None,
+        cfg: M2DecisionConfig | None = None,
         arc_state_catalog_json: str = "[]",
         scene_option_index_json: str = "",
         toll_lexicon_json: str = "",
         rules_json: str = "",
     ) -> None:
-        self._cfg = config or M2DecisionConfig()
+        self._cfg = cfg or M2DecisionConfig()
         self._arc_state_catalog_json = arc_state_catalog_json
         self._scene_option_index_json = scene_option_index_json
         self._toll_lexicon_json = toll_lexicon_json

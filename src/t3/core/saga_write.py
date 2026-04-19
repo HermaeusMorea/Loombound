@@ -24,15 +24,15 @@ def write_saga(data: dict, out_name: str, generation_context: dict | None = None
     nodes_dir.mkdir(parents=True, exist_ok=True)
 
     saga_nodes: dict = {}
-    for node in nodes_raw:
-        nid = node["waypoint_id"]
+    for waypoint in nodes_raw:
+        nid = waypoint["waypoint_id"]
         saga_nodes[nid] = {
-            "label":         node["label"],
-            "map_blurb":     node["map_blurb"],
-            "waypoint_type": node["waypoint_type"],
-            "depth":         node["depth"],
-            "encounters":    node["encounter_count"],
-            "next_waypoints": node["next_waypoints"],
+            "label":         waypoint["label"],
+            "map_blurb":     waypoint["map_blurb"],
+            "waypoint_type": waypoint["waypoint_type"],
+            "depth":         waypoint["depth"],
+            "encounters":    waypoint["encounter_count"],
+            "next_waypoints": waypoint["next_waypoints"],
         }
 
     saga_json = {
@@ -94,7 +94,7 @@ def print_graph(data: dict) -> None:
 
     print("\n  Saga graph:")
 
-    def _print_node(nid: str, prefix: str, is_last: bool) -> None:
+    def _print_waypoint(nid: str, prefix: str, is_last: bool) -> None:
         if nid not in nodes:
             print(f"{prefix}{'└─' if is_last else '├─'} [missing: {nid}]")
             return
@@ -111,10 +111,10 @@ def print_graph(data: dict) -> None:
         children = n.get("next_waypoints", [])
         child_prefix = prefix + ("   " if is_last else "│  ")
         for i, child in enumerate(children):
-            _print_node(child, child_prefix, i == len(children) - 1)
+            _print_waypoint(child, child_prefix, i == len(children) - 1)
 
-    _print_node(start, "  ", True)
+    _print_waypoint(start, "  ", True)
     terminal = [n["waypoint_id"] for n in data["waypoints"] if not n.get("next_waypoints")]
-    print(f"\n  Terminal node(s): {terminal}")
+    print(f"\n  Terminal waypoint(s): {terminal}")
     total_arbs = sum(n["encounter_count"] for n in data["waypoints"])
     print(f"  Total encounters: {total_arbs}")

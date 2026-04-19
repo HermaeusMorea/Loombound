@@ -31,7 +31,7 @@ def test_build_classifier_input_includes_partial_active_node_snapshot() -> None:
                 local_flags=["chose_greedy_option"],
             )
         ],
-        sanity_lost_in_node=1,
+        sanity_lost_in_waypoint=1,
         important_flags=["chose_greedy_option"],
     )
 

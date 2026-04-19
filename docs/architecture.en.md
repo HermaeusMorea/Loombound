@@ -74,53 +74,57 @@ Rule: **lower layers do not import higher layers**. `runtime/` is the sole assem
 ```
 src/
   runtime/         ← assembly point, imports all layers
-    play_cli.py          ← CLI main loop (_play_node, main)
+    play_cli.py          ← CLI main loop (_play_waypoint, main)
     play_encounter.py    ← encounter execution layer (_play_encounter, _overlay_effects)
+    play_bootstrap.py    ← CLI startup assembly (parse_play_args, build_prefetch_cache)
+    saga_loader.py       ← per-saga asset loading (LoadedSagaBundle, load_saga_bundle)
     session.py
-    saga.py
+    play_runtime.py
 
   t3/              ← C3 (Opus) + A3 data structures
     core/
-      generate_saga.py     ← saga generation orchestration
-      saga_prompt.py       ← tool schema, _build_user_msg, cost helpers
-      saga_validate.py     ← graph validation (validate_graph, _normalise)
-      saga_write.py        ← file writing (write_saga, print_graph)
-      gen_a2_cache_table.py  ← arc-state catalog generation
+      generate_saga.py        ← saga generation orchestration
+      saga_prompt.py          ← tool schema, _build_user_msg, cost helpers
+      saga_validate.py        ← graph validation (validate_graph, _normalise)
+      saga_write.py           ← file writing (write_saga, print_graph)
+      gen_arc_state_catalog.py ← arc-state catalog generation
 
   t2/              ← C2 (Haiku) + A2 data structures
     core/
-      m2_classifier.py       ← runtime bearing classifier
-      prefetch.py            ← background prefetch + bearing state tracking
-      gen_a1_cache_table.py  ← scene skeletons generation (per-saga)
-      collector.py           ← tendency state construction
-      types.py               ← EncounterSeed / PrefetchEntry
+      m2_decision_engine.py    ← runtime bearing classifier (M2DecisionEngine)
+      arc_state.py             ← background bearing classification thread (ArcStateTracker)
+      prefetch.py              ← waypoint content preload facade (PrefetchCache)
+      prefetch_seed_merge.py   ← pure helpers: arc-row → tendency, skeleton merge
+      gen_scene_skeletons.py   ← scene skeletons generation (Haiku, per-saga)
+      collector.py             ← C0 → tendency state construction
+      types.py                 ← EncounterSeed, PrefetchEntry, EncounterSlot
     memory/
-      a2_store.py            ← arc-state catalog / scene skeletons / A1 option index loader (includes ArcStateEntry, A1Entry, A1Store, RuntimeTableStore)
+      a2_store.py              ← arc-state catalog / scene skeletons loader (RuntimeTableStore)
 
   t1/              ← C1 (qwen2.5:7b) + A1 data structures
     core/
-      expander.py            ← C1 scene text expansion
-      prompts.py             ← C1 prompt construction
-      ollama.py              ← ollama /api/chat transport
+      expander.py              ← C1 scene text expansion
+      prompts.py               ← C1 prompt construction
+      ollama.py                ← ollama /api/chat transport
     memory/
-      a1_store.py            ← A1Entry data model
+      scene_history_store.py   ← SceneHistoryStore / SceneHistoryEntry (waypoint trajectory)
 
   t0/              ← C0 (deterministic) + A0 data structures
     core/
-      enforcement.py         ← toll → sanity_cost calculation
-      rule_matcher.py        ← RuleTemplate matching
-      rule_selector.py       ← candidate rule ranking (freshness penalty + priority)
-      rule_state.py          ← runtime rule system state (Run / Waypoint level)
-      context_builder.py     ← EncounterContext construction
-      signals.py             ← deterministic signal extraction from encounter input
-      effects.py             ← option effects application (health / money / sanity delta)
-      cli.py                 ← terminal rendering (HUD, options, narration)
+      enforcement.py           ← toll → sanity_cost calculation
+      rule_matcher.py          ← RuleTemplate matching
+      rule_selector.py         ← candidate rule ranking (freshness penalty + priority)
+      rule_state.py            ← runtime rule system state (Run / Waypoint level)
+      context_builder.py       ← EncounterContext construction
+      signals.py               ← deterministic signal extraction from encounter input
+      effects.py               ← option effects application (health / money / sanity delta)
+      cli.py                   ← terminal rendering (HUD, options, narration)
     memory/
-      models.py              ← CoreState, EncounterContext, OptionResult and other core models
-      types.py               ← WaypointMemory, NodeChoiceRecord, etc.
-      encounter.py           ← Encounter data structure and lifecycle
-      run_memory.py          ← RunMemory operations
-      recording.py           ← choice record write-back
+      models.py                ← CoreState, EncounterContext, OptionResult and other core models
+      types.py                 ← WaypointMemory, WaypointChoiceRecord, etc.
+      encounter.py             ← Encounter data structure and lifecycle
+      run_memory.py            ← RunMemory operations (update_after_waypoint)
+      recording.py             ← choice record write-back
 ```
 
 **Forbidden import directions:**

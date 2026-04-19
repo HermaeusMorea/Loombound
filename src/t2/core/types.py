@@ -113,7 +113,7 @@ class PrefetchEntry:
     waypoint_id: str
     status: PrefetchStatus = "pending"
     seed_pack: WaypointSeedPack | None = None
-    # Resolved encounter payloads in order — consumed by _play_node.
+    # Resolved encounter payloads in order — consumed by _play_waypoint.
     resolved: list[dict[str, Any]] = field(default_factory=list)
     error: str = ""
     created_at: datetime = field(default_factory=_now)

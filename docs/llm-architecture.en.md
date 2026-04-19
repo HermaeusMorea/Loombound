@@ -265,25 +265,35 @@ Full log: [logs/sample_deep_mine_cult_act1.md](../logs/sample_deep_mine_cult_act
 
 ```
 src/t3/core/
-├── generate_campaign.py    ← C3: saga generation (Opus)
-└── gen_a2_cache_table.py   ← C3: arc-state catalog generation (Opus, one-time)
+├── generate_saga.py         ← C3: saga generation (Opus)
+└── gen_arc_state_catalog.py ← C3: arc-state catalog generation (Opus, one-time)
 
 src/t2/core/
-├── m2_classifier.py        ← C2: runtime bearing classifier (Haiku, per-choice)
-├── prefetch.py             ← C1 + C2: background preload threads + bearing state tracking
-├── gen_a1_cache_table.py   ← C2: scene skeletons generation (Haiku, per-saga)
-├── collector.py            ← C0 → tendency state construction
-└── types.py                ← EncounterSeed / PrefetchEntry data types
+├── m2_decision_engine.py    ← C2: runtime bearing classifier (Haiku, per-choice)
+├── arc_state.py             ← C2: background bearing classification thread (ArcStateTracker)
+├── prefetch.py              ← C1 + C2: waypoint content preload facade (PrefetchCache)
+├── prefetch_seed_merge.py   ← pure helpers: arc-row → tendency dict, skeleton merge
+├── gen_scene_skeletons.py   ← C2: scene skeletons generation (Haiku, per-saga)
+├── collector.py             ← C0 → tendency state construction
+└── types.py                 ← EncounterSeed, PrefetchEntry, EncounterSlot
 
 src/t1/core/
-├── expander.py             ← C1: qwen2.5:7b scene text expansion
-├── prompts.py              ← C1 prompt construction
-└── ollama.py               ← C1 transport (ollama /api/chat)
+├── expander.py              ← C1: qwen2.5:7b scene text expansion
+├── prompts.py               ← C1 prompt construction
+└── ollama.py                ← C1 transport (ollama /api/chat)
+
+src/t1/memory/
+└── scene_history_store.py   ← SceneHistoryStore / SceneHistoryEntry (waypoint trajectory)
 
 src/t2/memory/
-├── a2_store.py             ← arc-state catalog / scene skeletons / A1 option index loading
-└── types.py                ← ArcStateEntry, A1Entry, A1Store, RuntimeTableStore
+└── a2_store.py              ← arc-state catalog / scene skeletons loader (RuntimeTableStore)
+
+src/runtime/
+├── play_cli.py              ← CLI main loop
+├── play_encounter.py        ← encounter execution layer
+├── play_bootstrap.py        ← CLI startup assembly (parse_play_args, build_prefetch_cache)
+└── saga_loader.py           ← per-saga asset loading (LoadedSagaBundle)
 
 src/t0/memory/
-└── models.py               ← CoreState, EncounterContext, OptionResult and other core data models
+└── models.py                ← CoreState, EncounterContext, OptionResult and other core data models
 ```

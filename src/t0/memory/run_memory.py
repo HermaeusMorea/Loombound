@@ -13,12 +13,12 @@ from .types import (
 )
 
 
-def update_after_node(run_memory: RunMemory, node_memory: WaypointMemory) -> RunMemory:
+def update_after_waypoint(run_memory: RunMemory, waypoint_memory: WaypointMemory) -> RunMemory:
     """Promote the important outcome of one finished waypoint into run memory."""
 
-    run_memory.sanity += node_memory.sanity_lost_in_node
+    run_memory.sanity += waypoint_memory.sanity_lost_in_waypoint
 
-    for choice in node_memory.choices_made:
+    for choice in waypoint_memory.choices_made:
         if choice.active_rule_id:
             run_memory.recent_rules.append(choice.active_rule_id)
 
@@ -31,18 +31,18 @@ def update_after_node(run_memory: RunMemory, node_memory: WaypointMemory) -> Run
 
     run_memory.recent_rules = run_memory.recent_rules[-5:]
 
-    if node_memory.shocks_in_node:
-        run_memory.recent_shocks.extend(node_memory.shocks_in_node)
+    if waypoint_memory.shocks_in_waypoint:
+        run_memory.recent_shocks.extend(waypoint_memory.shocks_in_waypoint)
         run_memory.recent_shocks = run_memory.recent_shocks[-5:]
-        run_memory.narrator_mood.severity += len(node_memory.shocks_in_node)
+        run_memory.narrator_mood.severity += len(waypoint_memory.shocks_in_waypoint)
         run_memory.narrator_mood.dread += 1
-        if any("greedy" in flag for record in node_memory.shocks_in_node for flag in record.flags):
+        if any("greedy" in flag for record in waypoint_memory.shocks_in_waypoint for flag in record.flags):
             run_memory.narrator_mood.temptation += 1
     else:
         run_memory.narrator_mood.leniency += 1
 
-    if node_memory.node_summary:
-        run_memory.important_incidents.append(node_memory.node_summary)
+    if waypoint_memory.waypoint_summary:
+        run_memory.important_incidents.append(waypoint_memory.waypoint_summary)
         run_memory.important_incidents = run_memory.important_incidents[-5:]
 
     return run_memory
@@ -62,6 +62,6 @@ __all__ = [
     "WaypointMemory",
     "RunMemory",
     "ShockRecord",
-    "update_after_node",
+    "update_after_waypoint",
     "run_memory_to_dict",
 ]

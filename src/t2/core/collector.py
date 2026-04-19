@@ -63,7 +63,7 @@ def build_scene_history_entry(
     """Translate completed waypoint data into a tendency-level SceneHistoryEntry.
 
     All logic is deterministic; no LLM is involved.
-    Called from play_cli immediately after update_after_node().
+    Called from play_cli immediately after update_after_waypoint().
     """
     # pressure_level: derive from current sanity band
     pressure_level = _band(core_state.sanity, 0, 100)
@@ -78,7 +78,7 @@ def build_scene_history_entry(
     pressure_level = pressure_map.get(pressure_level, "moderate")
 
     # resource_trajectory: sanity lost this waypoint + cumulative mood
-    sanity_lost = waypoint_memory.sanity_lost_in_node
+    sanity_lost = waypoint_memory.sanity_lost_in_waypoint
     severity = run_memory.narrator_mood.severity
     if sanity_lost >= config.SANITY_CRITICAL_THRESHOLD or severity >= config.MOOD_SEVERITY_HIGH:
         resource_trajectory = "critical"
@@ -90,7 +90,7 @@ def build_scene_history_entry(
         resource_trajectory = "stable"
 
     # outcome_class
-    if waypoint_memory.shocks_in_node:
+    if waypoint_memory.shocks_in_waypoint:
         outcome_class = "turbulent"
     elif waypoint_memory.important_flags:
         outcome_class = "deepened"
@@ -195,7 +195,7 @@ def _build_state_sections(
         )
         sections.append(
             f"  encounters_resolved={len(current_waypoint_memory.choices_made)}"
-            f" sanity_lost={current_waypoint_memory.sanity_lost_in_node}"
+            f" sanity_lost={current_waypoint_memory.sanity_lost_in_waypoint}"
         )
         if current_waypoint_memory.important_flags:
             sections.append(

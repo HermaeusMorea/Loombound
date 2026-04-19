@@ -2,26 +2,23 @@
 
 from __future__ import annotations
 
-import argparse
 import logging
 import os
-import sys
 from pathlib import Path
 
 from src.shared.dotenv import load_dotenv
-from src.t0.memory import append_node_event, update_after_node
-from src.t2.core import M2DecisionEngine, M2DecisionConfig, PrefetchCache
+from src.t0.memory import append_node_event, update_after_waypoint
+from src.t2.core import PrefetchCache
 from src.t2.core.collector import build_classifier_input, build_scene_history_entry
-from src.t1.core import C1Config
 from src.t0.core import (
     render_map_hud,
     render_node_header,
     render_run_complete,
     render_run_intro,
     render_input_panel,
+    pause,
 )
 from src.runtime.play_runtime import (
-    REPO_ROOT,
     choose_index,
     make_run,
     resolve_asset_path,
@@ -31,8 +28,9 @@ from src.t0.core import (
     load_json_asset,
     validate_encounter_asset,
 )
-from src.runtime.play_encounter import _overlay_effects, _play_encounter
+from src.runtime.play_encounter import _play_encounter
 from src.runtime.saga_loader import load_saga_bundle
+from src.runtime.play_bootstrap import parse_play_args, build_prefetch_cache
 
 
 log = logging.getLogger(__name__)
@@ -53,7 +51,7 @@ def _parse_encounters(waypoint_spec: dict) -> tuple[int, list[dict]]:
     return 0, field
 
 
-def _play_node(
+def _play_waypoint(
     run,
     saga: dict[str, object],
     saga_waypoint: dict[str, object],
@@ -114,17 +112,17 @@ def _play_node(
             narration_table=narration_table,
         )
 
-    waypoint.memory.node_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_encounters:sanity={waypoint.memory.sanity_lost_in_node}"
+    waypoint.memory.waypoint_summary = f"{waypoint.waypoint_type}:{len(waypoint.memory.choices_made)}_encounters:sanity={waypoint.memory.sanity_lost_in_waypoint}"
     append_node_event(
         waypoint.memory,
         "node_finalized",
         waypoint_id=waypoint.waypoint_id,
         encounter_count=len(waypoint.memory.choices_made),
-        sanity_lost=waypoint.memory.sanity_lost_in_node,
+        sanity_lost=waypoint.memory.sanity_lost_in_waypoint,
     )
-    update_after_node(run.memory, waypoint.memory)
+    update_after_waypoint(run.memory, waypoint.memory)
     run.memory.scene_history.push(build_scene_history_entry(run.core_state, run.memory, waypoint.memory))
-    summary = waypoint.build_summary(sanity_delta=waypoint.memory.sanity_lost_in_node)
+    summary = waypoint.build_summary(sanity_delta=waypoint.memory.sanity_lost_in_waypoint)
     run.close_current_waypoint(summary=summary)
     return waypoint.memory
 
@@ -180,58 +178,8 @@ def _collect_lookahead_targets(saga: dict[str, object], next_nodes: list[str]) -
 def main() -> None:
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Play a Loombound saga. Requires ANTHROPIC_API_KEY and ollama (qwen2.5:7b).")
-    parser.add_argument("--saga", type=Path, default=None, help="Path to a saga JSON file.")
-    parser.add_argument("--nodes", type=int, default=None, metavar="N", help="Maximum number of nodes to play (default: unlimited).")
-    parser.add_argument("--lang", choices=["en", "zh"], default="en", help="Generated content language (default: en).")
-    parser.add_argument(
-        "--fast",
-        dest="fast_model",
-        default=None,
-        metavar="MODEL",
-        help="Fast Core ollama model for text expansion (default: qwen2.5:7b). "
-             "Can also be set via FAST_CORE_MODEL env var.",
-    )
-    args = parser.parse_args()
-
-    if args.saga is None:
-        sagas_dir = REPO_ROOT / "data" / "sagas"
-        candidates = sorted(
-            [p for p in sagas_dir.glob("*.json") if not p.stem.endswith(("_toll_lexicon", "_rules", "_narration_table"))],
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        ) if sagas_dir.exists() else []
-        if not candidates:
-            print(
-                "No saga found. Generate one first:\n"
-                "\n"
-                "  ./loombound gen \"your theme\"\n"
-                "\n"
-                "Requires ANTHROPIC_API_KEY in .env.\n"
-                "\n"
-                "  cp .env.example .env   # then fill in ANTHROPIC_API_KEY",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        args.saga = candidates[0]
-        print(f"No --saga specified. Using most recent: {candidates[0].stem}")
-
-    # --- Startup check: Claude API key required ---
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print(
-            "Error: ANTHROPIC_API_KEY is not set.\n"
-            "Loombound requires a Claude API key to run.\n"
-            "Set it in .env: ANTHROPIC_API_KEY=sk-ant-...",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=logging.WARNING,
-        format="\033[2m[%(levelname)s %(name)s] %(message)s\033[0m",
-    )
+    args = parse_play_args()
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
     bundle = load_saga_bundle(Path(args.saga))
     saga, saga_id_str = bundle.saga, bundle.saga_id
@@ -247,23 +195,8 @@ def main() -> None:
     run.rule_system.set_templates(rules)
     run.memory.tables = bundle.tables
 
-    fast_model = (
-        args.fast_model
-        or os.environ.get("FAST_CORE_MODEL", "qwen2.5:7b")
-    )
-    fast_cfg = C1Config(
-        model=fast_model,
-        lang=args.lang,
-        tone=saga.get("tone") or None,
-    )
-
-    # Build M2Classifier if arc-state catalog is loaded (provides the cached prefix)
-    m2_engine: M2DecisionEngine | None = None
-    if bundle.tables.arc_state_catalog:
-        m2_cfg = M2DecisionConfig(api_key=api_key)
-        m2_engine = M2DecisionEngine(config=m2_cfg, **bundle.m2_engine_args())
-
-    prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=args.lang, m2_engine=m2_engine)
+    fast_model = args.fast_model or os.environ.get("FAST_CORE_MODEL", "qwen2.5:7b")
+    prefetch = build_prefetch_cache(bundle, api_key, args.lang, fast_model, saga.get("tone") or None)
     prefetch.warmup()
 
     current_waypoint_id = saga["start_waypoint_id"]
@@ -297,7 +230,7 @@ def main() -> None:
                     run=run,
                 )
 
-            _play_node(
+            _play_waypoint(
                 run,
                 saga,
                 saga_waypoint,

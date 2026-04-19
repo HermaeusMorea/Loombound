@@ -1,4 +1,4 @@
-"""Runtime rule-system state for runs and nodes."""
+"""Runtime rule-system state for runs and waypoints."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from src.t0.memory import RuleEvaluation, RuleTemplate
 
 @dataclass(slots=True)
 class RuleSystem:
-    """Run-scoped rule system state shared across nodes."""
+    """Run-scoped rule system state shared across waypoints."""
 
     templates: list[RuleTemplate] = field(default_factory=list)
     recently_used_rule_ids: list[str] = field(default_factory=list)
@@ -32,7 +32,7 @@ class RuleSystem:
 
 @dataclass(slots=True)
 class WaypointRuleState:
-    """Node-scoped rule state for one scene lifecycle."""
+    """Waypoint-scoped rule state for one scene lifecycle."""
 
     available_rule_ids: list[str] = field(default_factory=list)
     candidate_rule_ids: list[str] = field(default_factory=list)
@@ -40,7 +40,7 @@ class WaypointRuleState:
     selection_trace: list[str] = field(default_factory=list)
 
     def reset_for_encounter(self) -> None:
-        """Clear per-encounter fields while keeping node-level availability."""
+        """Clear per-encounter fields while keeping waypoint-level availability."""
 
         self.candidate_rule_ids = []
         self.selected_rule_id = None
@@ -52,7 +52,7 @@ class WaypointRuleState:
         self.candidate_rule_ids = [item.rule.id for item in evaluations if item.matched]
 
     def record_selected_rule(self, rule_id: str | None) -> None:
-        """Remember the winning rule inside the current node."""
+        """Remember the winning rule inside the current waypoint."""
 
         self.selected_rule_id = rule_id
 

@@ -150,8 +150,9 @@ data/
 |---|---|---|
 | `src/t0/memory/` | A0 | CoreState, RunMemory, WaypointMemory and other data models |
 | `src/t0/core/` | C0 | enforcement, rule_engine, state_adapter, signal_interpretation |
+| `src/t1/memory/` | A1 | scene_concept, option skeleton data models (SceneHistoryStore) |
 | `src/t1/core/` | C1 | C1 expander (qwen2.5:7b scene text expansion), prompts, ollama transport |
-| `src/t2/memory/` | A2 | bearing entries, toll lexicon and other data models (a2_store) |
-| `src/t2/core/` | C2 | m2_classifier, prefetch, gen_a1_cache_table, collector |
-| `src/t3/core/` | C3 | saga generation logic (generate_campaign, gen_a2_cache_table) |
-| `src/runtime/` | assembly | play_cli, session, campaign; the only location allowed to import all layers |
+| `src/t2/memory/` | A2 | bearing entries, toll lexicon and other data models (a2_store, RuntimeTableStore) |
+| `src/t2/core/` | C2 | m2_decision_engine, arc_state, prefetch, prefetch_seed_merge, gen_scene_skeletons, collector |
+| `src/t3/core/` | C3 | saga generation logic (generate_saga, gen_arc_state_catalog) |
+| `src/runtime/` | assembly | play_cli, play_encounter, play_bootstrap, saga_loader, session; the only location allowed to import all layers |

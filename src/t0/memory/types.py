@@ -1,4 +1,4 @@
-"""Memory-layer dataclasses shared by node and run lifecycles."""
+"""Memory-layer dataclasses shared by waypoint and run lifecycles."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from src.t2.memory.a2_store import RuntimeTableStore
 
 @dataclass(slots=True)
 class NodeEvent:
-    """Structured event captured during one node lifecycle."""
+    """Structured event captured during one waypoint lifecycle."""
 
     event_type: str
     payload: dict[str, Any] = field(default_factory=dict)
@@ -19,7 +19,7 @@ class NodeEvent:
 
 @dataclass(slots=True)
 class WaypointChoiceRecord:
-    """One encounter-level choice recorded inside a node."""
+    """One encounter-level choice recorded inside a waypoint."""
 
     context_id: str
     scene_type: str
@@ -63,22 +63,22 @@ class JudgePersonaState:
 
 @dataclass(slots=True)
 class WaypointMemory:
-    """Short-lived memory for one full node lifecycle."""
+    """Short-lived memory for one full waypoint lifecycle."""
 
     waypoint_id: str
     waypoint_type: str
     depth: int
     events: list[NodeEvent] = field(default_factory=list)
     choices_made: list[WaypointChoiceRecord] = field(default_factory=list)
-    shocks_in_node: list[ShockRecord] = field(default_factory=list)
-    sanity_lost_in_node: int = 0
+    shocks_in_waypoint: list[ShockRecord] = field(default_factory=list)
+    sanity_lost_in_waypoint: int = 0
     important_flags: list[str] = field(default_factory=list)
-    node_summary: str = ""
+    waypoint_summary: str = ""
 
 
 @dataclass(slots=True)
 class RunMemory:
-    """Long-lived run-scoped memory that survives across nodes."""
+    """Long-lived run-scoped memory that survives across waypoints."""
 
     sanity: int = 0
     recent_rules: list[str] = field(default_factory=list)

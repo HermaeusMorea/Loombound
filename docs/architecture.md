@@ -74,53 +74,57 @@ C2（Haiku，离线）
 ```
 src/
   runtime/         ← 组装点，import 全部层
-    play_cli.py          ← CLI 主循环（_play_node、main）
+    play_cli.py          ← CLI 主循环（_play_waypoint、main）
     play_encounter.py    ← encounter 执行层（_play_encounter、_overlay_effects）
+    play_bootstrap.py    ← CLI 启动装配（parse_play_args、build_prefetch_cache）
+    saga_loader.py       ← saga 资产加载（LoadedSagaBundle、load_saga_bundle）
     session.py
-    saga.py
+    play_runtime.py
 
   t3/              ← C3（Opus）+ A3 数据结构
     core/
-      generate_saga.py     ← saga 生成 orchestration
-      saga_prompt.py       ← tool schema、_build_user_msg、cost helpers
-      saga_validate.py     ← graph 校验（validate_graph、_normalise）
-      saga_write.py        ← 落盘（write_saga、print_graph）
-      gen_a2_cache_table.py  ← arc-state catalog 生成
+      generate_saga.py        ← saga 生成 orchestration
+      saga_prompt.py          ← tool schema、_build_user_msg、cost helpers
+      saga_validate.py        ← graph 校验（validate_graph、_normalise）
+      saga_write.py           ← 落盘（write_saga、print_graph）
+      gen_arc_state_catalog.py ← arc-state catalog 生成
 
   t2/              ← C2（Haiku）+ A2 数据结构
     core/
-      m2_classifier.py       ← 运行时 bearing 分类器
-      prefetch.py            ← 后台预载 + bearing 状态追踪
-      gen_a1_cache_table.py  ← scene skeletons 生成（per-saga）
-      collector.py           ← tendency state 构建
-      types.py               ← EncounterSeed / PrefetchEntry
+      m2_decision_engine.py    ← 运行时 bearing 分类器（M2DecisionEngine）
+      arc_state.py             ← 后台 bearing 分类线程（ArcStateTracker）
+      prefetch.py              ← waypoint 内容预载 facade（PrefetchCache）
+      prefetch_seed_merge.py   ← 纯计算：arc-row → tendency、skeleton 合并
+      gen_scene_skeletons.py   ← scene skeletons 生成（per-saga）
+      collector.py             ← tendency state 构建
+      types.py                 ← EncounterSeed、PrefetchEntry、EncounterSlot
     memory/
-      a2_store.py            ← arc-state catalog / scene skeletons / A1 option index 加载（含 ArcStateEntry、A1Entry、A1Store、RuntimeTableStore）
+      a2_store.py              ← arc-state catalog / scene skeletons 加载（RuntimeTableStore）
 
   t1/              ← C1（qwen2.5:7b）+ A1 数据结构
     core/
-      expander.py            ← C1 场景文本展开
-      prompts.py             ← C1 prompt 构建
-      ollama.py              ← ollama /api/chat transport
+      expander.py              ← C1 场景文本展开
+      prompts.py               ← C1 prompt 构建
+      ollama.py                ← ollama /api/chat transport
     memory/
-      a1_store.py            ← A1Entry 数据模型
+      scene_history_store.py   ← SceneHistoryStore / SceneHistoryEntry（waypoint 轨迹滑动窗口）
 
   t0/              ← C0（确定性）+ A0 数据结构
     core/
-      enforcement.py         ← toll → sanity_cost 计算
-      rule_matcher.py        ← RuleTemplate 匹配
-      rule_selector.py       ← 候选规则排序（freshness penalty + priority）
-      rule_state.py          ← 运行时规则系统状态（Run / Waypoint 级别）
-      context_builder.py     ← EncounterContext 构建
-      signals.py             ← encounter 输入的确定性信号提取
-      effects.py             ← 选项 effects 应用（health / money / sanity delta）
-      cli.py                 ← 终端渲染（HUD、选项、narration）
+      enforcement.py           ← toll → sanity_cost 计算
+      rule_matcher.py          ← RuleTemplate 匹配
+      rule_selector.py         ← 候选规则排序（freshness penalty + priority）
+      rule_state.py            ← 运行时规则系统状态（Run / Waypoint 级别）
+      context_builder.py       ← EncounterContext 构建
+      signals.py               ← encounter 输入的确定性信号提取
+      effects.py               ← 选项 effects 应用（health / money / sanity delta）
+      cli.py                   ← 终端渲染（HUD、选项、narration）
     memory/
-      models.py              ← CoreState、EncounterContext、OptionResult 等核心模型
-      types.py               ← WaypointMemory、NodeChoiceRecord 等
-      encounter.py           ← Encounter 数据结构与生命周期
-      run_memory.py          ← RunMemory 操作
-      recording.py           ← 选择记录写回
+      models.py                ← CoreState、EncounterContext、OptionResult 等核心模型
+      types.py                 ← WaypointMemory、WaypointChoiceRecord 等
+      encounter.py             ← Encounter 数据结构与生命周期
+      run_memory.py            ← RunMemory 操作（update_after_waypoint）
+      recording.py             ← 选择记录写回
 ```
 
 **禁止的方向：**
@@ -149,4 +153,4 @@ C2 永远不接触精确整数，只接触倾向带（low/moderate/high）和叙
 3. **C2 格式验证失败则 retry**（最多 2 次），不降级为确定性规则兜底
 4. **PrefetchCache 是唯一的跨-encounter 状态传递通道**（effects + tolls 存内存，不落文件）
 5. **narration_table 由 C3 per-saga 生成**（10–15 条，单句心理描述），rule.theme 必须是其中的 key
-6. **规则选择不使用主题分数**，仅按 `(-freshness_penalty, priority, id)` 排序
+

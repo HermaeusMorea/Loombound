@@ -1,10 +1,10 @@
-"""Tests for _play_node — authored encounter spec path (no LLM / no prefetch)."""
+"""Tests for _play_waypoint — authored encounter spec path (no LLM / no prefetch)."""
 
 import pytest
 
 from src.t0.memory import CoreStateView, MetaStateView
 from src.runtime.session import Run
-from src.runtime.play_cli import _play_node
+from src.runtime.play_cli import _play_waypoint
 import src.runtime.play_encounter  # noqa: F401 — imported to enable monkeypatching
 
 
@@ -74,24 +74,24 @@ def _saga() -> dict:
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_play_node_returns_waypoint_memory(monkeypatch) -> None:
+def test_play_waypoint_returns_waypoint_memory(monkeypatch) -> None:
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset", lambda _p: _authored_asset())
     run = _make_run()
-    result = _play_node(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
+    result = _play_waypoint(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
     from src.t0.memory.types import WaypointMemory
     assert isinstance(result, WaypointMemory)
 
 
-def test_play_node_closes_waypoint_and_adds_to_run_history(monkeypatch) -> None:
+def test_play_waypoint_closes_waypoint_and_adds_to_run_history(monkeypatch) -> None:
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset", lambda _p: _authored_asset())
     run = _make_run()
-    _play_node(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
+    _play_waypoint(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
     assert run.current_waypoint is None
     assert len(run.waypoint_history) == 1
     assert run.waypoint_history[0].waypoint_id == "node1:depth_02"
 
 
-def test_play_node_runs_two_authored_encounters(monkeypatch) -> None:
+def test_play_waypoint_runs_two_authored_encounters(monkeypatch) -> None:
     call_count = 0
 
     def _fake_asset(_p):
@@ -101,40 +101,40 @@ def test_play_node_runs_two_authored_encounters(monkeypatch) -> None:
 
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset", _fake_asset)
     run = _make_run()
-    memory = _play_node(run, _saga(), _waypoint_spec(num_encounters=2), rules=[], saga_waypoint_id="node1")
+    memory = _play_waypoint(run, _saga(), _waypoint_spec(num_encounters=2), rules=[], saga_waypoint_id="node1")
     assert len(memory.choices_made) == 2
 
 
-def test_play_node_updates_run_memory_sanity(monkeypatch) -> None:
+def test_play_waypoint_updates_run_memory_sanity(monkeypatch) -> None:
     # The single option has sanity_delta=0 and no rule cost → sanity unchanged,
-    # but run.memory.sanity accumulates node.sanity_lost_in_node (0) — just check it ran.
+    # but run.memory.sanity accumulates node.sanity_lost_in_waypoint (0) — just check it ran.
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset", lambda _p: _authored_asset())
     run = _make_run()
-    _play_node(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
+    _play_waypoint(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
     # run.memory.sanity starts at 0, node lost 0 → still 0
     assert run.memory.sanity == 0
 
 
-def test_play_node_node_summary_format(monkeypatch) -> None:
+def test_play_waypoint_node_summary_format(monkeypatch) -> None:
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset", lambda _p: _authored_asset())
     run = _make_run()
-    memory = _play_node(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
-    assert memory.node_summary.startswith("crossroads:")
-    assert "encounters" in memory.node_summary
-    assert "sanity=" in memory.node_summary
+    memory = _play_waypoint(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
+    assert memory.waypoint_summary.startswith("crossroads:")
+    assert "encounters" in memory.waypoint_summary
+    assert "sanity=" in memory.waypoint_summary
 
 
-def test_play_node_applies_money_effect_via_authored_payload(monkeypatch) -> None:
+def test_play_waypoint_applies_money_effect_via_authored_payload(monkeypatch) -> None:
     monkeypatch.setattr("src.runtime.play_cli.load_json_asset",
                         lambda _p: _authored_asset(money_delta=3))
     run = _make_run()
     assert run.core_state.money == 5
-    _play_node(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
+    _play_waypoint(run, _saga(), _waypoint_spec(), rules=[], saga_waypoint_id="node1")
     assert run.core_state.money == 8
 
 
-def test_play_node_llm_mode_without_prefetch_raises(monkeypatch) -> None:
+def test_play_waypoint_llm_mode_without_prefetch_raises(monkeypatch) -> None:
     spec = {"depth": 1, "waypoint_type": "crossroads", "encounters": 2}  # int → LLM mode
     run = _make_run()
     with pytest.raises(RuntimeError, match="Prefetch unavailable"):
-        _play_node(run, _saga(), spec, rules=[], prefetch=None, saga_waypoint_id="node1")
+        _play_waypoint(run, _saga(), spec, rules=[], prefetch=None, saga_waypoint_id="node1")
