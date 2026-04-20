@@ -10,6 +10,8 @@ A roguelite narrative engine driven by a three-layer AI architecture.
 
 `Loombound` is not the end product. It is a runnable vertical demo built to answer one question: if a program needs to continuously handle states like "meaning", "tendency", "narrative pressure", and "consequence semantics" that traditional software cannot natively express, how should the system be structured?
 
+> **Good layered design can dramatically reduce cost and improve runtime speed.** → [Cost Efficiency](#cost-efficiency) · [Runtime Speed](#runtime-speed)
+
 The choice of a narrative game as the demo vehicle is not because the goal is to make games — it is because text games are unusually good at exposing the genuinely hard problems of a semantic system.
 
 → If you only have time to read one document, start with [LANGUAGE.en.md](docs/LANGUAGE.en.md).
