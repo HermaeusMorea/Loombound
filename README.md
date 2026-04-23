@@ -1,5 +1,11 @@
 # Loombound
 
+> 项目状态
+> 本仓库保存的是 Loombound 的上一代可运行原型（V1）。
+> 它仍然可以运行，也仍然体现了项目的核心设计思路；
+> 但当前正在规划中的新架构将转向 Opus + Haiku + GPT-5.4-nano + 云端 qwen2.5。
+> 因此请将本仓库视为稳定参考版本，而不是最新架构实现。
+
 > English Version：[README.en.md](README.en.md)
 
 Roguelite 叙事游戏引擎，三层 AI 架构驱动。

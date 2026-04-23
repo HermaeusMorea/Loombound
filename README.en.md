@@ -1,5 +1,11 @@
 # Loombound
 
+> Project Status
+> This repository preserves the previous runnable Loombound prototype (V1).
+> It is still runnable and still reflects the core design ideas of the project;
+> however, the next planned architecture is moving toward Opus + Haiku + GPT-5.4-nano + cloud qwen2.5.
+> Treat this repository as a stable reference version, not the latest architecture implementation.
+
 > 中文版文档：[README.md](README.md)
 
 A roguelite narrative engine driven by a three-layer AI architecture.
