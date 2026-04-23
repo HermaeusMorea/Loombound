@@ -6,26 +6,26 @@
 > however, the next planned architecture is moving toward Opus + Haiku + GPT-5.4-nano + cloud qwen2.5.
 > Treat this repository as a stable reference version, not the latest architecture implementation.
 
-> 中文版文档：[README.md](README.md)
+> Chinese Version: [README.md](README.md)
 
 A roguelite narrative engine driven by a three-layer AI architecture.
 
 ## This Is Not Another AI App
 
-**Making AI the semantic computation core inside the system — not a question-answering interface bolted on from outside.**
+**Making AI the semantic computation core inside the system, rather than a question-answering interface bolted on from the outside.**
 
-`Loombound` is not the end product. It is a runnable vertical demo built to answer one question: if a program needs to continuously handle states like "meaning", "tendency", "narrative pressure", and "consequence semantics" that traditional software cannot natively express, how should the system be structured?
+`Loombound` is not the final product. It is a runnable vertical demo built to test one question: if a program needs to continuously process states like "meaning", "tendency", "narrative pressure", and "consequence semantics" that traditional software struggles to represent natively, how should the system be structured?
 
-**Good layered design can dramatically reduce cost and improve runtime speed.** → [Cost Efficiency](#cost-efficiency) · [Runtime Speed](#runtime-speed)
+**Good layered design can dramatically reduce cost and improve runtime speed.** -> [Cost Efficiency](#cost-efficiency) · [Runtime Speed](#runtime-speed)
 
-The choice of a narrative game as the demo vehicle is not because the goal is to make games — it is because text games are unusually good at exposing the genuinely hard problems of a semantic system.
+The reason for choosing a narrative game as the demo is not that the end goal is merely to build games. It is that text games are unusually good at exposing the genuinely hard problems in a semantic system.
 
-→ If you only have time to read one document, start with [LANGUAGE.en.md](docs/LANGUAGE.en.md).
+-> If you only have time to read one document, start with [LANGUAGE.en.md](docs/LANGUAGE.en.md).
 
-`LANGUAGE.en.md` is not a terminology appendix — it is the conceptual entry point for this project.
-It defines how Loombound describes semantic layers, processing cores, runtime objects, and how these things flow through the system.
+`LANGUAGE.en.md` is not a terminology appendix. It is the conceptual entry point of this project.
+It defines how Loombound describes semantic layers, processing cores, runtime objects, and how those things flow through the system.
 
-→ Full writeup: [docs/SEMANTIC_OS.en.md](docs/SEMANTIC_OS.en.md)
+-> Full write-up: [docs/SEMANTIC_OS.en.md](docs/SEMANTIC_OS.en.md)
 
 
 ## Installation
@@ -45,33 +45,33 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 ollama pull qwen2.5:7b
 ```
 
-After installation you can use either `./loombound` or `loombound` (with the venv activated: `source .venv/bin/activate`).
+After setup you can use either `./loombound` or `loombound` directly (with the venv activated: `source .venv/bin/activate`).
 
 ---
 
 ## Quick Start
 
 ```bash
-# Prerequisites: ANTHROPIC_API_KEY in .env + ollama running: ollama pull qwen2.5:7b
+# Prerequisites: ANTHROPIC_API_KEY in .env, ollama running, and qwen2.5:7b pulled
 cp .env.example .env   # fill in ANTHROPIC_API_KEY
 
-# 1. One-time global setup — generate the bearing enumeration (skip if data/arc_state_catalog.json exists)
+# 1. One-time global setup (skip if data/arc_state_catalog.json already exists)
 ./loombound arc-palette
 
-# 2. Generate a saga (Opus builds the graph, Haiku generates scene skeleton automatically)
+# 2. Generate a saga (Opus builds the graph, Haiku generates scene skeletons automatically)
 ./loombound gen "Singapore underground hacker community" --lang zh
-./loombound gen "Solar sail era archaeology" --tone "melancholic, poetic, space mystery with a hint of hope" --lang zh
-./loombound gen "Debt hunter escape" --worldview "Jupiter orbital colonies ruled jointly by the Debt Guild and the Salvage Church" --lang zh
+./loombound gen "solar sail era archaeological investigation" --tone "melancholic, poetic, space mystery with a faint sense of hope" --lang zh
+./loombound gen "debt hunter escape" --worldview "Jupiter orbital colonies jointly ruled by the Debt Guild and the Salvage Church" --lang zh
 
-# 3. Play (preloaded path: Haiku bearing classification + qwen2.5:7b local text expansion)
-# --lang zh generates Chinese scene text; omit for English
+# 3. Launch the game (preloaded path: Haiku bearing classification + local qwen2.5:7b expansion)
+# --lang zh generates Chinese scene text; omit it for English
 ./loombound run --lang zh   # Chinese
 ./loombound run             # English
 
 # Specify a saga
 ./loombound run --saga hunters_night_yharnam_last_lucid --lang zh
 
-# Limit waypoints for testing
+# Limit waypoint count for testing
 ./loombound run --nodes 2 --lang zh
 ```
 
@@ -81,96 +81,96 @@ cp .env.example .env   # fill in ANTHROPIC_API_KEY
 
 | Phase | AI | Role |
 |---|---|---|
-| **One-time** | Claude Opus (C3) | Generate global bearing enumeration (`arc-palette`, ~50 entries) |
-| **Per saga** | Claude Opus (C3) | Generate saga graph (waypoint topology, toll lexicon, rules, narration_table) |
-| **Per saga** | Claude Haiku (C2) | Generate scene skeletons (per-waypoint scene skeletons: scene_concept, option structure, no numeric values) |
-| **Runtime** | Claude Haiku (C2) | Bearing classifier: after each player choice → bearing ID + per-option effects + tolls for the next encounter (~$0.0013/call after cache hit) |
-| **Runtime** | qwen2.5:7b local (C1) | Scene expander: scene skeleton + bearing tendency → full scene prose |
+| **One-time** | Claude Opus (C3) | Generate the global bearing enumeration (`arc-palette`, ~50 entries) |
+| **Per saga** | Claude Opus (C3) | Generate the saga graph (waypoint topology, toll lexicon, rules, narration_table) |
+| **Per saga** | Claude Haiku (C2) | Generate scene skeletons (per-waypoint scene skeletons: `scene_concept`, option structure, no numeric values) |
+| **Runtime** | Claude Haiku (C2) | Bearing classifier: after each choice, run in the background -> bearing ID + per-option effects and tolls for the next encounter (about `$0.0013` per call after prompt-cache hits) |
+| **Runtime** | Local qwen2.5:7b (C1) | Scene expansion: scene skeleton + bearing tendency -> full scene prose |
 
-Only `ANTHROPIC_API_KEY` + ollama (local qwen2.5:7b) required.
+The full system only requires `ANTHROPIC_API_KEY` plus ollama (local qwen2.5:7b).
 
-Opus only appears in offline phases (arc-palette and saga generation). Runtime is entirely Haiku + qwen2.5:7b.
+Opus appears only in offline phases (`arc-palette` and saga generation). Runtime is entirely Haiku + qwen2.5:7b.
 
 ### Cost Efficiency
 
-The core benefit of the three-layer design is **moving high-frequency runtime scene expansion off the API and onto local compute**.
+The core benefit of the three-layer architecture is **turning high-frequency runtime scene expansion from API usage into local compute**.
 
-| Strategy | Offline ×1 | Per play | ×1000 total |
+| Strategy | Offline x1 | Per run | 1000-run total |
 |---|---|---|---|
 | **tiered (current)** Opus gen + Haiku C2 + local C1 | $0.1129 | $0.0148 | **$14.88** |
-| all-opus (C2 + C1 both Opus) | $0.2450 | $0.2199 | $220.11 |
-| all-haiku (saga gen also Haiku) | $0.0392 | $0.0352 | $35.22 |
+| all Opus (both C2 + C1 replaced by Opus) | $0.2450 | $0.2199 | $220.11 |
+| all Haiku (saga generation also moved to Haiku) | $0.0392 | $0.0352 | $35.22 |
 
-Measured data: deep_mine_cult_act1 (4 waypoints, 8 choices). C2 costs ~$0.0019 per choice after Haiku cache_read hit. Offline cost is amortized as play volume grows.
+Measured data: `deep_mine_cult_act1` (4 waypoints, 8 choices). C2 costs about `$0.0019` per choice after Haiku `cache_read` hits. Offline cost gets amortized as play volume grows.
 
-`./loombound report` outputs a live cost breakdown including a 1000-play projection.
+`./loombound report` outputs a live cost report including a 1000-run projection.
 
-→ Full cost breakdown: [docs/llm-architecture.en.md](docs/llm-architecture.en.md#cost-analysis)
+-> Full breakdown: [docs/llm-architecture.en.md](docs/llm-architecture.en.md#cost-analysis)
 
 ### Runtime Speed
 
-Ideal latency for each phase using the prompt-cache table-lookup pattern:
+With the prompt-cache "table lookup" pattern, the ideal latency for each stage is:
 
-| Phase | When | Model | Ideal latency |
+| Phase | Trigger | Model | Ideal latency |
 |---|---|---|---|
-| **arc-palette** | One-time | Claude Opus (C3) | 30–90 seconds |
-| **Saga generation** | Per saga | Claude Opus + Haiku (C3 + C2) | 1–3 minutes |
-| **Bearing classification** | Per choice (background) | Claude Haiku (C2, prompt cache hit) | **1–2 seconds** |
-| **Scene expansion** | Per encounter (background prefetch) | qwen2.5:7b local (C1) | **2–10 seconds** (with GPU) |
+| **arc-palette** | One-time | Claude Opus (C3) | 30-90 s |
+| **Saga generation** | Per saga | Claude Opus + Haiku (C3 + C2) | 1-3 min |
+| **Bearing classification** | Per choice (background) | Claude Haiku (C2, prompt-cache hit) | **1-2 s** |
+| **Scene expansion** | Per encounter (background prefetch) | Local qwen2.5:7b (C1) | **2-10 s** (with GPU) |
 
-C2's 1–2 seconds is dominated by network round-trip plus very short output (~10–30 tokens for the bearing ID). After a prompt cache hit, cached table size has no effect on latency. With a capable GPU, C1 and C2 operate in the same latency range; both run in the background, so players rarely wait on them.
+The 1-2 seconds for C2 is mostly network round-trip plus very short output (roughly 10-30 tokens for the bearing ID). After a prompt-cache hit, latency no longer grows with cache table size. With a suitable GPU, C1 and C2 are in the same rough latency range, and both run in the background, so the player usually does not wait on them.
 
-**C1 local speed depends entirely on hardware.** qwen2.5:7b requires ~4–5 GB VRAM to load at full precision:
+**C1 local speed depends on hardware.** Loading qwen2.5:7b at full precision takes roughly 4-5 GB of VRAM:
 
-| Environment | Speed | Time per scene |
+| Environment | Speed | Approx. time per scene |
 |---|---|---|
-| GPU (RTX 3060 / 4060 tier) | 20–50 token/s | ~4–10 seconds |
-| GPU (RTX 4090 / A100 tier) | 60–100 token/s | ~2–3 seconds |
-| CPU fallback (no GPU or insufficient VRAM) | 2–8 token/s | 16–37 seconds |
+| GPU (RTX 3060 / 4060 class) | 20-50 token/s | ~4-10 s |
+| GPU (RTX 4090 / A100 class) | 60-100 token/s | ~2-3 s |
+| CPU fallback (no GPU or insufficient VRAM) | 2-8 token/s | 16-37 s |
 
-The author's local GPU is not up to the task — measured C1 latency falls in the 16–37 second range due to CPU inference fallback. The latency figures in the logs reflect this condition. With a card that can hold a 7b model in VRAM, C1 drops to 2–10 seconds.
+The author's local GPU is not strong enough, so measured C1 scene expansion falls in the 16-37 second range due to CPU fallback; the latency figures in the logs reflect that condition. With a GPU capable of comfortably holding a 7b model in VRAM, C1 should drop to around 2-10 seconds.
 
-**The bottleneck in saga generation is Haiku, not Opus.** Back-calculating from output token counts: Opus generates the saga graph in ~1,170 tokens (~40 seconds); Haiku generates the scene skeletons in ~6,275 tokens (~63 seconds) — every waypoint requires a full scene_concept, sanity_axis, and option structure, so 6 waypoints accumulate ~5× the output volume of Opus. Using Haiku instead of a faster model is a deliberate cost decision: Haiku's output rate is roughly 1/19th of Opus's, and saga generation can run in the background while play has already started — a full saga takes several minutes to play through, so generation finishes well before it's needed.
+**The bottleneck in saga generation is Haiku, not Opus.** Back-calculating from output token counts: Opus generates the saga graph at about 1,170 tokens (~40 seconds), while Haiku generates scene skeletons at about 6,275 tokens (~63 seconds). Each waypoint needs full `scene_concept`, `sanity_axis`, and option structure output, so across 6 waypoints Haiku ends up producing about 5x the output volume of Opus. Using Haiku instead of a faster model is a deliberate cost tradeoff: Haiku output pricing is roughly 1/19 of Opus, and saga generation can run in the background while play has already started. A full saga usually takes several minutes to finish, so generation completes well before it becomes blocking.
 
 ### Data Files
 
 | File | Source | Contents |
 |---|---|---|
-| `data/arc_state_catalog.json` | Claude Opus (one-time) | Bearing enumeration (~50 entries, Haiku prompt cache at runtime) |
-| `data/sagas/<id>.json` | Claude Opus (per saga) | Saga graph: waypoint topology + per-waypoint depth / type / encounters (inlined) |
-| `data/sagas/<id>_toll_lexicon.json` | Claude Opus (per saga) | Per-saga toll vocabulary, C2 runtime cached prefix |
-| `data/sagas/<id>_rules.json` | Claude Opus (per saga) | Per-saga rule set, contains rule.theme keys |
-| `data/sagas/<id>_narration_table.json` | Claude Opus (per saga) | Per-saga narration themes (10–15 entries, single psychological sentence each) |
-| `data/waypoints/<id>/scene_skeletons.json` | Claude Haiku (per saga) | Scene skeletons: scene_concept, sanity_axis, option structure (no h/m/s values) |
+| `data/arc_state_catalog.json` | Claude Opus (one-time) | Bearing enumeration (~50 entries, loaded into Haiku prompt cache at runtime) |
+| `data/sagas/<id>.json` | Claude Opus (per saga) | Saga graph: waypoint topology + per-waypoint `depth` / `type` / `encounters` (inlined) |
+| `data/sagas/<id>_toll_lexicon.json` | Claude Opus (per saga) | Per-saga toll lexicon, used as a C2 runtime cached prefix |
+| `data/sagas/<id>_rules.json` | Claude Opus (per saga) | Per-saga rule set, including `rule.theme` keys |
+| `data/sagas/<id>_narration_table.json` | Claude Opus (per saga) | Per-saga narration theme table (10-15 entries, each a single psychological sentence) |
+| `data/waypoints/<id>/scene_skeletons.json` | Claude Haiku (per saga) | Scene skeletons: `scene_concept`, `sanity_axis`, option structure (no `h/m/s` values) |
 
-> A1 option index (option structure without values — Haiku's per-saga cached prefix) is derived from the scene skeletons at runtime and is not stored as a separate file.
+> The A1 option index (option structure with numeric values removed, used as Haiku's per-saga cached prefix) is derived from scene skeletons at runtime and is not stored as a separate file.
 
 ---
 
 ## `./loombound` Reference
 
 ```bash
-./loombound arc-palette                    # Generate global bearing enumeration (one-time)
-./loombound clean-palette                  # Delete bearing enumeration
+./loombound arc-palette                    # Generate the global bearing enumeration (one-time)
+./loombound clean-palette                  # Delete the bearing enumeration
 
-./loombound gen "theme" --lang zh          # Default: Opus saga graph + Haiku scene skeleton
-./loombound gen "theme" --skip-t1-cache    # Graph only, skip scene skeleton generation
+./loombound gen "theme" --lang zh          # Default: Opus graph generation + Haiku scene skeleton generation
+./loombound gen "theme" --skip-t1-cache    # Generate only the saga graph
 ./loombound gen "theme" --nodes 8          # Waypoint count (default: 6)
-./loombound gen "theme" --tone "..."       # Set atmospheric tone
-./loombound gen "theme" --worldview "..."  # Set worldview / setting
+./loombound gen "theme" --tone "..."       # Set tone
+./loombound gen "theme" --worldview "..."  # Set worldview
 
-./loombound run                            # Launch game (auto-selects most recent saga)
+./loombound run                            # Launch the game (auto-selects the latest saga)
 ./loombound run --lang zh                  # Chinese content
 ./loombound run --saga ID                  # Specify a saga
 ./loombound run --nodes 3                  # Limit waypoint count (for testing)
-./loombound run --fast MODEL               # Specify C1 local model (default: qwen2.5:7b)
+./loombound run --fast MODEL               # Set the local C1 model (default: qwen2.5:7b)
 
-./loombound report                         # Token usage / cost for latest run (with 1000-play projection)
+./loombound report                         # Latest token/cost report (includes 1000-run projection)
 ./loombound report --saga ID
 
-./loombound clean --saga ID                # Remove a single saga's data
-./loombound clean --all                    # Remove all sagas (keeps bearing enumeration)
-./loombound clean-logs                     # Truncate logs/llm.md
+./loombound clean --saga ID                # Delete one saga's data
+./loombound clean --all                    # Delete all saga data (keeps the bearing enumeration)
+./loombound clean-logs                     # Clear logs/llm.md
 ```
 
 ---
@@ -178,25 +178,25 @@ The author's local GPU is not up to the task — measured C1 latency falls in th
 ## Prerequisites
 
 ```bash
-cp .env.example .env   # fill in your API keys
+cp .env.example .env   # fill in the required API keys
 ```
 
 - `ANTHROPIC_API_KEY` — required for both `gen` and `run`
-- ollama running (`ollama serve`) with `ollama pull qwen2.5:7b` — required for `run` (C1 local expansion)
+- ollama running (`ollama serve`) with `ollama pull qwen2.5:7b` already downloaded — required for `run` (local C1 expansion)
 
-> **Claude API required throughout.** `gen` uses Claude Opus (C3) to generate the saga graph; `run` uses Anthropic prompt caching for the C2 classifier. Both require `ANTHROPIC_API_KEY`.
+> **Claude API is required throughout.** `gen` uses Claude Opus (C3) to generate the saga graph, and the C2 classifier used in `run` relies on Anthropic prompt caching. Both require `ANTHROPIC_API_KEY`.
 
 ---
 
 ## Logs and Reports
 
-All LLM calls are recorded in `logs/llm.md` with token counts, cost, and cache hit details.
+LLM calls are recorded in `logs/llm.md`, including token counts, cost, and cache-hit details for each call.
 
 ```bash
-./loombound report              # Latest run (with offline cost attribution + 1000-play projection)
+./loombound report              # Latest run (includes offline cost attribution + 1000-run projection)
 ./loombound report --saga ID
 ```
 
 ---
 
-The LLM layered architecture used in this game (C0/C1/C2/C3 processing cores, A0–A3 data semantic layers) is inspired by a separate ongoing project by the author.
+The LLM layered architecture used in this game (C0/C1/C2/C3 processing cores and A0-A3 semantic data layers) is informed by another ongoing project by the author.
