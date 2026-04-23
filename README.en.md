@@ -3,7 +3,9 @@
 > Project Status
 > This repository preserves the previous runnable Loombound prototype (V1).
 > It is still runnable and still reflects the core design ideas of the project;
-> however, the next planned architecture is moving toward Opus + Haiku + GPT-5.4-nano + cloud qwen2.5.
+> however, the next planned architecture is moving toward Opus -> Haiku -> GPT-5.4-nano -> cloud qwen2.5 -> local CPU.
+> The new architecture should further reduce token cost, because the M2DecisionEngine currently hosted on Haiku should move to a smaller model such as GPT-5.4-nano.
+> At the same time, moving text expansion onto cloud-hosted qwen2.5 should significantly improve runtime speed.
 > Treat this repository as a stable reference version, not the latest architecture implementation.
 
 > Chinese Version: [README.md](README.md)
