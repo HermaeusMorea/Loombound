@@ -3,9 +3,9 @@
 > 项目状态
 > 本仓库保存的是 Loombound 的上一代可运行原型（V1）。
 > 它仍然可以运行，也仍然体现了项目的核心设计思路；
-> 但当前正在规划中的新架构将转向 Opus -> Haiku -> GPT-5.4-nano -> 云端 qwen2.5 -> 本地cpu。
-> 新架构会进一步压缩token成本，因原本安装在Haiku上的M2DecisionEngine应该被安装在一个更小的模型如GPT-5.4-nano上。
-> 同时因文本的展开在云端上的qwen2.5进行，运行速度可以得到大幅提升。
+> 但当前正在规划中的新架构将转向 Opus -> Haiku -> GPT-5.4-nano -> 云端 qwen2.5 -> 本地cpu，且将结合embedding。
+> 新架构会进一步压缩token成本，原本安装在Haiku上的M2DecisionEngine会被安装在一个更小的模型如GPT-5.4-nano上。
+> 文本的展开在云端上的qwen2.5进行，运行速度可以得到大幅提升。
 > 因此请将本仓库视为稳定参考版本，而不是最新架构实现。
 
 > English Version：[README.en.md](README.en.md)
