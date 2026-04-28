@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Roguelite narrative engine with a three-layer AI architecture (local C1 + Haiku C2 + Opus C3)."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
 authors = [
   { name = "xxx" }
 ]

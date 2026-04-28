@@ -202,3 +202,7 @@ LLM calls are recorded in `logs/llm.md`, including token counts, cost, and cache
 ---
 
 The LLM layered architecture used in this game (C0/C1/C2/C3 processing cores and A0-A3 semantic data layers) is informed by another ongoing project by the author.
+
+## License
+
+MIT
