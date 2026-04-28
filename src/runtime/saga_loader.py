@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.shared import embedder as _embedder
 from src.shared.llm_utils import REPO_ROOT
 from src.t2.memory.a2_store import RuntimeTableStore
 
@@ -49,6 +50,21 @@ def load_saga_bundle(saga_path: Path) -> LoadedSagaBundle:
 
     rules_path = SAGAS_DIR / f"{saga_id}_rules.json"
     rules = _load_rules(rules_path) if rules_path.exists() else []
+
+    # Step 4a: precompute semantic embeddings of each rule's preferred /
+    # forbidden option tags so the effects templater can do cosine matching
+    # at runtime. Skipped if the embedder is disabled or unavailable — the
+    # templater falls back to hard string matching.
+    if _embedder.is_available():
+        for rule in rules:
+            pref = list(rule.preferred_option_tags or [])
+            forb = list(rule.forbidden_option_tags or [])
+            try:
+                rule._pref_embeddings = _embedder.embed_batch(pref) if pref else []
+                rule._forbid_embeddings = _embedder.embed_batch(forb) if forb else []
+            except Exception:
+                rule._pref_embeddings = []
+                rule._forbid_embeddings = []
 
     narration_path = SAGAS_DIR / f"{saga_id}_narration_table.json"
     narration_table: dict[str, Any] | None = (

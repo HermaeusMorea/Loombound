@@ -174,6 +174,12 @@ class RuleTemplate:
     forbidden_option_tags: list[str] = field(default_factory=list)
     sanity_penalty: int = 0
     narration_keys: list[str] = field(default_factory=list)
+    effects_template: dict[str, Any] | None = None
+    # Runtime-only: semantic embeddings of preferred / forbidden tag strings,
+    # populated by saga_loader when the embedder is available. Not persisted
+    # to JSON (absent from RuleTemplate.from_dict payload contract).
+    _pref_embeddings: list[list[float]] = field(default_factory=list, repr=False, compare=False)
+    _forbid_embeddings: list[list[float]] = field(default_factory=list, repr=False, compare=False)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "RuleTemplate":
@@ -197,6 +203,7 @@ class RuleTemplate:
             forbidden_option_tags=payload.get("forbidden_option_tags", []),
             sanity_penalty=payload.get("sanity_penalty", 0),
             narration_keys=payload.get("narration_keys", []),
+            effects_template=payload.get("effects_template"),
         )
 
 

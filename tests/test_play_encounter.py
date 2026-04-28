@@ -134,13 +134,15 @@ def test_play_encounter_no_rules_still_completes() -> None:
     assert waypoint.encounter_history[0].status == "applied"
 
 
-def test_play_encounter_respects_m2_override_rule() -> None:
-    # Kernel would pick "clarity" (priority 100) but M2 forces "shaken" (priority 10).
+def test_play_encounter_kernel_picks_highest_priority_matching_rule() -> None:
+    # With M2 no longer choosing rules, the symbolic kernel (select_rule) is
+    # the sole selector — it picks by priority among matching rules.
+    # "clarity" has priority 100, "shaken" has priority 10 → clarity wins.
     run, waypoint = _make_run_and_waypoint()
-    fake_prefetch = _FakePrefetch(rule_id="shaken")
+    fake_prefetch = _FakePrefetch(rule_id="shaken")  # rule_id returned, but ignored now
     _play_encounter(run, waypoint, _payload_two(), rules=[_RULE_SHAKEN, _RULE_CLARITY],
                     prefetch=fake_prefetch, arb_idx=0, saga_waypoint_id="wp1", total_arbs=1)
-    assert waypoint.memory.choices_made[0].active_rule_id == "shaken"
+    assert waypoint.memory.choices_made[0].active_rule_id == "clarity"
 
 
 def test_play_encounter_narration_table_neutral_fallback() -> None:

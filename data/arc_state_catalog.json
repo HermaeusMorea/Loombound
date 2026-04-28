@@ -1,6 +1,8 @@
 [
   {
     "entry_id": 0,
+    "label": "opening_stable",
+    "description": "The story has just begun. The protagonist has stable resources and no immediate threat. No major events have landed yet. This is a period of orientation — reading the world, learning the rules, surveying the terrain. The player explores, listens, and prepares.",
     "arc_trajectory": "rising",
     "world_pressure": "low",
     "narrative_pacing": "slow",
@@ -8,345 +10,128 @@
   },
   {
     "entry_id": 1,
-    "arc_trajectory": "rising",
-    "world_pressure": "low",
-    "narrative_pacing": "steady",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 2,
-    "arc_trajectory": "rising",
-    "world_pressure": "moderate",
-    "narrative_pacing": "slow",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 3,
+    "label": "opening_tension",
+    "description": "The first omens have appeared. The world shows its teeth: a distant scream, a strange mark on a door, a merchant who refuses to sell. No direct threat yet, but the protagonist is now alert. Progress is steady, with growing unease.",
     "arc_trajectory": "rising",
     "world_pressure": "moderate",
     "narrative_pacing": "steady",
     "pending_intent": "exploration"
   },
   {
-    "entry_id": 4,
+    "entry_id": 2,
+    "label": "mid_ascent",
+    "description": "The run is gaining momentum. The protagonist is advancing with purpose — winning small confrontations, accumulating resources or allies. Pressure is real but manageable. Each scene builds on the last.",
     "arc_trajectory": "rising",
     "world_pressure": "moderate",
-    "narrative_pacing": "accelerating",
+    "narrative_pacing": "steady",
     "pending_intent": "confrontation"
   },
   {
-    "entry_id": 5,
+    "entry_id": 3,
+    "label": "investigation",
+    "description": "A mystery is tightening. The protagonist is uncovering secrets faster than the world wants to give them up. Revelations are queued — a confession, a hidden document, a forbidden truth. Pace accelerates as pieces fit.",
     "arc_trajectory": "rising",
-    "world_pressure": "high",
+    "world_pressure": "moderate",
     "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
+  },
+  {
+    "entry_id": 4,
+    "label": "mid_stall",
+    "description": "Progress has stalled. The protagonist cannot easily advance — a locked door, a stubborn gatekeeper, incomplete information. The world waits. Tension persists without release. Time is spent searching, asking, observing.",
+    "arc_trajectory": "plateau",
+    "world_pressure": "moderate",
+    "narrative_pacing": "slow",
+    "pending_intent": "exploration"
+  },
+  {
+    "entry_id": 5,
+    "label": "negotiation",
+    "description": "A standoff. The protagonist faces an opposing force that cannot be defeated by force alone — a rival faction, a demanding patron, an ancient treaty. Resolution requires dialogue, bargaining, or compromise. Stakes are clear.",
+    "arc_trajectory": "plateau",
+    "world_pressure": "moderate",
+    "narrative_pacing": "steady",
     "pending_intent": "confrontation"
   },
   {
     "entry_id": 6,
-    "arc_trajectory": "rising",
+    "label": "hollow_wandering",
+    "description": "The protagonist endures with depleted body and spirit. Resources are low, hope is thin, but the world still demands motion. A haunted, exhausted phase — the traveller who has seen too much and must keep going anyway. Recovery is slow and uncertain.",
+    "arc_trajectory": "plateau",
     "world_pressure": "high",
-    "narrative_pacing": "steady",
-    "pending_intent": "revelation"
+    "narrative_pacing": "slow",
+    "pending_intent": "recovery"
   },
   {
     "entry_id": 7,
-    "arc_trajectory": "rising",
+    "label": "pivot_reversal",
+    "description": "Something has just broken the assumed frame. A betrayal, a sudden revelation, a reality the protagonist refused to see. Prior goals are invalidated. The narrative tilts sharply. The next few scenes must reorient entirely.",
+    "arc_trajectory": "pivot",
     "world_pressure": "high",
-    "narrative_pacing": "sprint",
-    "pending_intent": "confrontation"
+    "narrative_pacing": "accelerating",
+    "pending_intent": "revelation"
   },
   {
     "entry_id": 8,
-    "arc_trajectory": "rising",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
+    "label": "pressure_mounting",
+    "description": "The climax is approaching. Threats are converging, resources are being spent, the runway is shortening. Each scene adds weight to the next. The protagonist cannot rest. Confrontation is imminent and escalating.",
+    "arc_trajectory": "climax",
+    "world_pressure": "high",
+    "narrative_pacing": "accelerating",
     "pending_intent": "confrontation"
   },
   {
     "entry_id": 9,
-    "arc_trajectory": "rising",
+    "label": "climax_peak",
+    "description": "The decisive moment. Maximum stakes, minimum margin. A last boss, a final choice, an ultimate trial. Resources are committed, exits are closed. Whatever happens next defines the run.",
+    "arc_trajectory": "climax",
     "world_pressure": "critical",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "revelation"
+    "narrative_pacing": "sprint",
+    "pending_intent": "confrontation"
   },
   {
     "entry_id": 10,
-    "arc_trajectory": "plateau",
-    "world_pressure": "low",
-    "narrative_pacing": "slow",
-    "pending_intent": "exploration"
+    "label": "survival_struggle",
+    "description": "The protagonist is near death or collapse. Every action is about staying alive or restoring a basic foothold. Not yet a defeat, but a desperate patch job. Healing, fleeing, regrouping before the final push.",
+    "arc_trajectory": "climax",
+    "world_pressure": "critical",
+    "narrative_pacing": "sprint",
+    "pending_intent": "recovery"
   },
   {
     "entry_id": 11,
-    "arc_trajectory": "plateau",
-    "world_pressure": "low",
+    "label": "endgame_push",
+    "description": "The final segment of the run. The climax has been entered; the protagonist is now committing to an ending — traversing the last chapter, crossing the last threshold. Stakes stay high but pacing is controlled, not frantic.",
+    "arc_trajectory": "climax",
+    "world_pressure": "high",
     "narrative_pacing": "steady",
-    "pending_intent": "recovery"
+    "pending_intent": "transition"
   },
   {
     "entry_id": 12,
-    "arc_trajectory": "plateau",
+    "label": "aftermath_recovery",
+    "description": "The decisive conflict has ended and the dust is settling. The protagonist takes stock — tending wounds, grieving losses, counting what remains. The world has quieted, pressure is low, pacing deliberate and reflective.",
+    "arc_trajectory": "resolution",
     "world_pressure": "low",
     "narrative_pacing": "slow",
-    "pending_intent": "transition"
+    "pending_intent": "recovery"
   },
   {
     "entry_id": 13,
-    "arc_trajectory": "plateau",
+    "label": "bittersweet_close",
+    "description": "The story is ending, not with triumph but with transition. Something was lost. Something was learned. The protagonist is moving on, stepping into a new equilibrium that is neither happy nor tragic — just changed.",
+    "arc_trajectory": "resolution",
     "world_pressure": "moderate",
-    "narrative_pacing": "steady",
-    "pending_intent": "exploration"
+    "narrative_pacing": "slow",
+    "pending_intent": "transition"
   },
   {
     "entry_id": 14,
-    "arc_trajectory": "plateau",
-    "world_pressure": "moderate",
-    "narrative_pacing": "slow",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 15,
-    "arc_trajectory": "plateau",
-    "world_pressure": "moderate",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 16,
-    "arc_trajectory": "plateau",
-    "world_pressure": "high",
-    "narrative_pacing": "steady",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 17,
-    "arc_trajectory": "plateau",
-    "world_pressure": "high",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 18,
-    "arc_trajectory": "plateau",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 19,
-    "arc_trajectory": "plateau",
-    "world_pressure": "critical",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 20,
-    "arc_trajectory": "climax",
-    "world_pressure": "high",
-    "narrative_pacing": "sprint",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 21,
-    "arc_trajectory": "climax",
-    "world_pressure": "high",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 22,
-    "arc_trajectory": "climax",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 23,
-    "arc_trajectory": "climax",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 24,
-    "arc_trajectory": "climax",
-    "world_pressure": "critical",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 25,
-    "arc_trajectory": "climax",
-    "world_pressure": "moderate",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 26,
-    "arc_trajectory": "climax",
-    "world_pressure": "moderate",
-    "narrative_pacing": "sprint",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 27,
-    "arc_trajectory": "climax",
-    "world_pressure": "high",
-    "narrative_pacing": "sprint",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 28,
-    "arc_trajectory": "climax",
-    "world_pressure": "low",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 29,
-    "arc_trajectory": "climax",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 30,
-    "arc_trajectory": "resolution",
-    "world_pressure": "low",
-    "narrative_pacing": "slow",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 31,
-    "arc_trajectory": "resolution",
+    "label": "new_chapter",
+    "description": "A door opens. The protagonist is stepping from one region, chapter, or identity into the next. Fresh territory, fresh faces, fresh unknowns. Rising arc re-ignites but under different rules. The old context is closed; a new one is forming.",
+    "arc_trajectory": "rising",
     "world_pressure": "low",
     "narrative_pacing": "steady",
     "pending_intent": "transition"
-  },
-  {
-    "entry_id": 32,
-    "arc_trajectory": "resolution",
-    "world_pressure": "moderate",
-    "narrative_pacing": "slow",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 33,
-    "arc_trajectory": "resolution",
-    "world_pressure": "moderate",
-    "narrative_pacing": "steady",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 34,
-    "arc_trajectory": "resolution",
-    "world_pressure": "high",
-    "narrative_pacing": "steady",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 35,
-    "arc_trajectory": "resolution",
-    "world_pressure": "high",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 36,
-    "arc_trajectory": "resolution",
-    "world_pressure": "critical",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 37,
-    "arc_trajectory": "resolution",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 38,
-    "arc_trajectory": "resolution",
-    "world_pressure": "low",
-    "narrative_pacing": "slow",
-    "pending_intent": "exploration"
-  },
-  {
-    "entry_id": 39,
-    "arc_trajectory": "resolution",
-    "world_pressure": "moderate",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 40,
-    "arc_trajectory": "pivot",
-    "world_pressure": "low",
-    "narrative_pacing": "steady",
-    "pending_intent": "exploration"
-  },
-  {
-    "entry_id": 41,
-    "arc_trajectory": "pivot",
-    "world_pressure": "low",
-    "narrative_pacing": "slow",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 42,
-    "arc_trajectory": "pivot",
-    "world_pressure": "moderate",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 43,
-    "arc_trajectory": "pivot",
-    "world_pressure": "moderate",
-    "narrative_pacing": "steady",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 44,
-    "arc_trajectory": "pivot",
-    "world_pressure": "high",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "confrontation"
-  },
-  {
-    "entry_id": 45,
-    "arc_trajectory": "pivot",
-    "world_pressure": "high",
-    "narrative_pacing": "sprint",
-    "pending_intent": "revelation"
-  },
-  {
-    "entry_id": 46,
-    "arc_trajectory": "pivot",
-    "world_pressure": "critical",
-    "narrative_pacing": "sprint",
-    "pending_intent": "recovery"
-  },
-  {
-    "entry_id": 47,
-    "arc_trajectory": "pivot",
-    "world_pressure": "critical",
-    "narrative_pacing": "accelerating",
-    "pending_intent": "transition"
-  },
-  {
-    "entry_id": 48,
-    "arc_trajectory": "pivot",
-    "world_pressure": "moderate",
-    "narrative_pacing": "slow",
-    "pending_intent": "exploration"
-  },
-  {
-    "entry_id": 49,
-    "arc_trajectory": "pivot",
-    "world_pressure": "high",
-    "narrative_pacing": "steady",
-    "pending_intent": "recovery"
   }
 ]

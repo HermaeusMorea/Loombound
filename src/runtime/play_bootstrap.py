@@ -97,5 +97,10 @@ def build_prefetch_cache(
         m2_cfg = M2DecisionConfig(api_key=api_key)
         m2_engine = M2DecisionEngine(cfg=m2_cfg, **bundle.m2_engine_args())
 
-    prefetch = PrefetchCache(fast_cfg=fast_cfg, lang=lang, m2_engine=m2_engine)
+    prefetch = PrefetchCache(
+        fast_cfg=fast_cfg,
+        lang=lang,
+        m2_engine=m2_engine,
+        arc_state_catalog_json=bundle.tables.arc_state_catalog_json() if bundle.tables.arc_state_catalog else "",
+    )
     return prefetch

@@ -1,7 +1,38 @@
 """Prompt building and tool schema for Opus saga graph generation."""
 from __future__ import annotations
 
+from src.shared import config as _cfg
 from src.shared.llm_utils import opus_cost as _opus_cost, haiku_cost as _haiku_cost
+
+
+def _delta_range_schema(lo: int, hi: int, label: str) -> dict:
+    """Schema for a [lo,hi] integer range tuple bounded by game config clamps."""
+    return {
+        "type": "array",
+        "description": f"{label} delta range [min, max]. Picked per call from quasi-state band.",
+        "prefixItems": [
+            {"type": "integer", "minimum": lo, "maximum": hi},
+            {"type": "integer", "minimum": lo, "maximum": hi},
+        ],
+        "items": False,
+        "minItems": 2,
+        "maxItems": 2,
+    }
+
+
+def _bucket_schema(intent_hint: str = "") -> dict:
+    return {
+        "type": "object",
+        "description": intent_hint,
+        "properties": {
+            "toll": {"type": "string", "description": "toll id from this saga's toll_lexicon"},
+            "h":    _delta_range_schema(_cfg.HEALTH_DELTA_MIN, _cfg.HEALTH_DELTA_MAX, "health"),
+            "m":    _delta_range_schema(_cfg.MONEY_DELTA_MIN,  _cfg.MONEY_DELTA_MAX,  "money"),
+            "s":    _delta_range_schema(_cfg.SANITY_DELTA_MIN, _cfg.SANITY_DELTA_MAX, "sanity"),
+        },
+        "required": ["toll", "h", "m", "s"],
+        "additionalProperties": False,
+    }
 
 
 _SYSTEM_PROMPT = """\
@@ -195,9 +226,46 @@ _TOOL = {
                             },
                             "additionalProperties": False,
                         },
+                        "effects_template": {
+                            "type": "object",
+                            "description": (
+                                "Per-option effect template used by the runtime templater "
+                                "(no LLM at runtime). Each bucket (preferred / forbidden / neutral) "
+                                "declares a toll and integer delta ranges for health, money, sanity. "
+                                "The runtime picks one value inside each range based on the player's "
+                                "current band (low band → lenient end, high band → harsh end). "
+                                "\n\n"
+                                "SCALE: write absolute integers proportional to this saga's "
+                                "`initial_core_state.max_health` (sanity scale is always 0..100). "
+                                "As a rule of thumb: forbidden ≈ 6–12% of max_health, "
+                                "preferred ≈ 0–4% (positive), neutral ≈ 1–5% (negative). "
+                                "Ranges are clamped to per-turn engine limits; do not exceed them. "
+                                "\n\n"
+                                "IMPORTANT: the `neutral` bucket must still feel like a choice with "
+                                "consequence — avoid all-zero deltas. Every option should produce at "
+                                "least some stat change unless the saga is deliberately serene."
+                            ),
+                            "properties": {
+                                "preferred": _bucket_schema(
+                                    "Options matching preferred_option_tags. "
+                                    "Mild recovery or reward (~0–4% of max). Rarely zero; lean positive or neutral."
+                                ),
+                                "forbidden": _bucket_schema(
+                                    "Options matching forbidden_option_tags. "
+                                    "Clear negative consequence (~6–12% of max) matching saga tone."
+                                ),
+                                "neutral":   _bucket_schema(
+                                    "Options matching neither bucket. "
+                                    "Small but non-zero cost (~1–5% of max) — the world takes its toll from every choice."
+                                ),
+                            },
+                            "required": ["preferred", "forbidden", "neutral"],
+                            "additionalProperties": False,
+                        },
                     },
                     "required": ["id", "name", "theme", "decision_types", "priority",
-                                 "sanity_penalty", "preferred_option_tags", "forbidden_option_tags"],
+                                 "sanity_penalty", "preferred_option_tags", "forbidden_option_tags",
+                                 "effects_template"],
                     "additionalProperties": False,
                 },
             },

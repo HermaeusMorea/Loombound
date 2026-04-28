@@ -3,5 +3,10 @@ anthropic>=0.94.1       # Anthropic API (M2 classifier + Haiku Table B generatio
 openai>=2.31.0          # OpenAI-compatible clients (DeepSeek, OpenAI, Qwen campaign gen)
 httpx>=0.28.1           # HTTP client (used by anthropic/openai SDKs)
 
+# Step 4: local embedding for semantic tag matching + arc classification cache.
+# Optional at runtime — gated by LOOMBOUND_EMBEDDER_DISABLED=1. When absent the
+# templater and ArcStateTracker fall back to string matching / always-LLM paths.
+
 # Dev / test
 pytest>=9.0.3
+sentence-transformers>=3.0

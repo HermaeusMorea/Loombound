@@ -19,8 +19,11 @@ Token budget per call (after cache warm):
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import anthropic
 
@@ -30,167 +33,61 @@ from .m2_context import build_m2_context
 
 log = logging.getLogger(__name__)
 
+_M2_DUMP_PATH = os.environ.get("M2_DUMP_PATH")
+
+
+def _strip_cache_control(obj):
+    if isinstance(obj, dict):
+        return {k: _strip_cache_control(v) for k, v in obj.items() if k != "cache_control"}
+    if isinstance(obj, list):
+        return [_strip_cache_control(v) for v in obj]
+    return obj
+
 _SYSTEM_PROMPT = """\
-You are the runtime intelligence layer for a narrative game engine.
-You have two jobs — both handled in a single tool call:
+You are the runtime arc-state classifier for a narrative game engine.
+You have ONE job: pick the one catalog entry whose narrative stage best
+matches the current game state. Output only `entry_id`.
 
-JOB 1 — ARC STATE CLASSIFICATION
-Receive the T2 cache (arc state catalogue) and the current game state.
-Select the T2 cache entry_id that best matches the current arc state.
+HOW TO PICK
 
-Selection rules:
-- Match arc_trajectory first (rising/plateau/climax/resolution/pivot).
-- Then world_pressure (low/moderate/high/critical).
-- Then narrative_pacing and pending_intent as tiebreakers.
-- If no row is a reasonable match, pass entry_id = -1.
+1. Read the quasi_state. Mentally summarize the narrative situation in
+   one sentence: Is the protagonist just starting out? Investigating a
+   mystery? Stalled at an obstacle? Facing a climax? Recovering from
+   a shock? About to cross a threshold?
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ARC STATE CLASSIFICATION GUIDE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. Scan the catalog. Each entry has a `label` (short tag like
+   `opening_stable`, `pressure_mounting`, `pivot_reversal`) and a 2–3
+   sentence `description` that paints the narrative stage. The four
+   dimension fields (arc_trajectory / world_pressure / narrative_pacing
+   / pending_intent) are secondary metadata — use them only as
+   tiebreakers between descriptions that feel similarly applicable.
 
-DIMENSION 1 — arc_trajectory
-The overall narrative momentum of the run so far.
+3. Pick the single entry whose `description` most closely fits the
+   situation you summarized. Output its `entry_id`.
 
-  rising        The protagonist's position, knowledge, or agency is expanding.
-                Obstacles appear but are overcome. Resources accumulate.
-                The world opens up. Confidence or determination increases.
-                Signal words: discovery, momentum, escalation, growth, pursuit.
+4. Return -1 only if NONE of the descriptions is even loosely
+   applicable to the state (truly anomalous). In practice this should
+   be rare — the catalog aims to cover the full arc of any run.
 
-  plateau       Progress has leveled off. The protagonist holds a stable position
-                but cannot easily advance or retreat. A period of assessment,
-                negotiation, or waiting. Tension is present but not yet breaking.
-                Signal words: stalemate, consolidation, uncertainty, delay, balance.
+QUICK REFERENCE FOR READING quasi_state
 
-  climax        The decisive confrontation or revelation. Maximum pressure.
-                Everything the run has built toward is now arriving simultaneously.
-                Resources are depleted or committed. No safe exit. The outcome
-                will define what follows.
-                Signal words: crisis, convergence, threshold, culmination, peak.
+- `health/money/sanity` bands (very_low ... very_high) + direction
+  (rising/falling/stable) = the protagonist's physical and mental
+  resourcing.
+- `dominant themes` = recurring emotional colour.
+- `Recent incidents` and `Waypoint trajectory` = what just happened
+  and the trend. Low depth + few events = probably opening. High
+  depth + heavy losses = probably climax or survival. Pivots /
+  revelations leave distinct marks in the events log.
+- Low pressure + slow pacing + no heavy events ⇒ opening or
+  aftermath; differentiate by depth.
+- High depth + escalating events ⇒ climax zone.
 
-  resolution    The major conflict has been decided. Aftermath, consequence, and
-                integration. The protagonist processes what happened and moves
-                toward a new equilibrium — positive, negative, or ambiguous.
-                Signal words: aftermath, closure, reconciliation, grief, acceptance.
-
-  pivot         An unexpected reversal has changed the run's direction entirely.
-                A betrayal, revelation, or sudden shift that invalidates previous
-                assumptions. The protagonist must reorient from scratch.
-                Signal words: reversal, betrayal, revelation, reframe, rupture.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DIMENSION 2 — world_pressure
-The intensity of external forces acting on the protagonist.
-
-  low           The environment is permissive. The protagonist can act without
-                immediate threat. Exploration, contemplation, and preparation
-                are viable. Mistakes are recoverable.
-
-  moderate      Some opposition or constraint is present. The protagonist must
-                be deliberate. Some actions are risky. The situation has stakes
-                but not yet urgency.
-
-  high          Active threat or crisis. The protagonist is under real pressure.
-                Time or resources are limited. Errors have significant cost.
-                Tension is felt in every scene beat.
-
-  critical      Existential pressure. The protagonist is at the edge of failure,
-                madness, or death. Every decision is high-stakes. The environment
-                is actively hostile. Survival is not guaranteed.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DIMENSION 3 — narrative_pacing
-How quickly events are moving in the current section of the run.
-
-  slow          Scenes breathe. Information is revealed gradually. The player
-                has time to absorb environment, lore, and character. Atmosphere
-                dominates over action.
-
-  steady        A measured forward movement. Events progress logically. No rush,
-                but no stagnation. Standard adventure pacing.
-
-  accelerating  The pace is increasing. Each scene triggers the next more
-                urgently. Downtime is shrinking. The run is building toward
-                something and the player can feel it.
-
-  sprint        Maximum velocity. Back-to-back crises with no breathing room.
-                Scenes are short and punchy. Every moment matters. Often
-                accompanies climax or critical world_pressure.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DIMENSION 4 — pending_intent
-The nature of what the protagonist is about to do next.
-
-  exploration   Seeking new information, locations, or relationships. The next
-                action is investigative or expansive. Open-ended curiosity.
-
-  confrontation A direct challenge, conflict, or negotiation with an opposing
-                force. The protagonist is moving toward friction.
-
-  revelation    A key truth is about to surface — through discovery, confession,
-                or forced disclosure. Answers are coming, wanted or not.
-
-  recovery      The protagonist is regrouping: healing, restoring resources,
-                processing loss, or rebuilding after damage.
-
-  transition    A threshold crossing. Moving between acts, locations, or
-                identities. The current chapter is ending; the next is unknown.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-MATCHING PROCEDURE
-
-Step 1. Read the M1+M0 quasi state carefully.
-Step 2. Identify the arc_trajectory that best describes the run's current momentum.
-Step 3. Identify the world_pressure from environmental and threat signals.
-Step 4. Identify the narrative_pacing from the density and urgency of recent events.
-Step 5. Identify the pending_intent from what the protagonist is positioned to do next.
-Step 6. Scan the T2 cache for the entry whose four fields most closely match your assessment.
-        Prefer exact matches on trajectory and pressure; use pacing and intent as
-        tiebreakers. If no entry is within two dimensions of a match, return -1.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-JOB 2 — RULE SELECTION
-You will also be given the saga's rule list. Each rule has an id, a name, a set of
-decision_types, and a natural-language description of when it should apply.
-
-Select the rule whose intent best matches the next encounter's scene type and the
-current arc state. Output its id as selected_rule_id.
-
-Selection criteria:
-- The rule's decision_types should include the next encounter's scene_type.
-- The rule's intent should fit the current world_pressure and arc_trajectory.
-- If no rule is a reasonable fit, output selected_rule_id = "".
-- If no next encounter is specified, output selected_rule_id = "".
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-JOB 3 — EFFECT ASSIGNMENT
-You will be told which specific encounter comes next: node_id + arb_index.
-Look up that encounter in Table C (per-saga option structure).
-Assign h/m/s integer values for every option in THAT ONE encounter only.
-
-Effect fields:
-  h  health_delta   — typically -10 to +5.  Negative = injury, illness, exhaustion.
-  m  money_delta    — typically -8 to +10.  Negative = cost, theft, loss.
-  s  sanity_delta   — typically -8 to +3.   Negative = dread, trauma, revelation.
-
-For each option, assign toll FIRST from the saga toll lexicon, then set h/m/s
-values that are consistent with that toll. The toll lexicon is appended to
-the A1 option index. Honor its numeric constraints — do not assign stable to an option
-with large negative deltas, or destabilizing to an option with net positive deltas.
-
-Calibration rules:
-- Scale magnitude to current world_pressure: low → small values, critical → large negatives.
-- Every encounter must have at least one option with meaningfully different risk than others.
-- 0 is valid (no effect on that stat).
-- Positive values should feel earned — recovery, reward, relief.
-- If no next encounter is specified, output an empty effects list.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bias:
+- Do NOT over-return -1. If the situation vaguely resembles a catalog
+  description, pick it. The embedding layer and downstream templater
+  tolerate imperfect matches far better than they tolerate empty
+  classifications.
 """
 
 _NO_MATCH_ID = -1
@@ -227,10 +124,9 @@ class M2DecisionEngine:
         self._client = anthropic.AsyncAnthropic(api_key=self._cfg.api_key)
 
         self._tool = {
-            "name": "select_arc_and_effects",
+            "name": "select_arc",
             "description": (
-                "Select the best-matching T2 cache arc state, select the most fitting "
-                "saga rule, and assign per-option gameplay effect values for the next encounter."
+                "Select the best-matching T2 cache arc state entry for the current game state."
             ),
             "input_schema": {
                 "type": "object",
@@ -242,41 +138,8 @@ class M2DecisionEngine:
                             "or -1 if no entry is a reasonable match."
                         ),
                     },
-                    "selected_rule_id": {
-                        "type": "string",
-                        "description": (
-                            "The id of the saga rule that best fits the next encounter "
-                            "and current arc state. Empty string if no rule fits or no "
-                            "next encounter was specified."
-                        ),
-                    },
-                    "effects": {
-                        "type": "array",
-                        "description": (
-                            "Per-option effect values for every option in the specified "
-                            "next encounter. Empty array if no next encounter was given."
-                        ),
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "string",
-                                    "description": "option_id from T1 option index.",
-                                },
-                                "v": {
-                                    "type": "string",
-                                    "description": "toll id from the saga toll lexicon. Assign this first, then set h/m/s consistent with it.",
-                                },
-                                "h": {"type": "integer", "description": "health_delta", "minimum": config.HEALTH_DELTA_MIN, "maximum": config.HEALTH_DELTA_MAX},
-                                "m": {"type": "integer", "description": "money_delta",  "minimum": config.MONEY_DELTA_MIN,  "maximum": config.MONEY_DELTA_MAX},
-                                "s": {"type": "integer", "description": "sanity_delta", "minimum": config.SANITY_DELTA_MIN, "maximum": config.SANITY_DELTA_MAX},
-                            },
-                            "required": ["id", "v", "h", "m", "s"],
-                            "additionalProperties": False,
-                        },
-                    },
                 },
-                "required": ["entry_id", "selected_rule_id", "effects"],
+                "required": ["entry_id"],
                 "additionalProperties": False,
             },
             # Cache the tool schema alongside T2 cache for maximum prefix reuse
@@ -284,49 +147,65 @@ class M2DecisionEngine:
         }
 
     @staticmethod
-    def _parse_effects(raw: dict) -> tuple[int, str, dict[str, dict]] | None:
+    def _parse_tool_output(raw: dict) -> int | None:
         """Parse and validate tool output. Returns None if format is invalid."""
         try:
-            entry_id = int(raw.get("entry_id", _NO_MATCH_ID))
-            selected_rule_id = str(raw.get("selected_rule_id", ""))
-            effects_map: dict[str, dict] = {}
-            for item in raw.get("effects", []):
-                opt_id = str(item.get("id", ""))
-                v = str(item.get("v", ""))
-                if not opt_id or not v:
-                    return None
-                effects_map[opt_id] = {
-                    "health_delta": max(config.HEALTH_DELTA_MIN, min(config.HEALTH_DELTA_MAX, int(item["h"]))),
-                    "money_delta":  max(config.MONEY_DELTA_MIN,  min(config.MONEY_DELTA_MAX,  int(item["m"]))),
-                    "sanity_delta": max(config.SANITY_DELTA_MIN, min(config.SANITY_DELTA_MAX, int(item["s"]))),
-                    "toll":         v,
-                }
-            return entry_id, selected_rule_id, effects_map
-        except (KeyError, TypeError, ValueError):
+            return int(raw.get("entry_id", _NO_MATCH_ID))
+        except (TypeError, ValueError):
             return None
+
+    def _dump_call(
+        self,
+        *,
+        bundle,
+        next_waypoint_id: str | None,
+        next_arb_idx: int | None,
+        raw: dict,
+        entry_id: int,
+        usage: dict,
+    ) -> None:
+        if not _M2_DUMP_PATH:
+            return
+        try:
+            record = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "model": self._cfg.model,
+                "system": _SYSTEM_PROMPT,
+                "user_blocks": [b.get("text", "") for b in bundle.to_user_content()],
+                "tool_name": self._tool["name"],
+                "tool_schema": _strip_cache_control(self._tool),
+                "next_waypoint_id": next_waypoint_id,
+                "next_arb_idx": next_arb_idx,
+                "haiku_raw": raw,
+                "haiku_parsed": {"entry_id": entry_id},
+                "usage": usage,
+            }
+            with open(_M2_DUMP_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            log.warning("M2DecisionEngine: dump failed: %s", exc)
 
     async def classify(
         self,
         quasi_state: str,
         next_waypoint_id: str | None = None,
         next_arb_idx: int | None = None,
-    ) -> tuple[int, str, dict[str, dict], dict[str, int]]:
-        """Classify arc state, select a rule, and assign effects for the next encounter.
+    ) -> tuple[int, dict[str, int]]:
+        """Classify arc state for the current game snapshot.
 
         Retries up to 2 times if the response fails format validation.
-        Returns (entry_id, selected_rule_id, effects_map, usage).
-        selected_rule_id is "" when no rule fits or no next encounter is specified.
-        effects_map is empty when no next encounter is specified or retries exhausted.
+        Returns (entry_id, usage). next_waypoint_id / next_arb_idx are retained
+        only for log / dump context — rule selection and effects are handled
+        downstream.
         """
         _empty_usage: dict[str, int] = {
             "input": 0, "output": 0, "cache_created": 0, "cache_read": 0
         }
 
-        needs_effects = next_waypoint_id is not None and next_arb_idx is not None
         arb_hint = (
-            f"\n\nAssign effects for: waypoint_id={next_waypoint_id}, arb_index={next_arb_idx}"
-            if needs_effects else
-            "\n\nNo next encounter — output empty effects list and empty selected_rule_id."
+            f"\n\nClassify arc state ahead of: waypoint_id={next_waypoint_id}, arb_index={next_arb_idx}"
+            if next_waypoint_id is not None and next_arb_idx is not None
+            else "\n\nClassify current arc state."
         )
 
         bundle = build_m2_context(
@@ -338,6 +217,7 @@ class M2DecisionEngine:
             arb_hint=arb_hint,
         )
 
+        tool_name = self._tool["name"]
         _MAX_RETRIES = config.M2_MAX_RETRIES
         for attempt in range(_MAX_RETRIES + 1):
             try:
@@ -347,7 +227,7 @@ class M2DecisionEngine:
                     system=[{"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
                     messages=[{"role": "user", "content": bundle.to_user_content()}],
                     tools=[self._tool],
-                    tool_choice={"type": "tool", "name": "select_arc_and_effects"},
+                    tool_choice={"type": "tool", "name": tool_name},
                 )
 
                 u = response.usage
@@ -365,28 +245,32 @@ class M2DecisionEngine:
                 )
 
                 try:
-                    raw = _extract_tool_input(response, "select_arc_and_effects")
+                    raw = _extract_tool_input(response, tool_name)
                 except RuntimeError:
                     log.warning("M2DecisionEngine: no tool call on attempt %d, retrying", attempt + 1)
                     continue
 
-                parsed = self._parse_effects(raw)
-                if parsed is None and needs_effects:
+                entry_id = self._parse_tool_output(raw)
+                if entry_id is None:
                     log.warning("M2DecisionEngine: invalid format on attempt %d, retrying", attempt + 1)
                     continue
-                entry_id, rule_id, effects_map = parsed if parsed else (_NO_MATCH_ID, "", {})
-                log.info(
-                    "M2DecisionEngine: entry_id=%d rule=%r effects for %d option(s)",
-                    entry_id, rule_id, len(effects_map),
+                log.info("M2DecisionEngine: entry_id=%d", entry_id)
+                self._dump_call(
+                    bundle=bundle,
+                    next_waypoint_id=next_waypoint_id,
+                    next_arb_idx=next_arb_idx,
+                    raw=raw,
+                    entry_id=entry_id,
+                    usage=usage,
                 )
-                return entry_id, rule_id, effects_map, usage
+                return entry_id, usage
 
             except Exception as exc:
                 log.error("M2DecisionEngine: attempt %d failed: %s", attempt + 1, exc)
                 if attempt == _MAX_RETRIES:
-                    return _NO_MATCH_ID, "", {}, _empty_usage
+                    return _NO_MATCH_ID, _empty_usage
 
-        return _NO_MATCH_ID, "", {}, _empty_usage
+        return _NO_MATCH_ID, _empty_usage
 
     def update_arc_state_catalog(self, arc_state_catalog_json: str) -> None:
         """Replace the arc-state catalog JSON (e.g. after offline regeneration)."""

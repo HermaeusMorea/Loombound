@@ -78,12 +78,28 @@ class PrefetchCache:
         fast_cfg: "C1Config | None" = None,
         lang: str = "en",
         m2_engine: M2DecisionEngine | None = None,
+        arc_state_catalog_json: str = "",
     ) -> None:
+        import os
         from src.t1.core import C1Expander, C1Config
+        from .arc_index import ArcEmbeddingIndex
         fast_cfg = fast_cfg or C1Config()
         fast_cfg.lang = lang
         self._fast = C1Expander(fast_cfg)
-        self._arc = ArcStateTracker(m2_engine) if m2_engine else None
+
+        # Arc embedding cache (Step 4b) is OFF by default. Empirically the
+        # embedding similarity between structured quasi_state and narrative
+        # catalog descriptions is too flat to give a useful cache-hit signal
+        # — every quasi got mapped to the same entry. Turn on explicitly with
+        # LOOMBOUND_ARC_EMBEDDING=1 if you want to re-test against a revised
+        # catalog or a quasi_state generator that emits prose instead of
+        # structured tags.
+        arc_embedding_on = os.environ.get("LOOMBOUND_ARC_EMBEDDING", "0") == "1"
+        arc_index = (
+            ArcEmbeddingIndex.from_json(arc_state_catalog_json)
+            if arc_embedding_on and arc_state_catalog_json else None
+        )
+        self._arc = ArcStateTracker(m2_engine, arc_index=arc_index) if m2_engine else None
 
         # Node content cache
         self._cache: dict[str, PrefetchEntry] = {}

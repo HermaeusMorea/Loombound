@@ -1,8 +1,7 @@
 """Encounter execution layer for the Loombound runtime."""
 from __future__ import annotations
 
-import copy
-
+from src.shared import config as _config
 from src.t0.memory import EncounterResult, append_node_event, record_choice
 from src.t0.memory.models import NarrationBlock
 from src.t0.core import (
@@ -18,28 +17,51 @@ from src.t0.core import (
     render_result,
     select_rule,
 )
+from src.t0.core.effects_templater import generate_effects
 from src.t2.core import PrefetchCache
-from src.t2.core.collector import build_classifier_input
+from src.t2.core.arc_state import RunStateSnapshot, needs_reclassification
+from src.t2.core.collector import _band, build_classifier_input
 from src.runtime.play_runtime import choose_index, sync_encounter_resources
 
 
-def _overlay_effects(payload: dict, opus_effects: dict[str, dict]) -> dict:
-    """Return a new payload with Opus-assigned numeric effect values patched in.
+def _bands_from_core_state(core_state) -> dict[str, str]:
+    max_h = core_state.max_health or 100
+    return {
+        "health": _band(core_state.health, 0, max_h),
+        "money":  _band(core_state.money,  0, _config.MONEY_MAX),
+        "sanity": _band(core_state.sanity, 0, 100),
+    }
 
-    Only the three stat keys are touched; add_events / add_marks written by
-    C1-generated content is preserved.
+
+def _apply_templated_effects(encounter, selected_rule, bands: dict[str, str], core_state) -> None:
+    """Populate per-option `metadata.effects` and `toll` from the templater.
+
+    When no rule is selected, we do NOT override existing effects — authored
+    encounters and C1-seeded skeletons keep whatever values they already carry.
+
+    Delta scales derive from the saga's own max_health (falls back to 100);
+    sanity is always on a 0..100 scale (enforced by effects.py).
     """
-    patched = copy.deepcopy(payload)
-    for opt in patched.get("options", []):
+    if selected_rule is None:
+        return
+    effects_map = generate_effects(
+        selected_rule,
+        encounter.options,
+        bands,
+        max_health=core_state.max_health or 100,
+    )
+    for opt in encounter.options:
         opt_id = opt.get("option_id", "")
-        if opt_id in opus_effects:
-            eff = opt.setdefault("metadata", {}).setdefault("effects", {})
-            for key in ("health_delta", "money_delta", "sanity_delta"):
-                eff[key] = opus_effects[opt_id].get(key, 0)
-            toll = opus_effects[opt_id].get("toll", "")
-            if toll:
-                opt["toll"] = toll
-    return patched
+        eff = effects_map.get(opt_id)
+        if not eff:
+            continue
+        meta = opt.setdefault("metadata", {})
+        stored = meta.setdefault("effects", {})
+        stored["health_delta"] = eff["health_delta"]
+        stored["money_delta"]  = eff["money_delta"]
+        stored["sanity_delta"] = eff["sanity_delta"]
+        if eff.get("toll"):
+            opt["toll"] = eff["toll"]
 
 
 def _play_encounter(
@@ -53,13 +75,11 @@ def _play_encounter(
     total_arbs: int,
     narration_table: dict | None = None,
 ) -> None:
-    # Consume M2-assigned effects and rule selection (may be empty on cache miss)
-    m2_effects: dict[str, dict] = {}
-    m2_rule_id: str = ""
+    # Sync with any in-flight M2 arc classification so _current_arc_id is fresh
+    # before the templater runs. Effects + rule selection are both deterministic
+    # now: rule_selector picks symbolically, effects_templater generates deltas.
     if prefetch is not None:
-        m2_effects, m2_rule_id = prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
-        if m2_effects:
-            payload = _overlay_effects(payload, m2_effects)
+        prefetch.consume_arb_effects(saga_waypoint_id, arb_idx)
 
     encounter = waypoint.load_current_encounter(payload)
     sync_encounter_resources(run, encounter)
@@ -76,12 +96,9 @@ def _play_encounter(
     waypoint.rule_state.reset_for_encounter()
     waypoint.rule_state.record_evaluations(evaluations)
 
-    # M2 rule selection is primary; deterministic evaluation is the fallback.
-    m2_rule = next((r for r in rules if r.id == m2_rule_id), None) if m2_rule_id else None
-    _sel_eval = None if m2_rule else select_rule(
-        evaluations, rule_system=run.rule_system, run_memory=run.memory
-    )
-    selected_rule = m2_rule or (_sel_eval.rule if _sel_eval else None)
+    # Symbolic rule selection is the sole path.
+    _sel_eval = select_rule(evaluations, rule_system=run.rule_system, run_memory=run.memory)
+    selected_rule = _sel_eval.rule if _sel_eval else None
 
     waypoint.rule_state.record_selected_rule(selected_rule.id if selected_rule else None)
     waypoint.rule_state.record_selection_trace(
@@ -94,7 +111,17 @@ def _play_encounter(
         encounter_id=encounter.encounter_id,
         selected_rule_id=selected_rule.id if selected_rule else None,
         matched_rule_ids=[item.rule.id for item in evaluations if item.matched],
-        source="m2" if m2_rule else "kernel",
+        source="kernel",
+    )
+
+    # Generate per-option effects deterministically from the selected rule +
+    # current quasi-state bands. Patches `metadata.effects` and `toll` on each
+    # option in place so enforce_rule and apply_option_effects see them.
+    _apply_templated_effects(
+        encounter,
+        selected_rule,
+        _bands_from_core_state(run.core_state),
+        run.core_state,
     )
 
     option_results = enforce_rule(encounter, selected_rule)
@@ -133,11 +160,20 @@ def _play_encounter(
         sanity_delta=chosen_result.sanity_cost,
     )
 
-    # Fire-and-forget Opus call: updates arc entry_id + assigns effects for next arb.
-    # Within a waypoint: next_waypoint_id = saga_waypoint_id, next_arb_idx = arb_idx + 1.
-    # Last arb of a waypoint: pass None/None — only entry_id is updated; the main loop
-    # triggers the Opus call for the first arb of the chosen next waypoint.
-    if prefetch is not None:
+    # Snapshot before applying effects so we can detect band crossings caused
+    # by this choice. The waypoint-start M2 fire (in play_cli at transition
+    # time) covers baseline classification; we only re-fire mid-waypoint when
+    # something meaningful changes.
+    prev_snapshot = RunStateSnapshot.from_run(run)
+
+    narration = NarrationBlock(text=narration_text)
+    applied_notes = apply_option_effects(run, selected_option, chosen_result)
+
+    curr_snapshot = RunStateSnapshot.from_run(run)
+
+    # Conditional mid-waypoint M2 fire: only when a band flipped, a mark was
+    # added/removed, or a trauma was recorded.
+    if prefetch is not None and needs_reclassification(prev_snapshot, curr_snapshot):
         _is_last = arb_idx >= total_arbs - 1
         _next_waypoint = saga_waypoint_id if not _is_last else None
         _next_idx  = arb_idx + 1       if not _is_last else None
@@ -146,9 +182,6 @@ def _play_encounter(
             current_waypoint_memory=waypoint.memory,
         )
         prefetch.update_arc_state(quasi, _next_waypoint, _next_idx)
-
-    narration = NarrationBlock(text=narration_text)
-    applied_notes = apply_option_effects(run, selected_option, chosen_result)
     encounter.set_result(
         EncounterResult(
             selected_rule_id=selected_rule.id if selected_rule else None,
